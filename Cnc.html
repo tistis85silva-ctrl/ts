@@ -1,0 +1,3085 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COTA — do desenho à peça pronta</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           CSS COMPLETO - COTA APP
+           ============================================================ */
+
+        :root {
+            --bg: #0B1017;
+            --surface: #141C26;
+            --surface-2: #1B2633;
+            --surface-3: #23303F;
+            --line: #3A4A5C;
+            --line-soft: #26313D;
+            --cyan: #6FD3E0;
+            --accent: #FF7A3D;
+            --accent-glow: #FF7A3D33;
+            --text: #E7ECF2;
+            --text-muted: #8FA0B3;
+            --text-dim: #5A6F85;
+            --ok: #5FD98A;
+            --warning: #F5C542;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg: #F0EDE8;
+            --surface: #FFFFFF;
+            --surface-2: #F5F2ED;
+            --surface-3: #EAE7E2;
+            --line: #C4B8A8;
+            --line-soft: #D5CDC0;
+            --text: #1A1A2E;
+            --text-muted: #5A5A6E;
+            --text-dim: #8A8A9E;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            --accent-glow: #FF7A3D55;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            min-height: 100vh;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
+            transition: background var(--transition), color var(--transition);
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: #1A0D06;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--surface);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--line);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* ===== SPLASH ===== */
+        #splash {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+        #splash.hide {
+            opacity: 0;
+            transform: scale(1.05);
+            pointer-events: none;
+        }
+        .splash-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-big {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .logo-mark-big {
+            width: 72px;
+            height: 72px;
+            border: 2.5px solid var(--cyan);
+            border-radius: 10px;
+            position: relative;
+            animation: splashPulse 2s ease-in-out infinite;
+        }
+        .logo-mark-big::before,
+        .logo-mark-big::after {
+            content: '';
+            position: absolute;
+            background: var(--cyan);
+        }
+        .logo-mark-big::before {
+            left: 50%;
+            top: -10px;
+            width: 2px;
+            height: 10px;
+            transform: translateX(-50%);
+        }
+        .logo-mark-big::after {
+            left: -10px;
+            top: 50%;
+            width: 10px;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+        @keyframes splashPulse {
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(111, 211, 224, 0.2);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: 0 0 40px rgba(111, 211, 224, 0.15);
+            }
+        }
+        .logo-big h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 56px;
+            font-weight: 700;
+            letter-spacing: -1.5px;
+        }
+        .logo-big h1 span {
+            color: var(--cyan);
+        }
+        .sub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-muted);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .loader {
+            margin-top: 40px;
+            display: flex;
+            gap: 8px;
+        }
+        .loader span {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--line);
+            animation: loaderBounce 1.2s ease-in-out infinite;
+        }
+        .loader span:nth-child(2) {
+            animation-delay: .15s;
+        }
+        .loader span:nth-child(3) {
+            animation-delay: .3s;
+        }
+        .loader span:nth-child(4) {
+            animation-delay: .45s;
+        }
+        .loader span:nth-child(5) {
+            animation-delay: .6s;
+        }
+        @keyframes loaderBounce {
+            0%,
+            80%,
+            100% {
+                transform: scale(0.6);
+                opacity: 0.3;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+                background: var(--cyan);
+            }
+        }
+        .version {
+            position: absolute;
+            bottom: 32px;
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 1px;
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 48px;
+            border-bottom: 1px solid var(--line-soft);
+            position: sticky;
+            top: 0;
+            background: rgba(11, 16, 23, 0.92);
+            backdrop-filter: blur(12px);
+            z-index: 100;
+            transition: background var(--transition);
+        }
+        [data-theme="light"] header {
+            background: rgba(255, 255, 255, 0.92);
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+        .logo-mark {
+            width: 32px;
+            height: 32px;
+            border: 1.5px solid var(--cyan);
+            border-radius: 4px;
+            position: relative;
+            flex-shrink: 0;
+            transition: transform var(--transition);
+        }
+        .logo-mark::before,
+        .logo-mark::after {
+            content: '';
+            position: absolute;
+            background: var(--cyan);
+        }
+        .logo-mark::before {
+            left: 50%;
+            top: -6px;
+            width: 1.5px;
+            height: 5px;
+            transform: translateX(-50%);
+        }
+        .logo-mark::after {
+            left: -6px;
+            top: 50%;
+            width: 5px;
+            height: 1.5px;
+            transform: translateY(-50%);
+        }
+        .logo:hover .logo-mark {
+            transform: rotate(-8deg) scale(1.05);
+        }
+        .logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            letter-spacing: -0.3px;
+        }
+        .logo-text span {
+            color: var(--cyan);
+        }
+        .logo-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        nav {
+            display: flex;
+            gap: 24px;
+            font-size: 13px;
+            color: var(--text-muted);
+            align-items: center;
+        }
+        nav span {
+            cursor: pointer;
+            transition: color var(--transition);
+            padding: 4px 0;
+            border-bottom: 2px solid transparent;
+        }
+        nav span:hover {
+            color: var(--text);
+            border-color: var(--cyan);
+        }
+        nav .nav-badge {
+            background: var(--accent);
+            color: #1A0D06;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            border-bottom: none;
+        }
+        nav .nav-badge:hover {
+            border-bottom: none;
+            background: #FF8A54;
+        }
+        .theme-toggle {
+            background: var(--surface-2);
+            border: 1px solid var(--line-soft);
+            border-radius: 20px;
+            padding: 4px;
+            display: flex;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+            width: 48px;
+            height: 26px;
+        }
+        .theme-toggle .toggle-slider {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--cyan);
+            transition: transform var(--transition);
+            position: absolute;
+            top: 3px;
+            left: 3px;
+        }
+        .theme-toggle.active .toggle-slider {
+            transform: translateX(22px);
+            background: var(--accent);
+        }
+        .theme-toggle .icon {
+            font-size: 12px;
+            position: absolute;
+            top: 4px;
+            z-index: 1;
+        }
+        .theme-toggle .icon-sun {
+            left: 6px;
+            color: var(--warning);
+        }
+        .theme-toggle .icon-moon {
+            right: 6px;
+            color: var(--cyan);
+        }
+        .theme-toggle.active .icon-sun {
+            opacity: 0.5;
+        }
+        .theme-toggle:not(.active) .icon-moon {
+            opacity: 0.5;
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 48px 48px 32px;
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 48px;
+            align-items: center;
+        }
+        .eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--cyan);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 1.5px;
+            background: var(--cyan);
+        }
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 46px;
+            line-height: 1.06;
+            letter-spacing: -1px;
+            margin: 0 0 14px;
+        }
+        h1 .highlight {
+            color: var(--accent);
+            position: relative;
+        }
+        h1 .highlight::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-glow);
+            border-radius: 2px;
+        }
+        .hero .lead {
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-muted);
+            max-width: 480px;
+            margin: 0 0 24px;
+        }
+
+        /* ===== UPLOAD ===== */
+        .upload-zone {
+            border: 2px dashed var(--line);
+            border-radius: var(--radius);
+            padding: 24px;
+            background: var(--surface);
+            transition: border-color var(--transition), background var(--transition), transform var(--transition);
+            cursor: pointer;
+        }
+        .upload-zone:hover {
+            border-color: var(--text-muted);
+        }
+        .upload-zone.drag {
+            border-color: var(--cyan);
+            background: var(--surface-2);
+            transform: scale(1.01);
+        }
+        .upload-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--cyan);
+            transition: background var(--transition);
+        }
+        .upload-zone:hover .upload-icon {
+            background: var(--surface-3);
+        }
+        .upload-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 2px;
+        }
+        .upload-sub {
+            font-size: 12.5px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+        .upload-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px solid var(--line);
+            background: transparent;
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            transition: all var(--transition);
+        }
+        .btn:hover {
+            border-color: var(--cyan);
+            background: var(--surface-2);
+        }
+        .btn-accent {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #1A0D06;
+        }
+        .btn-accent:hover {
+            background: #FF8A54;
+            border-color: #FF8A54;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+        .btn-ok {
+            background: var(--ok);
+            border-color: var(--ok);
+            color: #0A1F12;
+        }
+        .btn-ok:hover {
+            background: #6FE09A;
+            border-color: #6FE09A;
+        }
+        .file-chip {
+            display: none;
+            margin-top: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--ok);
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: var(--surface-2);
+            border-radius: 20px;
+            width: fit-content;
+        }
+        .file-chip.show {
+            display: flex;
+        }
+
+        /* ===== SCENE 3D ===== */
+        .scene-wrap {
+            background: var(--surface);
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius);
+            padding: 28px;
+            position: relative;
+            min-height: 380px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: background var(--transition);
+        }
+        .scene-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--line-soft) 1px, transparent 1px),
+                linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+            background-size: 28px 28px;
+            opacity: 0.25;
+        }
+        .stage {
+            perspective: 1400px;
+            position: relative;
+            z-index: 1;
+        }
+        .iso-scene {
+            width: 260px;
+            height: 260px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(55deg) rotateZ(-40deg);
+            transition: transform 0.6s ease;
+            cursor: grab;
+        }
+        .iso-scene:active {
+            cursor: grabbing;
+        }
+        .iso-scene:hover {
+            transform: rotateX(58deg) rotateZ(-38deg) scale(1.02);
+        }
+        .box {
+            position: absolute;
+            transform-style: preserve-3d;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+        .box.on {
+            opacity: 1;
+        }
+        .face {
+            position: absolute;
+            border: 1px solid rgba(111, 211, 224, 0.35);
+        }
+        .f-top {
+            background: rgba(143, 165, 184, 0.85);
+        }
+        .f-front {
+            background: rgba(92, 112, 128, 0.8);
+        }
+        .f-side {
+            background: rgba(62, 80, 96, 0.75);
+        }
+        .box.on .face {
+            border-color: rgba(111, 211, 224, 0.7);
+        }
+
+        .base-plate {
+            width: 160px;
+            height: 160px;
+        }
+        .base-plate .f-top {
+            width: 160px;
+            height: 160px;
+            transform: translateZ(22px);
+        }
+        .base-plate .f-front {
+            width: 160px;
+            height: 22px;
+            transform: rotateX(-90deg) translateZ(0) translateY(0);
+            transform-origin: top;
+        }
+        .base-plate .f-side {
+            width: 22px;
+            height: 160px;
+            transform: rotateY(90deg) translateZ(0);
+            transform-origin: left;
+        }
+
+        .wall {
+            width: 160px;
+            height: 18px;
+            transform: translateY(-18px) translateZ(22px);
+        }
+        .wall .f-top {
+            width: 160px;
+            height: 18px;
+            transform: translateZ(100px);
+        }
+        .wall .f-front {
+            width: 160px;
+            height: 100px;
+            transform: rotateX(-90deg) translateZ(0);
+            transform-origin: top;
+        }
+        .wall .f-side {
+            width: 18px;
+            height: 100px;
+            transform: rotateY(90deg) translateZ(0);
+            transform-origin: left;
+        }
+
+        .hole {
+            position: absolute;
+            border-radius: 50%;
+            background: #131B23;
+            border: 1.5px solid rgba(255, 122, 61, 0.4);
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+        .hole.on {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .hole-base {
+            width: 26px;
+            height: 26px;
+            left: 67px;
+            top: 67px;
+            transform: translateZ(22.5px);
+        }
+        .hole-wall {
+            width: 20px;
+            height: 20px;
+            left: 70px;
+            top: 40px;
+            transform: rotateX(-90deg) translateZ(0.5px);
+            transform-origin: top;
+        }
+
+        .chamfer-mark {
+            position: absolute;
+            background: var(--accent);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .chamfer-mark.on {
+            opacity: 0.85;
+        }
+        .cm1 {
+            width: 36px;
+            height: 2.5px;
+            left: -1px;
+            top: -1px;
+            transform: translateZ(22.3px) rotate(45deg);
+            transform-origin: left;
+        }
+        .cm2 {
+            width: 36px;
+            height: 2.5px;
+            right: -1px;
+            top: -1px;
+            transform: translateZ(22.3px) rotate(-45deg);
+            transform-origin: right;
+        }
+
+        .progress-label {
+            position: absolute;
+            bottom: 16px;
+            left: 28px;
+            right: 28px;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+        }
+        .progress-label b {
+            color: var(--cyan);
+        }
+
+        /* ===== SECTIONS ===== */
+        section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 48px;
+        }
+        .section-head {
+            padding: 40px 0 16px;
+            border-top: 1px solid var(--line-soft);
+        }
+        .section-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--cyan);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0 0 4px;
+            letter-spacing: -0.3px;
+        }
+        .section-sub {
+            color: var(--text-muted);
+            font-size: 14.5px;
+            max-width: 640px;
+            line-height: 1.6;
+        }
+
+        /* ===== DETECT ===== */
+        .detect-wrap {
+            display: none;
+            padding-bottom: 8px;
+        }
+        .detect-wrap.show {
+            display: block;
+        }
+        .detect-banner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface);
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-sm);
+            padding: 12px 18px;
+            margin-bottom: 18px;
+            font-size: 13px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+            transition: background var(--transition);
+        }
+        .detect-banner .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--ok);
+            flex-shrink: 0;
+            animation: pulse-dot 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.4;
+                transform: scale(0.7);
+            }
+        }
+
+        .feature-grid {
+            display: grid;
+            gap: 10px;
+        }
+        .feature-row {
+            display: grid;
+            grid-template-columns: 28px 1fr auto;
+            gap: 14px;
+            align-items: center;
+            background: var(--surface);
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            transition: border-color var(--transition), opacity var(--transition), background var(--transition);
+        }
+        .feature-row:hover {
+            border-color: var(--line);
+        }
+        .feature-row.excluded {
+            opacity: 0.4;
+        }
+        .feature-check {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .feature-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 2px;
+        }
+        .feature-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .feature-params {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .param {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .param label {
+            font-size: 9px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .param input {
+            width: 72px;
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 5px 7px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            transition: border-color var(--transition);
+        }
+        .param input:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .detect-cta {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+            padding-bottom: 32px;
+            flex-wrap: wrap;
+        }
+
+        /* ===== SOFTWARE ===== */
+        .soft-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            padding-bottom: 40px;
+        }
+        .soft-card {
+            background: var(--surface);
+            border: 2px solid var(--line-soft);
+            border-radius: var(--radius);
+            padding: 22px;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+        }
+        .soft-card:hover {
+            border-color: var(--line);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        .soft-card.active {
+            border-color: var(--accent);
+            background: var(--surface-2);
+            box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(255, 122, 61, 0.1);
+        }
+        .soft-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: var(--cyan);
+            transition: all var(--transition);
+        }
+        .soft-card.active .soft-badge {
+            background: var(--accent);
+            color: #1A0D06;
+        }
+        .soft-name {
+            font-weight: 700;
+            font-size: 16px;
+            margin: 0 0 3px;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .soft-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .soft-check {
+            margin-top: 12px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
+        .soft-card.active .soft-check {
+            display: flex;
+        }
+
+        /* ===== PLAN ===== */
+        .plan-wrap {
+            display: none;
+            padding-bottom: 48px;
+        }
+        .plan-wrap.show {
+            display: block;
+        }
+        .plan-progress-bar {
+            height: 4px;
+            background: var(--line-soft);
+            border-radius: 2px;
+            margin: 20px 0 28px;
+            overflow: hidden;
+        }
+        .plan-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--cyan));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 2px;
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 48px 1fr;
+            gap: 18px;
+            padding: 20px 0;
+            border-top: 1px solid var(--line-soft);
+            transition: opacity var(--transition);
+        }
+        .step:first-child {
+            border-top: none;
+        }
+        .step-num {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 2px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-muted);
+            transition: all var(--transition);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .step.done .step-num {
+            background: var(--ok);
+            border-color: var(--ok);
+            color: #0A1F12;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        .step-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .step-badge {
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 10px;
+            border-radius: 12px;
+            background: var(--surface-2);
+            color: var(--cyan);
+            border: 1px solid var(--line-soft);
+        }
+        .step-desc {
+            font-size: 13.5px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin: 0 0 10px;
+            max-width: 680px;
+        }
+        .step-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 20px;
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            margin: 8px 0 12px;
+            border: 1px solid var(--line-soft);
+        }
+        .step-details .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .step-details .detail-item .icon {
+            font-size: 14px;
+        }
+        .step-details .detail-item strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+        .step-cmd {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid var(--line-soft);
+            border-radius: 6px;
+            padding: 5px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--cyan);
+        }
+        .step-cmd .cmd-prefix {
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+        .step-tip {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 12.5px;
+            color: var(--warning);
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(245, 197, 66, 0.08);
+            border-radius: 6px;
+            border-left: 3px solid var(--warning);
+        }
+        .step-tip .tip-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .step-toggle {
+            margin-top: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 6px 16px;
+            background: transparent;
+            transition: all var(--transition);
+            cursor: pointer;
+        }
+        .step-toggle:hover {
+            border-color: var(--text);
+            color: var(--text);
+        }
+        .step.done .step-toggle {
+            color: var(--ok);
+            border-color: var(--ok);
+        }
+
+        .cta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 0 0;
+            border-top: 1px solid var(--line-soft);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .cta-note {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* ===== FOLHA DE DESENHO ===== */
+        .drawing-sheet-wrap {
+            display: none;
+            padding: 20px 0 40px;
+        }
+        .drawing-sheet-wrap.show {
+            display: block;
+        }
+        .drawing-sheet {
+            background: var(--surface);
+            border: 2px solid var(--line-soft);
+            border-radius: var(--radius);
+            padding: 24px 28px;
+            position: relative;
+            box-shadow: var(--shadow);
+            margin-top: 16px;
+            transition: background var(--transition);
+        }
+
+        .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid var(--line);
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .sheet-header .title-block h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .sheet-header .title-block .subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .sheet-header .info-block {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .sheet-header .info-block .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px 12px;
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--line-soft);
+            min-width: 50px;
+        }
+        .sheet-header .info-block .info-item .label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .sheet-header .info-block .info-item .value {
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .sheet-body {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .views-area {
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            border: 1px solid var(--line-soft);
+            transition: background var(--transition);
+        }
+        .views-area .views-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .views-area .views-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--line-soft);
+        }
+
+        .views-grid-sheet {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .view-box {
+            background: var(--surface);
+            border-radius: var(--radius-sm);
+            padding: 10px;
+            border: 1px solid var(--line-soft);
+            position: relative;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background var(--transition);
+        }
+        .view-box .view-label {
+            position: absolute;
+            top: 4px;
+            left: 8px;
+            font-size: 9px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim);
+            background: var(--surface-2);
+            padding: 1px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--line-soft);
+        }
+        .view-box .view-svg {
+            width: 100%;
+            height: 100%;
+        }
+        .view-box .view-svg svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .side-info {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .tech-info {
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            border: 1px solid var(--line-soft);
+            transition: background var(--transition);
+        }
+        .tech-info .tech-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tech-info .tech-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--line-soft);
+        }
+        .tech-info .tech-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--line-soft);
+            font-size: 12px;
+        }
+        .tech-info .tech-row:last-child {
+            border-bottom: none;
+        }
+        .tech-info .tech-row .tech-label {
+            color: var(--text-muted);
+        }
+        .tech-info .tech-row .tech-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        .view-3d-box {
+            background: var(--surface-2);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            border: 1px solid var(--line-soft);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            transition: background var(--transition);
+        }
+        .view-3d-box .view-3d-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .view-3d-box .view-3d-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--line-soft);
+        }
+        .view-3d-box .scene-3d-wrap-sheet {
+            flex: 1;
+            background: var(--surface);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--line-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 180px;
+            position: relative;
+            overflow: hidden;
+        }
+        .view-3d-box .scene-3d-wrap-sheet::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--line-soft) 1px, transparent 1px),
+                linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.15;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .stage-3d-sheet {
+            perspective: 1000px;
+            position: relative;
+            z-index: 1;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .iso-scene-sheet {
+            width: 160px;
+            height: 160px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(55deg) rotateZ(-40deg);
+            transition: transform 0.6s ease;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .iso-scene-sheet:hover {
+            transform: rotateX(58deg) rotateZ(-38deg) scale(1.02);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .box-sheet {
+            position: absolute;
+            transform-style: preserve-3d;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .box-sheet.on-sheet {
+            opacity: 1;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .face-sheet {
+            position: absolute;
+            border: 1px solid rgba(111, 211, 224, 0.35);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .f-top-s {
+            background: rgba(143, 165, 184, 0.85);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .f-front-s {
+            background: rgba(92, 112, 128, 0.8);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .f-side-s {
+            background: rgba(62, 80, 96, 0.75);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .box-sheet.on-sheet .face-sheet {
+            border-color: rgba(111, 211, 224, 0.7);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .base-plate-s {
+            width: 120px;
+            height: 120px;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-top-s {
+            width: 120px;
+            height: 120px;
+            transform: translateZ(16px);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-front-s {
+            width: 120px;
+            height: 16px;
+            transform: rotateX(-90deg) translateZ(0) translateY(0);
+            transform-origin: top;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-side-s {
+            width: 16px;
+            height: 120px;
+            transform: rotateY(90deg) translateZ(0);
+            transform-origin: left;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .wall-s {
+            width: 120px;
+            height: 14px;
+            transform: translateY(-14px) translateZ(16px);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .wall-s .f-top-s {
+            width: 120px;
+            height: 14px;
+            transform: translateZ(60px);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .wall-s .f-front-s {
+            width: 120px;
+            height: 60px;
+            transform: rotateX(-90deg) translateZ(0);
+            transform-origin: top;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .wall-s .f-side-s {
+            width: 14px;
+            height: 60px;
+            transform: rotateY(90deg) translateZ(0);
+            transform-origin: left;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .hole-s {
+            position: absolute;
+            border-radius: 50%;
+            background: #131B23;
+            border: 1.5px solid rgba(255, 122, 61, 0.4);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .hole-s.on-sheet {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .hole-base-s {
+            width: 18px;
+            height: 18px;
+            left: 51px;
+            top: 51px;
+            transform: translateZ(16.5px);
+        }
+        .view-3d-box .scene-3d-wrap-sheet .hole-wall-s {
+            width: 14px;
+            height: 14px;
+            left: 53px;
+            top: 24px;
+            transform: rotateX(-90deg) translateZ(0.5px);
+            transform-origin: top;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .chamfer-s {
+            position: absolute;
+            background: var(--accent);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .chamfer-s.on-sheet {
+            opacity: 0.85;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .cm1-s {
+            width: 26px;
+            height: 2px;
+            left: 0;
+            top: 0;
+            transform: translateZ(16.3px) rotate(45deg);
+            transform-origin: left;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .cm2-s {
+            width: 26px;
+            height: 2px;
+            right: 0;
+            top: 0;
+            transform: translateZ(16.3px) rotate(-45deg);
+            transform-origin: right;
+        }
+        .view-3d-box .scene-3d-wrap-sheet .view-label-sheet {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim);
+            background: var(--surface-2);
+            padding: 2px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--line-soft);
+            z-index: 2;
+        }
+
+        .sheet-notes {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 2px solid var(--line);
+            font-size: 12px;
+            color: var(--text-muted);
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 12px;
+        }
+        .sheet-notes .note-label {
+            font-weight: 600;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sheet-notes .note-text {
+            color: var(--text-muted);
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            padding: 12px 22px;
+            font-size: 13px;
+            color: var(--text);
+            box-shadow: var(--shadow);
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.4s ease;
+            z-index: 200;
+            max-width: 400px;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            border-top: 1px solid var(--line-soft);
+            padding: 16px 48px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: 1fr;
+                padding: 32px 24px 24px;
+            }
+            header,
+            section,
+            footer {
+                padding-left: 24px;
+                padding-right: 24px;
+            }
+            .soft-grid {
+                grid-template-columns: 1fr;
+            }
+            .feature-row {
+                grid-template-columns: 28px 1fr;
+            }
+            .feature-params {
+                grid-column: 1 / -1;
+                padding-top: 4px;
+            }
+            h1 {
+                font-size: 34px;
+            }
+            .iso-scene {
+                width: 200px;
+                height: 200px;
+                transform: rotateX(55deg) rotateZ(-40deg) scale(0.75);
+            }
+            .scene-wrap {
+                min-height: 260px;
+            }
+            .base-plate {
+                width: 130px;
+                height: 130px;
+            }
+            .base-plate .f-top {
+                width: 130px;
+                height: 130px;
+                transform: translateZ(18px);
+            }
+            .base-plate .f-front {
+                width: 130px;
+                height: 18px;
+            }
+            .base-plate .f-side {
+                width: 18px;
+                height: 130px;
+            }
+            .wall {
+                width: 130px;
+                height: 15px;
+                transform: translateY(-15px) translateZ(18px);
+            }
+            .wall .f-top {
+                width: 130px;
+                height: 15px;
+                transform: translateZ(80px);
+            }
+            .wall .f-front {
+                width: 130px;
+                height: 80px;
+            }
+            .wall .f-side {
+                width: 15px;
+                height: 80px;
+            }
+            .hole-base {
+                width: 20px;
+                height: 20px;
+                left: 55px;
+                top: 55px;
+                transform: translateZ(18.5px);
+            }
+            .hole-wall {
+                width: 16px;
+                height: 16px;
+                left: 57px;
+                top: 32px;
+            }
+            .cm1,
+            .cm2 {
+                width: 28px;
+                height: 2px;
+            }
+            .progress-label {
+                font-size: 9px;
+            }
+            .sheet-body {
+                grid-template-columns: 1fr;
+            }
+            .views-grid-sheet {
+                grid-template-columns: 1fr 1fr;
+            }
+            .drawing-sheet {
+                padding: 20px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .iso-scene-sheet {
+                width: 140px;
+                height: 140px;
+                transform: rotateX(55deg) rotateZ(-40deg) scale(0.8);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s {
+                width: 100px;
+                height: 100px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-top-s {
+                width: 100px;
+                height: 100px;
+                transform: translateZ(14px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-front-s {
+                width: 100px;
+                height: 14px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-side-s {
+                width: 14px;
+                height: 100px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s {
+                width: 100px;
+                height: 12px;
+                transform: translateY(-12px) translateZ(14px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s .f-top-s {
+                width: 100px;
+                height: 12px;
+                transform: translateZ(50px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s .f-front-s {
+                width: 100px;
+                height: 50px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s .f-side-s {
+                width: 12px;
+                height: 50px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .hole-base-s {
+                width: 16px;
+                height: 16px;
+                left: 42px;
+                top: 42px;
+                transform: translateZ(14.5px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .hole-wall-s {
+                width: 12px;
+                height: 12px;
+                left: 44px;
+                top: 20px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .cm1-s {
+                width: 22px;
+                height: 2px;
+                transform: translateZ(14.3px) rotate(45deg);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .cm2-s {
+                width: 22px;
+                height: 2px;
+                transform: translateZ(14.3px) rotate(-45deg);
+            }
+            #splash .logo-big h1 {
+                font-size: 36px;
+            }
+            #splash .logo-mark-big {
+                width: 56px;
+                height: 56px;
+            }
+            .step-details {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero {
+                padding: 20px 12px;
+            }
+            header,
+            section,
+            footer {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            h1 {
+                font-size: 28px;
+            }
+            nav {
+                display: none;
+            }
+            .upload-zone {
+                padding: 16px;
+            }
+            .upload-actions .btn {
+                flex: 1;
+                text-align: center;
+                padding: 8px 14px;
+                font-size: 12px;
+            }
+            .feature-params .param input {
+                width: 60px;
+            }
+            .step {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .step-num {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+            .views-grid-sheet {
+                grid-template-columns: 1fr;
+            }
+            .sheet-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .sheet-header .info-block {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .sheet-header .info-block .info-item {
+                flex: 1;
+                min-width: 40px;
+            }
+            .drawing-sheet {
+                padding: 12px;
+            }
+            .sheet-notes {
+                grid-template-columns: 1fr;
+                gap: 2px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .iso-scene-sheet {
+                width: 100px;
+                height: 100px;
+                transform: rotateX(55deg) rotateZ(-40deg) scale(0.7);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s {
+                width: 80px;
+                height: 80px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-top-s {
+                width: 80px;
+                height: 80px;
+                transform: translateZ(12px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-front-s {
+                width: 80px;
+                height: 12px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .base-plate-s .f-side-s {
+                width: 12px;
+                height: 80px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s {
+                width: 80px;
+                height: 10px;
+                transform: translateY(-10px) translateZ(12px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s .f-top-s {
+                width: 80px;
+                height: 10px;
+                transform: translateZ(40px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s .f-front-s {
+                width: 80px;
+                height: 40px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .wall-s .f-side-s {
+                width: 10px;
+                height: 40px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .hole-base-s {
+                width: 14px;
+                height: 14px;
+                left: 33px;
+                top: 33px;
+                transform: translateZ(12.5px);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .hole-wall-s {
+                width: 10px;
+                height: 10px;
+                left: 35px;
+                top: 16px;
+            }
+            .view-3d-box .scene-3d-wrap-sheet .cm1-s {
+                width: 18px;
+                height: 2px;
+                transform: translateZ(12.3px) rotate(45deg);
+            }
+            .view-3d-box .scene-3d-wrap-sheet .cm2-s {
+                width: 18px;
+                height: 2px;
+                transform: translateZ(12.3px) rotate(-45deg);
+            }
+            #splash .logo-big h1 {
+                font-size: 28px;
+            }
+            #splash .sub {
+                font-size: 11px;
+                letter-spacing: 2px;
+            }
+            #splash .logo-mark-big {
+                width: 44px;
+                height: 44px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== SPLASH ===== -->
+    <div id="splash">
+        <div class="splash-content">
+            <div class="logo-big">
+                <div class="logo-mark-big"></div>
+                <h1>COTA<span>.</span></h1>
+            </div>
+            <div class="sub">do desenho à peça pronta</div>
+            <div class="loader">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="version">v4.0 · CAD Assistant</div>
+        </div>
+    </div>
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <div class="logo" id="logoHome">
+            <div class="logo-mark"></div>
+            <div>
+                <div class="logo-text">COTA<span>.</span></div>
+                <div class="logo-sub">desenho &rarr; peça</div>
+            </div>
+        </div>
+        <div class="header-controls">
+            <nav>
+                <span onclick="scrollToSection('hero')">Início</span>
+                <span onclick="scrollToSection('softwareSection')">Softwares</span>
+                <span class="nav-badge" onclick="document.getElementById('btnDemo').click()">🎯 Exemplo</span>
+            </nav>
+            <div class="theme-toggle" id="themeToggle">
+                <span class="icon icon-sun">☀️</span>
+                <span class="icon icon-moon">🌙</span>
+                <span class="toggle-slider"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <div class="eyebrow">Ensino de CAD passo a passo</div>
+            <h1>Do desenho técnico<br>à peça <span class="highlight">montada</span>.</h1>
+            <p class="lead">Suba um desenho mecânico, confirme as features detectadas, escolha o software 3D que você usa — o COTA monta o roteiro de modelagem com o comando certo para cada etapa.</p>
+
+            <div class="upload-zone" id="dropzone">
+                <div class="upload-row">
+                    <div class="upload-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M12 3v12m0-12l-4 4m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="upload-title">Solte o desenho aqui</p>
+                        <p class="upload-sub">PDF, DWG, DXF ou imagem da prancha cotada</p>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.svg" style="display:none">
+                <div class="upload-actions">
+                    <button class="btn" id="btnBrowse">📂 Escolher arquivo</button>
+                    <button class="btn btn-accent" id="btnDemo">🎯 Usar peça de exemplo</button>
+                </div>
+                <div class="file-chip" id="fileChip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                    <span id="fileChipText"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene-wrap">
+            <div class="stage">
+                <div class="iso-scene" id="mainScene">
+                    <div class="box base-plate" id="box-base">
+                        <div class="face f-top"></div>
+                        <div class="face f-front"></div>
+                        <div class="face f-side"></div>
+                        <div class="hole hole-base" id="hole-base"></div>
+                        <div class="chamfer-mark cm1" id="cm1"></div>
+                        <div class="chamfer-mark cm2" id="cm2"></div>
+                    </div>
+                    <div class="box wall" id="box-wall">
+                        <div class="face f-top"></div>
+                        <div class="face f-front"></div>
+                        <div class="face f-side"></div>
+                        <div class="hole hole-wall" id="hole-wall"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="progress-label">
+                <span>SUPORTE-EM-L · REV.A</span>
+                <span><b id="stepCount">0</b>/<span id="stepTotal">7</span> etapas</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== DETECT ===== -->
+    <section class="detect-wrap" id="detectSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Passo 1</div>
+            <h2 class="section-title">Confirme as features detectadas</h2>
+            <p class="section-sub">O COTA leu as vistas e cotas do desenho e sugeriu estas features. Ajuste os valores ou desmarque o que não se aplica antes de gerar o roteiro.</p>
+        </div>
+        <div class="detect-banner">
+            <span class="dot"></span>
+            <span>Leitura automática a partir do arquivo enviado — confira contra o desenho original antes de prosseguir.</span>
+        </div>
+        <div class="feature-grid" id="featureGrid"></div>
+        <div class="detect-cta">
+            <button class="btn btn-accent" id="btnConfirmFeatures">✅ Confirmar e gerar roteiro</button>
+        </div>
+    </section>
+
+    <!-- ===== SOFTWARE ===== -->
+    <section id="softwareSection">
+        <div class="section-head" id="softHead" style="display:none;">
+            <div class="section-eyebrow">Passo 2</div>
+            <h2 class="section-title">Escolha seu software</h2>
+            <p class="section-sub">O roteiro é o mesmo — mas os comandos e o caminho de menu mudam. O COTA traduz cada etapa para a interface que você já usa.</p>
+        </div>
+        <div class="soft-grid" id="softGrid" style="display:none;">
+            <div class="soft-card active" data-soft="solidworks">
+                <div class="soft-badge">SW</div>
+                <p class="soft-name">SolidWorks</p>
+                <p class="soft-desc">Feature-based, árvore de projeto (FeatureManager) à esquerda.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </div>
+            <div class="soft-card" data-soft="fusion">
+                <div class="soft-badge">F360</div>
+                <p class="soft-name">Fusion 360</p>
+                <p class="soft-desc">Timeline na parte inferior, workspace de Design.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </div>
+            <div class="soft-card" data-soft="inventor">
+                <div class="soft-badge">INV</div>
+                <p class="soft-name">Inventor</p>
+                <p class="soft-desc">Ambiente de Peça (Part), navegador de modelo à esquerda.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOLHA DE DESENHO ===== -->
+    <section class="drawing-sheet-wrap" id="drawingSheetSection">
+        <div class="section-head" style="border-top:1px solid var(--line-soft);">
+            <div class="section-eyebrow">Documentação Técnica</div>
+            <h2 class="section-title">📐 Folha de Desenho</h2>
+            <p class="section-sub">Desenho técnico completo com vistas ortográficas, cotas, corte A-A e especificações da peça.</p>
+        </div>
+
+        <div class="drawing-sheet">
+            <!-- CABEÇALHO -->
+            <div class="sheet-header">
+                <div class="title-block">
+                    <h2>SUPORTE-EM-L</h2>
+                    <div class="subtitle">Desenho de conjunto · Peça única</div>
+                </div>
+                <div class="info-block">
+                    <div class="info-item">
+                        <span class="label">Rev.</span>
+                        <span class="value">A</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Escala</span>
+                        <span class="value" id="techScale">1:1</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Material</span>
+                        <span class="value" id="techMaterial">Aço SAE 1020</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Massa</span>
+                        <span class="value" id="techWeight">0,84 kg</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Data</span>
+                        <span class="value">30/08/2026</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CORPO -->
+            <div class="sheet-body">
+                <!-- VISTAS -->
+                <div class="views-area">
+                    <div class="views-title">📐 Vistas Ortográficas</div>
+                    <div class="views-grid-sheet">
+                        <div class="view-box">
+                            <span class="view-label">FRONTAL</span>
+                            <div class="view-svg" id="svgFrontalSheet"></div>
+                        </div>
+                        <div class="view-box">
+                            <span class="view-label">SUPERIOR</span>
+                            <div class="view-svg" id="svgSuperiorSheet"></div>
+                        </div>
+                        <div class="view-box">
+                            <span class="view-label">LATERAL ESQ.</span>
+                            <div class="view-svg" id="svgLateralSheet"></div>
+                        </div>
+                        <div class="view-box">
+                            <span class="view-label">CORTE A-A</span>
+                            <div class="view-svg" id="svgCorteSheet"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LADO DIREITO -->
+                <div class="side-info">
+                    <!-- INFO TÉCNICA -->
+                    <div class="tech-info">
+                        <div class="tech-title">📋 Especificações Técnicas</div>
+                        <div class="tech-row"><span class="tech-label">Comprimento total</span><span class="tech-value" id="techWidth">160 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Largura total</span><span class="tech-value" id="techDepth">160 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Altura total</span><span class="tech-value" id="techHeight">122 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Espessura da base</span><span class="tech-value" id="techBaseThick">22 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Espessura da parede</span><span class="tech-value" id="techWallThick">18 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Furo base</span><span class="tech-value" id="techHoleBase">Ø26 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Furo parede</span><span class="tech-value" id="techHoleWall">Ø20 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Chanfro</span><span class="tech-value" id="techChamfer">3 × 45°</span></div>
+                        <div class="tech-row"><span class="tech-label">Tolerância</span><span class="tech-value">ISO 2768-m</span></div>
+                        <div class="tech-row"><span class="tech-label">Acabamento</span><span class="tech-value">Usinagem</span></div>
+                    </div>
+
+                    <!-- VISUALIZAÇÃO 3D -->
+                    <div class="view-3d-box">
+                        <div class="view-3d-title">🎯 Visualização 3D</div>
+                        <div class="scene-3d-wrap-sheet">
+                            <div class="stage-3d-sheet">
+                                <div class="iso-scene-sheet">
+                                    <div class="box-sheet base-plate-s" id="box-sheet-base">
+                                        <div class="face-sheet f-top-s"></div>
+                                        <div class="face-sheet f-front-s"></div>
+                                        <div class="face-sheet f-side-s"></div>
+                                        <div class="hole-s hole-base-s" id="hole-sheet-base"></div>
+                                        <div class="chamfer-s cm1-s" id="cm1-sheet"></div>
+                                        <div class="chamfer-s cm2-s" id="cm2-sheet"></div>
+                                    </div>
+                                    <div class="box-sheet wall-s" id="box-sheet-wall">
+                                        <div class="face-sheet f-top-s"></div>
+                                        <div class="face-sheet f-front-s"></div>
+                                        <div class="face-sheet f-side-s"></div>
+                                        <div class="hole-s hole-wall-s" id="hole-sheet-wall"></div>
+                                    </div>
+                                    <span class="view-label-sheet">SUPORTE-EM-L · REV.A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OBSERVAÇÕES -->
+            <div class="sheet-notes">
+                <span class="note-label">Obs.:</span>
+                <span class="note-text">Peça fabricada por usinagem a partir de bloco maciço. Tolerâncias gerais ISO 2768-m. Aplicar tratamento superficial contra corrosão. Cotas em milímetros (mm).</span>
+                <span class="note-label">Projetista:</span>
+                <span class="note-text">COTA CAD Assistant</span>
+                <span class="note-label">Aprovado:</span>
+                <span class="note-text">—</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== PLAN ===== -->
+    <section class="plan-wrap" id="planSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Passo 3</div>
+            <h2 class="section-title">📐 Roteiro de modelagem</h2>
+            <p class="section-sub">Siga cada etapa com atenção. Marque cada passo conforme for concluído no seu software. A visualização 3D da peça vai se montando junto com você.</p>
+        </div>
+        <div class="plan-progress-bar">
+            <div class="plan-progress-fill" id="planFill"></div>
+        </div>
+        <div id="stepsList"></div>
+        <div class="cta-row">
+            <span class="cta-note">Peça única concluída — a montagem com peças adicionais está disponível abaixo.</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn" id="btnResetPlan">🔄 Recomeçar</button>
+                <button class="btn btn-accent" id="btnExportPDF">📄 Exportar roteiro</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        COTA v4.0 — CAD Assistant · Do desenho à peça pronta
+    </footer>
+
+    <!-- ===== TOAST ===== -->
+    <div class="toast" id="toast"></div>
+
+    <!-- ============================================================
+    JAVASCRIPT COMPLETO
+    ============================================================ -->
+    <script>
+        // ============================================================
+        // DATA
+        // ============================================================
+        const commandsBySoft = {
+            solidworks: {
+                base_sketch: 'Sketch → plano Top → Rectangle',
+                base_extrude: 'Features → Extruded Boss/Base',
+                wall_sketch: 'Sketch → face traseira → Rectangle',
+                wall_extrude: 'Features → Extruded Boss/Base',
+                hole_base: 'Features → Hole Wizard → Passante',
+                hole_wall: 'Features → Hole Wizard → Passante',
+                chamfer: 'Features → Chamfer → Distância-Ângulo'
+            },
+            fusion: {
+                base_sketch: 'Design → Create Sketch (plano Top) → Rectangle',
+                base_extrude: 'Design → Create → Extrude',
+                wall_sketch: 'Design → Create Sketch (face traseira) → Rectangle',
+                wall_extrude: 'Design → Create → Extrude',
+                hole_base: 'Design → Create → Hole (Passante)',
+                hole_wall: 'Design → Create → Hole (Passante)',
+                chamfer: 'Design → Modify → Chamfer'
+            },
+            inventor: {
+                base_sketch: '3D Model → Start 2D Sketch → plano XY → Rectangle',
+                base_extrude: '3D Model → Extrude',
+                wall_sketch: '3D Model → Start 2D Sketch → face traseira → Rectangle',
+                wall_extrude: '3D Model → Extrude',
+                hole_base: '3D Model → Hole (Passante)',
+                hole_wall: '3D Model → Hole (Passante)',
+                chamfer: '3D Model → Modify → Chamfer'
+            }
+        };
+
+        const featureDefs = [{
+            id: 'base',
+            name: 'Base retangular',
+            hint: 'Sketch + extrusão da placa base',
+            included: true,
+            params: [
+                { key: 'largura', label: 'largura', unit: 'mm', value: 160 },
+                { key: 'comprimento', label: 'comp.', unit: 'mm', value: 160 },
+                { key: 'espessura', label: 'esp.', unit: 'mm', value: 22 }
+            ]
+        }, {
+            id: 'wall',
+            name: 'Parede vertical',
+            hint: 'Sketch + extrusão na face traseira',
+            included: true,
+            params: [
+                { key: 'largura', label: 'largura', unit: 'mm', value: 160 },
+                { key: 'altura', label: 'altura', unit: 'mm', value: 100 },
+                { key: 'espessura', label: 'esp.', unit: 'mm', value: 18 }
+            ]
+        }, {
+            id: 'hole_base',
+            name: 'Furo na base',
+            hint: 'Furo passante central',
+            included: true,
+            params: [
+                { key: 'diametro', label: 'diâm.', unit: 'mm', value: 26 }
+            ]
+        }, {
+            id: 'hole_wall',
+            name: 'Furo na parede',
+            hint: 'Furo passante na parede vertical',
+            included: true,
+            params: [
+                { key: 'diametro', label: 'diâm.', unit: 'mm', value: 20 }
+            ]
+        }, {
+            id: 'chamfer',
+            name: 'Chanfro nas arestas',
+            hint: 'Arestas superiores frontais da base',
+            included: true,
+            params: [
+                { key: 'tamanho', label: 'tam.', unit: 'mm', value: 3 },
+                { key: 'angulo', label: 'ângulo', unit: '°', value: 45 }
+            ]
+        }];
+
+        // ============================================================
+        // SPLASH
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                document.getElementById('splash').classList.add('hide');
+                setTimeout(function() {
+                    document.getElementById('splash').style.display = 'none';
+                }, 900);
+            }, 2200);
+        });
+
+        // ============================================================
+        // NAVIGATION
+        // ============================================================
+        function scrollToSection(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        document.getElementById('logoHome').addEventListener('click', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // ============================================================
+        // THEME TOGGLE
+        // ============================================================
+        var themeToggle = document.getElementById('themeToggle');
+        var currentTheme = localStorage.getItem('cota-theme') || 'dark';
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            if (themeToggle) {
+                themeToggle.classList.toggle('active', theme === 'light');
+            }
+            localStorage.setItem('cota-theme', theme);
+
+            // Regenerar folha com novo tema se houver steps
+            if (currentSteps && currentSteps.length > 0) {
+                var state = getFeatureState();
+                var dims = getDimsFromState(state);
+                generateDrawingSheet(dims);
+                syncSheet3D(state);
+            }
+        }
+
+        if (themeToggle) {
+            themeToggle.addEventListener('click', function() {
+                setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+            });
+        }
+
+        setTheme(currentTheme);
+
+        // ============================================================
+        // RENDER FEATURES
+        // ============================================================
+        var featureGrid = document.getElementById('featureGrid');
+
+        featureDefs.forEach(function(f) {
+            var row = document.createElement('div');
+            row.className = 'feature-row';
+            row.id = 'frow-' + f.id;
+
+            var paramsHtml = f.params.map(function(p) {
+                return '<div class="param">' +
+                    '<label>' + p.label + ' (' + p.unit + ')</label>' +
+                    '<input type="number" data-feature="' + f.id + '" data-key="' + p.key + '" value="' + p.value +
+                    '" step="any" min="0.1">' +
+                    '</div>';
+            }).join('');
+
+            row.innerHTML =
+                '<input type="checkbox" class="feature-check" data-feature="' + f.id + '" checked>' +
+                '<div>' +
+                '<p class="feature-name">' + f.name + '</p>' +
+                '<p class="feature-hint">' + f.hint + '</p>' +
+                '</div>' +
+                '<div class="feature-params">' + paramsHtml + '</div>';
+
+            featureGrid.appendChild(row);
+        });
+
+        featureGrid.addEventListener('change', function(e) {
+            if (e.target.classList.contains('feature-check')) {
+                var fid = e.target.dataset.feature;
+                document.getElementById('frow-' + fid).classList.toggle('excluded', !e.target.checked);
+            }
+        });
+
+        function getFeatureState() {
+            var state = {};
+            featureDefs.forEach(function(f) {
+                var checked = document.querySelector('.feature-check[data-feature="' + f.id + '"]');
+                var included = checked ? checked.checked : true;
+                var params = {};
+                f.params.forEach(function(p) {
+                    var input = document.querySelector('input[data-feature="' + f.id + '"][data-key="' + p.key +
+                        '"]');
+                    params[p.key] = input ? input.value : p.value;
+                });
+                state[f.id] = { included: included, params: params };
+            });
+            return state;
+        }
+
+        function getDimsFromState(state) {
+            var b = state.base.params;
+            var w = state.wall.params;
+            return {
+                largura: parseFloat(b.largura) || 160,
+                comprimento: parseFloat(b.comprimento) || 160,
+                espessura: parseFloat(b.espessura) || 22,
+                altura: parseFloat(w.altura) || 100,
+                espessuraParede: parseFloat(w.espessura) || 18,
+                diamFuroBase: parseFloat(state.hole_base.params.diametro) || 26,
+                diamFuroParede: parseFloat(state.hole_wall.params.diametro) || 20
+            };
+        }
+
+        // ============================================================
+        // PLAN LOGIC
+        // ============================================================
+        var currentSoft = 'solidworks';
+        var currentSteps = [];
+        var doneCount = 0;
+        var boxParts = {
+            base_extrude: ['box-base'],
+            wall_extrude: ['box-wall'],
+            hole_base: ['hole-base'],
+            hole_wall: ['hole-wall'],
+            chamfer: ['cm1', 'cm2']
+        };
+
+        function buildStepDefs(state) {
+            var defs = [];
+            var b = state.base.params;
+
+            defs.push({
+                id: 'base_sketch',
+                title: 'Esboçar a Base',
+                badge: 'SKETCH',
+                desc: 'Crie um novo sketch no plano superior (Top/XY). Utilize a ferramenta Rectangle para desenhar o contorno da base com as dimensões de ' +
+                    b.largura + 'mm × ' + b.comprimento + 'mm.',
+                tip: 'Utilize o comando "Smart Dimension" para adicionar as medidas. Mantenha o sketch totalmente definido.'
+            });
+
+            defs.push({
+                id: 'base_extrude',
+                title: 'Extrudar a Base',
+                badge: 'EXTRUDE',
+                desc: 'Selecione o sketch da base e aplique a extrusão. Defina a profundidade para ' + b.espessura +
+                    'mm.',
+                tip: 'Verifique se a extrusão está com a direção correta (para cima).'
+            });
+
+            if (state.wall.included) {
+                var w = state.wall.params;
+                defs.push({
+                    id: 'wall_sketch',
+                    title: 'Esboçar a Parede Vertical',
+                    badge: 'SKETCH',
+                    desc: 'Selecione a face traseira da base e crie um novo sketch. Desenhe o perfil retangular com ' +
+                        w.largura + 'mm × ' + w.altura + 'mm.',
+                    tip: 'Use "Project Geometry" para referenciar as bordas da base e garantir alinhamento.'
+                });
+
+                defs.push({
+                    id: 'wall_extrude',
+                    title: 'Extrudar a Parede Vertical',
+                    badge: 'EXTRUDE',
+                    desc: 'Selecione o sketch da parede e aplique a extrusão com espessura de ' + w.espessura + 'mm.',
+                    tip: 'Use a opção "From" para garantir que comece exatamente na face da base.'
+                });
+            }
+
+            if (state.hole_base.included) {
+                defs.push({
+                    id: 'hole_base',
+                    title: 'Furo Passante na Base',
+                    badge: 'HOLE',
+                    desc: 'Crie um furo passante no centro da base com diâmetro de ' + state.hole_base.params.diametro +
+                        'mm.',
+                    tip: 'Posicione o furo centralizado usando cotas de referência.'
+                });
+            }
+
+            if (state.hole_wall.included && state.wall.included) {
+                defs.push({
+                    id: 'hole_wall',
+                    title: 'Furo Passante na Parede',
+                    badge: 'HOLE',
+                    desc: 'Adicione um furo passante na parede vertical com diâmetro de ' + state.hole_wall.params
+                        .diametro + 'mm.',
+                    tip: 'Use a face da parede como referência para o sketch do furo.'
+                });
+            }
+
+            if (state.chamfer.included) {
+                var c = state.chamfer.params;
+                defs.push({
+                    id: 'chamfer',
+                    title: 'Aplicar Chanfro nas Arestas',
+                    badge: 'CHAMFER',
+                    desc: 'Selecione as arestas superiores frontais da base e aplique chanfro de ' + c.tamanho +
+                        'mm × ' + c.angulo + '°.',
+                    tip: 'Use a opção "Distance-Angle" para definir o chanfro.'
+                });
+            }
+
+            return defs;
+        }
+
+        function resetScene() {
+            Object.values(boxParts).flat().forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.classList.remove('on');
+            });
+
+            var sheetBoxes = document.querySelectorAll('.box-sheet');
+            sheetBoxes.forEach(function(el) {
+                el.classList.remove('on-sheet');
+            });
+        }
+
+        function renderSteps() {
+            var stepsList = document.getElementById('stepsList');
+            stepsList.innerHTML = '';
+            document.getElementById('stepTotal').textContent = currentSteps.length;
+            document.getElementById('stepCount').textContent = 0;
+            document.getElementById('planFill').style.width = '0%';
+            doneCount = 0;
+            resetScene();
+
+            currentSteps.forEach(function(s, i) {
+                var el = document.createElement('div');
+                el.className = 'step';
+                el.id = 'step-' + s.id;
+
+                var tipHtml = s.tip ?
+                    '<div class="step-tip"><span class="tip-icon">💡</span><span>' + s.tip + '</span></div>' :
+                    '';
+
+                el.innerHTML =
+                    '<div class="step-num">' + (i + 1) + '</div>' +
+                    '<div>' +
+                    '<div class="step-header">' +
+                    '<p class="step-title">' + s.title + '</p>' +
+                    '<span class="step-badge">' + (s.badge || 'PASSO') + '</span>' +
+                    '</div>' +
+                    '<p class="step-desc">' + s.desc + '</p>' +
+                    '<div class="step-cmd"><span class="cmd-prefix">⌨️ comando:</span> <span class="cmd-text">' + (
+                        commandsBySoft[currentSoft][s.id] || '—') + '</span></div>' +
+                    tipHtml +
+                    '<br>' +
+                    '<button class="step-toggle" data-id="' + s.id + '">⬜ Marcar concluída</button>' +
+                    '</div>';
+
+                stepsList.appendChild(el);
+            });
+        }
+
+        function updateCommands() {
+            document.querySelectorAll('.step').forEach(function(stepEl) {
+                var id = stepEl.id.replace('step-', '');
+                var cmdSpan = stepEl.querySelector('.cmd-text');
+                if (cmdSpan && commandsBySoft[currentSoft][id]) {
+                    cmdSpan.textContent = commandsBySoft[currentSoft][id];
+                }
+            });
+        }
+
+        // ============================================================
+        // SYNC SHEET 3D
+        // ============================================================
+        function syncSheet3D(state) {
+            var boxBase = document.getElementById('box-sheet-base');
+            var boxWall = document.getElementById('box-sheet-wall');
+            var holeBase = document.getElementById('hole-sheet-base');
+            var holeWall = document.getElementById('hole-sheet-wall');
+            var cm1 = document.getElementById('cm1-sheet');
+            var cm2 = document.getElementById('cm2-sheet');
+
+            if (boxBase) boxBase.classList.add('on-sheet');
+
+            if (state.wall && state.wall.included) {
+                if (boxWall) boxWall.classList.add('on-sheet');
+            } else {
+                if (boxWall) boxWall.classList.remove('on-sheet');
+            }
+
+            if (state.hole_base && state.hole_base.included) {
+                if (holeBase) holeBase.classList.add('on-sheet');
+            } else {
+                if (holeBase) holeBase.classList.remove('on-sheet');
+            }
+
+            if (state.hole_wall && state.hole_wall.included) {
+                if (holeWall) holeWall.classList.add('on-sheet');
+            } else {
+                if (holeWall) holeWall.classList.remove('on-sheet');
+            }
+
+            if (state.chamfer && state.chamfer.included) {
+                if (cm1) cm1.classList.add('on-sheet');
+                if (cm2) cm2.classList.add('on-sheet');
+            } else {
+                if (cm1) cm1.classList.remove('on-sheet');
+                if (cm2) cm2.classList.remove('on-sheet');
+            }
+        }
+
+        // ============================================================
+        // GENERATE DRAWING SHEET
+        // ============================================================
+        function generateDrawingSheet(dims) {
+            var { largura, comprimento, espessura, altura, espessuraParede, diamFuroBase, diamFuroParede } = dims;
+            var w = largura || 160;
+            var d = comprimento || 160;
+            var e = espessura || 22;
+            var h = altura || 100;
+            var ep = espessuraParede || 18;
+            var dfb = diamFuroBase || 26;
+            var dfp = diamFuroParede || 20;
+
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            var bg = isDark ? '#1A1A2E' : '#F0EDE8';
+            var stroke = isDark ? '#C4B8A8' : '#5A5A6E';
+            var dimStroke = isDark ? '#6FD3E0' : '#2D6B8F';
+            var dimText = isDark ? '#6FD3E0' : '#2D6B8F';
+            var surfaceBase = isDark ? '#2A3A4A' : '#D5CDC0';
+            var surfaceWall = isDark ? '#3A4A5A' : '#C4B8A8';
+            var holeFill = isDark ? '#131B23' : '#B0A898';
+            var chamferStroke = isDark ? '#FF7A3D' : '#D95A1A';
+            var labelColor = isDark ? '#8FA0B3' : '#5A5A6E';
+
+            function createSVG(content, viewBox) {
+                viewBox = viewBox || '0 0 400 300';
+                return '<svg viewBox="' + viewBox + '" xmlns="http://www.w3.org/2000/svg" style="background:' + bg +
+                    '; border-radius:4px; width:100%; height:100%;">' +
+                    '<defs>' +
+                    '<style>' +
+                    '.line { stroke: ' + stroke + '; stroke-width: 1.5; fill: none; }' +
+                    '.dim { stroke: ' + dimStroke + '; stroke-width: 1; fill: none; }' +
+                    '.dim-text { fill: ' + dimText +
+                    '; font-size: 10px; font-family: "JetBrains Mono", monospace; }' +
+                    '.hatch { fill: none; stroke: ' + stroke + '; stroke-width: 0.8; stroke-dasharray: 2,2; }' +
+                    '.cut-line { stroke: ' + chamferStroke + '; stroke-width: 1.5; stroke-dasharray: 6,3; fill: none; }' +
+                    '.surface { fill: ' + surfaceBase + '; stroke: ' + stroke + '; stroke-width: 1; }' +
+                    '.surface-wall { fill: ' + surfaceWall + '; stroke: ' + stroke + '; stroke-width: 1; }' +
+                    '.hole { fill: ' + holeFill + '; stroke: ' + chamferStroke + '; stroke-width: 1; }' +
+                    '.hidden { stroke: ' + (isDark ? '#5A6F85' : '#8A8A9E') +
+                    '; stroke-width: 1; stroke-dasharray: 4,3; fill: none; }' +
+                    '.chamfer-line { stroke: ' + chamferStroke + '; stroke-width: 1.5; fill: none; }' +
+                    '.label { fill: ' + labelColor +
+                    '; font-size: 9px; font-family: "JetBrains Mono", monospace; }' +
+                    '</style>' +
+                    '</defs>' +
+                    content +
+                    '</svg>';
+            }
+
+            // ===== VISTA FRONTAL =====
+            var frontalContent = '' +
+                '<rect x="50" y="50" width="' + w + '" height="' + (e + h) +
+                '" class="surface" stroke="' + stroke + '" stroke-width="1.5" fill="none"/>' +
+                '<rect x="50" y="50" width="' + w + '" height="' + e + '" class="surface" stroke="' + stroke +
+                '" stroke-width="1"/>' +
+                '<rect x="50" y="' + (50 + e) + '" width="' + w + '" height="' + h + '" class="surface-wall" stroke="' +
+                stroke + '" stroke-width="1"/>' +
+                '<line x1="' + (50 + w / 2) + '" y1="' + (50 + e + 30) + '" x2="' + (50 + w / 2) + '" y2="' + (50 + e +
+                h - 20) + '" class="hidden"/>' +
+                '<circle cx="' + (50 + w / 2) + '" cy="' + (50 + e + 40) + '" r="' + (dfp / 2) +
+                '" class="hidden" stroke-width="1"/>' +
+                '<polyline points="' + 50 + ',' + (50 + e) + ' ' + (50 + 10) + ',' + (50 + e - 10) + ' ' + (50 + 10) +
+                ',' + (50 + e) + '" class="chamfer-line"/>' +
+                '<polyline points="' + (50 + w) + ',' + (50 + e) + ' ' + (50 + w - 10) + ',' + (50 + e - 10) + ' ' + (
+                    50 + w - 10) + ',' + (50 + e) + '" class="chamfer-line"/>' +
+                '<line x1="30" y1="50" x2="30" y2="' + (50 + e + h) + '" class="dim"/>' +
+                '<line x1="25" y1="50" x2="35" y1="50" class="dim"/>' +
+                '<line x1="25" y1="' + (50 + e + h) + '" x2="35" y1="' + (50 + e + h) + '" class="dim"/>' +
+                '<text x="20" y="' + (50 + (e + h) / 2) + '" class="dim-text" text-anchor="middle" transform="rotate(-90, 20, ' +
+                (50 + (e + h) / 2) + ')">' + (e + h) + '</text>' +
+                '<line x1="' + 50 + '" y1="' + (50 + e + h + 20) + '" x2="' + (50 + w) + '" y2="' + (50 + e + h + 20) +
+                '" class="dim"/>' +
+                '<line x1="' + 50 + '" y1="' + (50 + e + h + 15) + '" x2="' + 50 + '" y2="' + (50 + e + h + 25) +
+                '" class="dim"/>' +
+                '<line x1="' + (50 + w) + '" y1="' + (50 + e + h + 15) + '" x2="' + (50 + w) + '" y2="' + (50 + e + h +
+                25) + '" class="dim"/>' +
+                '<text x="' + (50 + w / 2) + '" y="' + (50 + e + h + 35) + '" class="dim-text" text-anchor="middle">' +
+                w + '</text>' +
+                '<line x1="' + (50 + w + 20) + '" y1="' + (50 + e) + '" x2="' + (50 + w + 20) + '" y2="' + (50 + e +
+                h) + '" class="dim"/>' +
+                '<line x1="' + (50 + w + 15) + '" y1="' + (50 + e) + '" x2="' + (50 + w + 25) + '" y1="' + (50 + e) +
+                '" class="dim"/>' +
+                '<line x1="' + (50 + w + 15) + '" y1="' + (50 + e + h) + '" x2="' + (50 + w + 25) + '" y1="' + (50 + e +
+                h) + '" class="dim"/>' +
+                '<text x="' + (50 + w + 32) + '" y="' + (50 + e + h / 2) + '" class="dim-text">' + h + '</text>' +
+                '<line x1="' + (50 - 20) + '" y1="50" x2="' + (50 - 20) + '" y2="' + (50 + e) + '" class="dim"/>' +
+                '<line x1="' + (50 - 25) + '" y1="50" x2="' + (50 - 15) + '" y1="50" class="dim"/>' +
+                '<line x1="' + (50 - 25) + '" y1="' + (50 + e) + '" x2="' + (50 - 15) + '" y1="' + (50 + e) +
+                '" class="dim"/>' +
+                '<text x="' + (50 - 28) + '" y="' + (50 + e / 2) + '" class="dim-text" text-anchor="end">' + e +
+                '</text>' +
+                '<line x1="' + (50 - 10) + '" y1="' + (50 - 15) + '" x2="' + (50 + w + 10) + '" y2="' + (50 - 15) +
+                '" class="cut-line"/>' +
+                '<text x="' + (50 - 5) + '" y="' + (50 - 20) + '" class="label" text-anchor="end">A</text>' +
+                '<text x="' + (50 + w + 10) + '" y="' + (50 - 20) + '" class="label">A</text>';
+
+            document.getElementById('svgFrontalSheet').innerHTML = createSVG(frontalContent, '0 0 400 300');
+
+            // ===== VISTA SUPERIOR =====
+            var superiorContent = '' +
+                '<rect x="50" y="50" width="' + w + '" height="' + d + '" class="surface" stroke="' + stroke +
+                '" stroke-width="1.5"/>' +
+                '<rect x="50" y="50" width="' + w + '" height="' + ep +
+                '" class="hidden" stroke-width="1.5" fill="none"/>' +
+                '<circle cx="' + (50 + w / 2) + '" cy="' + (50 + d / 2) + '" r="' + (dfb / 2) + '" class="hole"/>' +
+                '<circle cx="' + (50 + w / 2) + '" cy="' + (50 + ep / 2) + '" r="' + (dfp / 2) + '" class="hole"/>' +
+                '<line x1="' + 50 + '" y1="' + (50 + d + 20) + '" x2="' + (50 + w) + '" y2="' + (50 + d + 20) +
+                '" class="dim"/>' +
+                '<line x1="' + 50 + '" y1="' + (50 + d + 15) + '" x2="' + 50 + '" y2="' + (50 + d + 25) +
+                '" class="dim"/>' +
+                '<line x1="' + (50 + w) + '" y1="' + (50 + d + 15) + '" x2="' + (50 + w) + '" y2="' + (50 + d + 25) +
+                '" class="dim"/>' +
+                '<text x="' + (50 + w / 2) + '" y="' + (50 + d + 35) + '" class="dim-text" text-anchor="middle">' +
+                w + '</text>' +
+                '<line x1="' + (50 + w + 20) + '" y1="50" x2="' + (50 + w + 20) + '" y2="' + (50 + d) +
+                '" class="dim"/>' +
+                '<line x1="' + (50 + w + 15) + '" y1="50" x2="' + (50 + w + 25) + '" y1="50" class="dim"/>' +
+                '<line x1="' + (50 + w + 15) + '" y1="' + (50 + d) + '" x2="' + (50 + w + 25) + '" y1="' + (50 + d) +
+                '" class="dim"/>' +
+                '<text x="' + (50 + w + 32) + '" y="' + (50 + d / 2) + '" class="dim-text">' + d + '</text>' +
+                '<line x1="' + 50 + '" y1="' + (50 - 20) + '" x2="' + (50 + w) + '" y2="' + (50 - 20) +
+                '" class="dim"/>' +
+                '<line x1="' + 50 + '" y1="' + (50 - 25) + '" x2="' + 50 + '" y2="' + (50 - 15) + '" class="dim"/>' +
+                '<line x1="' + (50 + w) + '" y1="' + (50 - 25) + '" x2="' + (50 + w) + '" y2="' + (50 - 15) +
+                '" class="dim"/>' +
+                '<text x="' + (50 + w / 2) + '" y="' + (50 - 28) + '" class="dim-text" text-anchor="middle">' + ep +
+                '</text>' +
+                '<text x="' + (50 + w / 2 + dfb / 2 + 15) + '" y="' + (50 + d / 2) + '" class="dim-text">Ø' + dfb +
+                '</text>' +
+                '<text x="' + (50 + w / 2 + dfp / 2 + 15) + '" y="' + (50 + ep / 2) + '" class="dim-text">Ø' + dfp +
+                '</text>';
+
+            document.getElementById('svgSuperiorSheet').innerHTML = createSVG(superiorContent, '0 0 400 300');
+
+            // ===== VISTA LATERAL =====
+            var lateralContent = '' +
+                '<rect x="50" y="50" width="' + d + '" height="' + (e + h) +
+                '" class="surface" stroke="' + stroke + '" stroke-width="1.5" fill="none"/>' +
+                '<rect x="50" y="50" width="' + d + '" height="' + e + '" class="surface" stroke="' + stroke +
+                '" stroke-width="1"/>' +
+                '<rect x="50" y="' + (50 + e) + '" width="' + d + '" height="' + h + '" class="surface-wall" stroke="' +
+                stroke + '" stroke-width="1"/>' +
+                '<circle cx="' + (50 + d / 2) + '" cy="' + (50 + e + 40) + '" r="' + (dfp / 2) + '" class="hole"/>' +
+                '<polyline points="' + (50 + d) + ',' + (50 + e) + ' ' + (50 + d - 10) + ',' + (50 + e - 10) + ' ' + (
+                    50 + d - 10) + ',' + (50 + e) + '" class="chamfer-line"/>' +
+                '<line x1="30" y1="50" x2="30" y2="' + (50 + e + h) + '" class="dim"/>' +
+                '<line x1="25" y1="50" x2="35" y1="50" class="dim"/>' +
+                '<line x1="25" y1="' + (50 + e + h) + '" x2="35" y1="' + (50 + e + h) + '" class="dim"/>' +
+                '<text x="20" y="' + (50 + (e + h) / 2) + '" class="dim-text" text-anchor="middle" transform="rotate(-90, 20, ' +
+                (50 + (e + h) / 2) + ')">' + (e + h) + '</text>' +
+                '<line x1="' + 50 + '" y1="' + (50 + e + h + 20) + '" x2="' + (50 + d) + '" y2="' + (50 + e + h + 20) +
+                '" class="dim"/>' +
+                '<line x1="' + 50 + '" y1="' + (50 + e + h + 15) + '" x2="' + 50 + '" y2="' + (50 + e + h + 25) +
+                '" class="dim"/>' +
+                '<line x1="' + (50 + d) + '" y1="' + (50 + e + h + 15) + '" x2="' + (50 + d) + '" y2="' + (50 + e + h +
+                25) + '" class="dim"/>' +
+                '<text x="' + (50 + d / 2) + '" y="' + (50 + e + h + 35) + '" class="dim-text" text-anchor="middle">' +
+                d + '</text>' +
+                '<line x1="' + (50 - 20) + '" y1="50" x2="' + (50 - 20) + '" y2="' + (50 + e) + '" class="dim"/>' +
+                '<line x1="' + (50 - 25) + '" y1="50" x2="' + (50 - 15) + '" y1="50" class="dim"/>' +
+                '<line x1="' + (50 - 25) + '" y1="' + (50 + e) + '" x2="' + (50 - 15) + '" y1="' + (50 + e) +
+                '" class="dim"/>' +
+                '<text x="' + (50 - 28) + '" y="' + (50 + e / 2) + '" class="dim-text" text-anchor="end">' + e +
+                '</text>' +
+                '<line x1="' + (50 + d + 20) + '" y1="' + (50 + e) + '" x2="' + (50 + d + 20) + '" y2="' + (50 + e +
+                h) + '" class="dim"/>' +
+                '<line x1="' + (50 + d + 15) + '" y1="' + (50 + e) + '" x2="' + (50 + d + 25) + '" y1="' + (50 + e) +
+                '" class="dim"/>' +
+                '<line x1="' + (50 + d + 15) + '" y1="' + (50 + e + h) + '" x2="' + (50 + d + 25) + '" y1="' + (50 + e +
+                h) + '" class="dim"/>' +
+                '<text x="' + (50 + d + 32) + '" y="' + (50 + e + h / 2) + '" class="dim-text">' + h + '</text>' +
+                '<text x="' + (50 + d / 2 + dfp / 2 + 15) + '" y="' + (50 + e + 40) + '" class="dim-text">Ø' + dfp +
+                '</text>';
+
+            document.getElementById('svgLateralSheet').innerHTML = createSVG(lateralContent, '0 0 400 300');
+
+            // ===== CORTE A-A =====
+            var corteContent = '' +
+                '<rect x="50" y="50" width="' + w + '" height="' + e + '" class="surface" stroke="' + stroke +
+                '" stroke-width="1.5"/>' +
+                '<rect x="50" y="' + (50 + e) + '" width="' + w + '" height="' + h + '" class="surface-wall" stroke="' +
+                stroke + '" stroke-width="1.5"/>' +
+                '<pattern id="hatchPattern" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">' +
+                '<line x1="0" y1="0" x2="0" y2="8" stroke="' + stroke + '" stroke-width="0.6"/>' +
+                '</pattern>' +
+                '<rect x="50" y="50" width="' + w + '" height="' + (e + h) + '" fill="url(#hatchPattern)" opacity="0.3"/>' +
+                '<rect x="' + (50 + w / 2 - dfp / 2) + '" y="' + (50 + e + 30) + '" width="' + dfp + '" height="' + (
+                    h - 50) + '" class="hole" stroke="' + chamferStroke + '" stroke-width="1.5"/>' +
+                '<rect x="' + (50 + w / 2 - dfb / 2) + '" y="' + (50 + 10) + '" width="' + dfb + '" height="' + (e -
+                    10) + '" class="hole" stroke="' + chamferStroke + '" stroke-width="1.5"/>' +
+                '<polyline points="' + 50 + ',' + (50 + e) + ' ' + (50 + 10) + ',' + (50 + e - 10) + ' ' + (50 + 10) +
+                ',' + (50 + e) + '" class="chamfer-line"/>' +
+                '<polyline points="' + (50 + w) + ',' + (50 + e) + ' ' + (50 + w - 10) + ',' + (50 + e - 10) + ' ' + (
+                    50 + w - 10) + ',' + (50 + e) + '" class="chamfer-line"/>' +
+                '<line x1="' + 50 + '" y1="' + (50 + e + h + 20) + '" x2="' + (50 + w) + '" y2="' + (50 + e + h + 20) +
+                '" class="dim"/>' +
+                '<line x1="' + 50 + '" y1="' + (50 + e + h + 15) + '" x2="' + 50 + '" y2="' + (50 + e + h + 25) +
+                '" class="dim"/>' +
+                '<line x1="' + (50 + w) + '" y1="' + (50 + e + h + 15) + '" x2="' + (50 + w) + '" y2="' + (50 + e + h +
+                25) + '" class="dim"/>' +
+                '<text x="' + (50 + w / 2) + '" y="' + (50 + e + h + 35) + '" class="dim-text" text-anchor="middle">' +
+                w + '</text>' +
+                '<line x1="30" y1="50" x2="30" y2="' + (50 + e + h) + '" class="dim"/>' +
+                '<line x1="25" y1="50" x2="35" y1="50" class="dim"/>' +
+                '<line x1="25" y1="' + (50 + e + h) + '" x2="35" y1="' + (50 + e + h) + '" class="dim"/>' +
+                '<text x="20" y="' + (50 + (e + h) / 2) + '" class="dim-text" text-anchor="middle" transform="rotate(-90, 20, ' +
+                (50 + (e + h) / 2) + ')">' + (e + h) + '</text>' +
+                '<text x="' + (50 + w / 2 + dfp / 2 + 15) + '" y="' + (50 + e + 50) + '" class="dim-text">Ø' + dfp +
+                '</text>' +
+                '<text x="' + (50 + w / 2 + dfb / 2 + 15) + '" y="' + (50 + 30) + '" class="dim-text">Ø' + dfb +
+                '</text>' +
+                '<text x="' + (50 + w / 2) + '" y="' + (50 - 10) + '" class="label" text-anchor="middle">A-A</text>';
+
+            document.getElementById('svgCorteSheet').innerHTML = createSVG(corteContent, '0 0 400 300');
+
+            // ===== ATUALIZAR INFO TÉCNICA =====
+            document.getElementById('techWidth').textContent = w + ' mm';
+            document.getElementById('techDepth').textContent = d + ' mm';
+            document.getElementById('techHeight').textContent = (e + h) + ' mm';
+            document.getElementById('techBaseThick').textContent = e + ' mm';
+            document.getElementById('techWallThick').textContent = ep + ' mm';
+            document.getElementById('techHoleBase').textContent = 'Ø' + dfb + ' mm';
+            document.getElementById('techHoleWall').textContent = 'Ø' + dfp + ' mm';
+            document.getElementById('techChamfer').textContent = '3 × 45°';
+            document.getElementById('techWeight').textContent = '0,84 kg';
+            document.getElementById('techMaterial').textContent = 'Aço SAE 1020';
+            document.getElementById('techScale').textContent = '1:1';
+        }
+
+        // ============================================================
+        // EVENT LISTENERS - SOFTWARE
+        // ============================================================
+        document.querySelectorAll('.soft-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.soft-card').forEach(function(c) { c.classList.remove('active'); });
+                card.classList.add('active');
+                currentSoft = card.dataset.soft;
+                updateCommands();
+                showToast('Software alterado para ' + card.querySelector('.soft-name').textContent);
+            });
+        });
+
+        // ============================================================
+        // EVENT LISTENERS - CONFIRMAR FEATURES
+        // ============================================================
+        document.getElementById('btnConfirmFeatures').addEventListener('click', function() {
+            var state = getFeatureState();
+            currentSteps = buildStepDefs(state);
+
+            var dims = getDimsFromState(state);
+
+            generateDrawingSheet(dims);
+            syncSheet3D(state);
+
+            var sheetSection = document.getElementById('drawingSheetSection');
+            if (sheetSection) sheetSection.classList.add('show');
+
+            document.getElementById('softHead').style.display = 'block';
+            document.getElementById('softGrid').style.display = 'grid';
+            document.getElementById('planSection').classList.add('show');
+
+            renderSteps();
+
+            setTimeout(function() {
+                document.getElementById('softHead').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+
+            showToast('✅ Roteiro e folha de desenho gerados com sucesso!');
+        });
+
+        // ============================================================
+        // EVENT LISTENERS - UPLOAD
+        // ============================================================
+        function revealApp(fileName) {
+            document.getElementById('fileChipText').textContent = fileName;
+            document.getElementById('fileChip').classList.add('show');
+            document.getElementById('detectSection').classList.add('show');
+
+            var planSection = document.getElementById('planSection');
+            if (planSection) planSection.classList.remove('show');
+
+            var sheetSection = document.getElementById('drawingSheetSection');
+            if (sheetSection) sheetSection.classList.remove('show');
+
+            document.getElementById('softHead').style.display = 'none';
+            document.getElementById('softGrid').style.display = 'none';
+
+            resetScene();
+            document.getElementById('stepCount').textContent = '0';
+            document.getElementById('planFill').style.width = '0%';
+
+            var defaultState = {
+                base: { params: { largura: 160, comprimento: 160, espessura: 22 } },
+                wall: { params: { largura: 160, altura: 100, espessura: 18 } },
+                hole_base: { params: { diametro: 26 } },
+                hole_wall: { params: { diametro: 20 } },
+                chamfer: { params: { tamanho: 3, angulo: 45 } }
+            };
+
+            var dims = getDimsFromState(defaultState);
+            generateDrawingSheet(dims);
+            syncSheet3D(defaultState);
+
+            setTimeout(function() {
+                document.getElementById('detectSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+
+            showToast('📄 Arquivo "' + fileName + '" carregado — features detectadas');
+        }
+
+        document.getElementById('btnDemo').addEventListener('click', function() {
+            revealApp('suporte-em-L_rev-A.pdf');
+        });
+
+        document.getElementById('btnBrowse').addEventListener('click', function() {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                revealApp(e.target.files[0].name);
+            }
+            e.target.value = '';
+        });
+
+        // ============================================================
+        // DRAG AND DROP
+        // ============================================================
+        var dz = document.getElementById('dropzone');
+
+        ['dragenter', 'dragover'].forEach(function(evt) {
+            dz.addEventListener(evt, function(e) {
+                e.preventDefault();
+                dz.classList.add('drag');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(function(evt) {
+            dz.addEventListener(evt, function(e) {
+                e.preventDefault();
+                dz.classList.remove('drag');
+            });
+        });
+
+        dz.addEventListener('drop', function(e) {
+            e.preventDefault();
+            if (e.dataTransfer.files[0]) {
+                revealApp(e.dataTransfer.files[0].name);
+            }
+        });
+
+        // ============================================================
+        // STEPS TOGGLE
+        // ============================================================
+        document.getElementById('stepsList').addEventListener('click', function(e) {
+            if (!e.target.classList.contains('step-toggle')) return;
+
+            var id = e.target.dataset.id;
+            var stepEl = document.getElementById('step-' + id);
+            var isDone = stepEl.classList.toggle('done');
+
+            e.target.textContent = isDone ? '✅ Concluída' : '⬜ Marcar concluída';
+
+            doneCount += isDone ? 1 : -1;
+
+            if (boxParts[id]) {
+                boxParts[id].forEach(function(elId) {
+                    var el = document.getElementById(elId);
+                    if (el) {
+                        el.classList.toggle('on', isDone);
+                    }
+
+                    var sheetEl = document.getElementById(elId.replace('box-', 'box-sheet-'));
+                    if (sheetEl) {
+                        sheetEl.classList.toggle('on-sheet', isDone);
+                    }
+                });
+            }
+
+            document.getElementById('stepCount').textContent = doneCount;
+            var pct = currentSteps.length ? (doneCount / currentSteps.length * 100) : 0;
+            document.getElementById('planFill').style.width = pct + '%';
+
+            if (doneCount === currentSteps.length && currentSteps.length > 0) {
+                showToast('🎉 Parabéns! Peça concluída com sucesso!');
+            }
+        });
+
+        // ============================================================
+        // RESET PLAN
+        // ============================================================
+        document.getElementById('btnResetPlan').addEventListener('click', function() {
+            document.querySelectorAll('.step').forEach(function(el) {
+                el.classList.remove('done');
+                el.querySelector('.step-toggle').textContent = '⬜ Marcar concluída';
+            });
+
+            doneCount = 0;
+            document.getElementById('stepCount').textContent = '0';
+            document.getElementById('planFill').style.width = '0%';
+            resetScene();
+            showToast('🔄 Progresso resetado');
+        });
+
+        // ============================================================
+        // EXPORT PDF (ROTEIRO)
+        // ============================================================
+        document.getElementById('btnExportPDF').addEventListener('click', function() {
+            if (!currentSteps.length) {
+                showToast('⚠️ Nenhum roteiro gerado ainda.');
+                return;
+            }
+
+            var lines = ['COTA — Roteiro de Modelagem', '', 'Peça: SUPORTE-EM-L · REV.A', 'Software: ' + document
+                .querySelector('.soft-card.active .soft-name').textContent, ''
+            ];
+
+            currentSteps.forEach(function(s, i) {
+                lines.push((i + 1) + '. ' + s.title);
+                lines.push('   ' + s.desc);
+                lines.push('   Comando: ' + (commandsBySoft[currentSoft][s.id] || '—'));
+                if (s.tip) lines.push('   💡 ' + s.tip);
+                lines.push('');
+            });
+
+            var text = lines.join('\n');
+            var blob = new Blob([text], { type: 'text/plain' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'roteiro-cota.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('📄 Roteiro exportado como TXT');
+        });
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(msg) {
+            var toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(function() {
+                toast.classList.remove('show');
+            }, 3200);
+        }
+
+        // ============================================================
+        // KEYBOARD SHORTCUTS
+        // ============================================================
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && document.getElementById('detectSection').classList.contains('show')) {
+                var btn = document.getElementById('btnConfirmFeatures');
+                if (btn && document.activeElement && document.activeElement.tagName !== 'INPUT') {
+                    btn.click();
+                }
+            }
+        });
+
+        // ============================================================
+        // 3D SCENE ORBIT CONTROLS
+        // ============================================================
+        document.querySelectorAll('.iso-scene, .iso-scene-sheet').forEach(function(scene) {
+            var isDragging = false;
+            var startX, startY;
+            var rotX = 55,
+                rotZ = -40;
+
+            scene.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                scene.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                var dx = e.clientX - startX;
+                var dy = e.clientY - startY;
+                rotZ += dx * 0.3;
+                rotX += dy * 0.3;
+                rotX = Math.min(Math.max(rotX, 20), 80);
+                scene.style.transform = 'rotateX(' + rotX + 'deg) rotateZ(' + rotZ + 'deg)';
+                startX = e.clientX;
+                startY = e.clientY;
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    scene.style.cursor = 'grab';
+                }
+            });
+        });
+
+        // ============================================================
+        // AUTO-INIT - PULSE NO BOTÃO DEMO
+        // ============================================================
+        setTimeout(function() {
+            if (!document.getElementById('detectSection').classList.contains('show')) {
+                var demoBtn = document.getElementById('btnDemo');
+                demoBtn.style.animation = 'pulse-dot 1.8s ease-in-out 3';
+                setTimeout(function() {
+                    demoBtn.style.animation = '';
+                }, 5500);
+            }
+        }, 2000);
+
+        console.log('🚀 COTA v4.0 — CAD Assistant carregado!');
+        console.log('📐 Folha de desenho disponível!');
+        console.log('🎯 Clique em "Usar peça de exemplo" para começar!');
+    </script>
+
+</body>
+</html>
