@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="css/styles.css">
     <script src="js/parts.js" defer></script>
     <script src="js/curso.js" defer></script>
+    <script src="js/fichas.js" defer></script>
     <script src="js/app.js" defer></script>
 </head>
 
@@ -25,7 +26,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v5.2 · CAD + CNC Assistant</div>
+            <div class="version">v5.3 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -151,6 +152,35 @@
             </div>
         </div>
         <div id="courseModules"></div>
+    </section>
+
+    <!-- ===== KIT DE FICHAS DE AVALIAÇÃO ===== -->
+    <section id="fichaSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Avaliação</div>
+            <h2 class="section-title">📝 Kit de Fichas de Avaliação</h2>
+            <p class="section-sub">Documentação de avaliação pronta para imprimir: identificação, presença, avaliação por módulo (teórica + prática), prova final, avaliação de eficácia pós-turma e gabarito do instrutor. Preenchimento manual — formato A4 profissional.</p>
+        </div>
+        <div class="ficha-toolbar">
+            <span class="ficha-hint">💡 Dica: imprima o gabarito apenas para o instrutor. As demais fichas são distribuídas aos participantes.</span>
+            <button type="button" class="btn btn-accent" id="btnPrintFichaKit">🖨️ Imprimir kit completo (11 fichas)</button>
+        </div>
+        <div class="ficha-grid" id="fichaGrid"></div>
+        <div class="ficha-preview-wrap" id="fichaPreviewWrap" style="display:none;">
+            <div class="ficha-preview-bar">
+                <strong id="fichaPreviewTitle">Ficha</strong>
+                <div class="code-actions">
+                    <button type="button" class="btn btn-accent" id="btnPrintCurrentFicha">🖨️ Imprimir ficha</button>
+                    <button type="button" class="btn" id="btnCloseFichaPreview">✕ Fechar</button>
+                </div>
+            </div>
+            <div class="ficha-paper" id="fichaPaper"></div>
+        </div>
+        <div class="print-only print-header print-header-ficha">
+            <span class="ph-title">COTA — Kit de Fichas de Avaliação</span>
+            <span class="ph-meta" id="printFichaMeta"></span>
+        </div>
+        <div class="print-only" id="fichaKitPrint"></div>
     </section>
 
     <!-- ===== DETECT ===== -->
@@ -376,7 +406,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v5.2 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v5.3 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

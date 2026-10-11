@@ -69,6 +69,24 @@ independente → avaliação), **pontos de atenção** (segurança e erros clás
 O progresso do aluno fica salvo no navegador e o roteiro pode ser **impresso**
 para a sala de aula (formato handout profissional).
 
+## 📝 Kit de fichas de avaliação
+
+11 documentos A4 prontos para imprimir e preencher à mão:
+
+| Ficha | Documento | Uso |
+|---|---|---|
+| 01 | FIC-00 Identificação e plano | dados do participante + controle de módulos/notas |
+| 02 | FIC-01 Lista de presença | frequência das 13 aulas com assinatura |
+| 03–08 | FIC-M0 a FIC-M5 | avaliação por módulo: teórica (5 questões, 10 pts) + prática (checklist) + conceito |
+| 09 | FIC-90 Prova final | 10 questões + atividade integradora prática |
+| 10 | FIC-91 Eficácia do treinamento | aplicação em até 90 dias (NR-12 / gestão) |
+| 11 | FIC-99 Gabarito do instrutor | respostas-modelo de todas as questões (uso interno) |
+
+O app reúne **40 questões elaboradas** (objetivas e discursivas) com gabarito,
+critérios práticos extraídos automaticamente da trilha e linhas de assinatura
+(participante, instrutor, gestor, RH/SST). Cada ficha tem código documental e
+revisão para controle de documentos (ISO 9001).
+
 ## Estrutura
 
 ```
@@ -76,6 +94,7 @@ index.html        Página principal (HTML semântico)
 css/styles.css    Estilos (tema claro/escuro, responsivo, impressão)
 js/parts.js       Catálogo de peças: vistas SVG, roteiro, G-code e macros
 js/curso.js       Trilha de formação: módulos, aulas e avaliação
+js/fichas.js      Kit de fichas: questões, gabarito e modelos
 js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 ```
 
@@ -93,6 +112,12 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v5.3
+- Kit de fichas de avaliação pronto para impressão (11 documentos)
+- 40 questões com gabarito do instrutor (módulos + prova final)
+- Fichas de presença, identificação, eficácia pós-turma (NR-12) e controle de aprovação
+
 
 ### v5.2
 - Roteiro de aulas profissional (trilha de formação de 64h) integrado ao app

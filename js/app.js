@@ -725,6 +725,281 @@ function printCourse() {
 }
 
 // ============================================================
+// KIT DE FICHAS DE AVALIAÇÃO
+// ============================================================
+function fillLine(cls) {
+    return '<i class="fill-line ' + (cls || '') + '"></i>';
+}
+function answerLines(n) {
+    let s = '<div class="answer-lines">';
+    for (let i = 0; i < n; i++) s += '<i class="fill-line"></i>';
+    return s + '</div>';
+}
+function optsHtml(opts) {
+    return '<div class="q-opts">' + opts.map((o, i) =>
+        '<span class="q-opt">□ ' + String.fromCharCode(65 + i) + ') ' + o + '</span>').join('') + '</div>';
+}
+function fichaHead(doc, title, sub) {
+    return '<header class="ficha-head">' +
+        '<div class="ficha-brand">COTA · Formação CNC</div>' +
+        '<div class="ficha-title-block"><h3>' + title + '</h3><p>' + sub + '</p></div>' +
+        '<div class="ficha-doc">Doc. ' + doc + ' · Rev. 01</div>' +
+        '</header>' +
+        '<div class="ficha-id-row">' +
+        '<span class="fi">Participante: ' + fillLine('xl') + '</span>' +
+        '<span class="fi">Turma: ' + fillLine('s') + '</span>' +
+        '<span class="fi">Data: ' + fillLine('s') + '</span>' +
+        '</div>';
+}
+function fichaSigns(labels) {
+    return '<div class="ficha-signs">' + labels.map(l =>
+        '<div class="ficha-sign"><span class="sign-label">' + l + '</span>' + fillLine('sign') + '</div>'
+    ).join('') + '</div>';
+}
+function questionsHtml(list, startNum) {
+    let n = startNum || 1;
+    return '<ol class="ficha-questions">' + list.map(q => {
+        let html = '<li><p class="q-text">' + q.q + ' <span class="q-pts">(' + q.pts.toFixed(1).replace('.', ',') + ' pt)</span></p>';
+        if (q.type === 'multi') {
+            html += optsHtml(q.opts);
+        } else {
+            html += answerLines(3);
+        }
+        n++;
+        return html + '</li>';
+    }).join('') + '</ol>';
+}
+
+function buildFichaIdentificacao() {
+    const tot = courseTotals();
+    const planRows = COURSE.modules.map(m => {
+        const hours = m.aulas.reduce((s, a) => s + a.hours, 0);
+        return '<tr><td>M' + m.number + '</td><td>' + m.title + '</td><td>' + hours + 'h</td>' +
+            '<td class="fill-cell"></td><td class="fill-cell"></td>' +
+            '<td class="fill-cell center">□ A&nbsp;&nbsp;□ R</td></tr>';
+    }).join('');
+    return '<div class="ficha" data-ficha="identificacao">' +
+        fichaHead('FIC-00', 'Ficha de Identificação e Plano do Participante', COURSE.title + ' · ' + tot.totalHours + 'h') +
+        '<div class="ficha-fields">' +
+        '<span class="fi">Nome completo: ' + fillLine('xl') + '</span>' +
+        '<span class="fi">RG/CPF: ' + fillLine('m') + '</span>' +
+        '<span class="fi">Cargo/função: ' + fillLine('m') + '</span>' +
+        '<span class="fi">Setor: ' + fillLine('m') + '</span>' +
+        '<span class="fi">Admissão: ' + fillLine('s') + '</span>' +
+        '<span class="fi">Instrutor(a): ' + fillLine('m') + '</span>' +
+        '<span class="fi">Período do curso: ' + fillLine('m') + '</span>' +
+        '<span class="fi">Local: ' + fillLine('m') + '</span>' +
+        '</div>' +
+        '<h4 class="ficha-h">Plano de formação e controle de aprovação</h4>' +
+        '<table class="ficha-table"><thead><tr><th>Mód.</th><th>Conteúdo</th><th>Carga</th><th>Data</th><th>Nota</th><th>Conceito</th></tr></thead>' +
+        '<tbody>' + planRows + '</tbody></table>' +
+        '<div class="ficha-result">' +
+        '<span>Média final: ' + fillLine('s') + '</span>' +
+        '<span>Prova final: ' + fillLine('s') + '</span>' +
+        '<span class="big">Resultado: □ APROVADO&nbsp;&nbsp;&nbsp;□ REPROVADO</span>' +
+        '</div>' +
+        '<p class="ficha-note"><b>Critério de aprovação do curso:</b> média das avaliações de módulo ≥ 7,0, prova final ≥ 7,0 e todos os critérios práticos conformes.</p>' +
+        fichaSigns(['Participante', 'Instrutor(a)', 'Responsável pelo treinamento']) +
+        '</div>';
+}
+
+function buildFichaPresenca() {
+    const rows = [];
+    COURSE.modules.forEach(m => {
+        m.aulas.forEach(a => {
+            rows.push('<tr><td class="center">' + a.num + '</td><td>' + a.title + '</td>' +
+                '<td class="center">' + a.hours + 'h</td><td class="fill-cell"></td><td class="fill-cell"></td></tr>');
+        });
+    });
+    const tot = courseTotals();
+    return '<div class="ficha" data-ficha="presenca">' +
+        fichaHead('FIC-01', 'Lista de Presença', COURSE.title + ' · ' + tot.totalAulas + ' aulas · ' + tot.totalHours + 'h') +
+        '<table class="ficha-table"><thead><tr><th>Nº</th><th>Aula</th><th>Carga</th><th>Data</th><th>Assinatura do participante</th></tr></thead>' +
+        '<tbody>' + rows.join('') + '</tbody></table>' +
+        '<div class="ficha-result"><span class="big">Carga horária total frequentada: ' + fillLine('s') + ' de ' + tot.totalHours + 'h</span></div>' +
+        '<p class="ficha-note">Frequência mínima exigida para certificação: 75% da carga horária. Justificar faltas no campo abaixo.</p>' +
+        '<div class="ficha-obs">Justificativas: ' + fillLine('xl') + '<br>' + fillLine('xl') + '</div>' +
+        fichaSigns(['Participante', 'Instrutor(a)']) +
+        '</div>';
+}
+
+function buildFichaModule(moduleId) {
+    const m = COURSE.modules.find(mm => mm.id === moduleId);
+    const quiz = QUIZ[moduleId] || [];
+    const criteria = [];
+    m.aulas.forEach(a => {
+        a.checklist.forEach(c => criteria.push({ label: 'Aula ' + a.num + ' — ' + c }));
+    });
+    const critRows = criteria.map((c, i) =>
+        '<tr><td class="center">' + (i + 1) + '</td><td>' + c.label + '</td>' +
+        '<td class="center fill-cell"></td><td class="center fill-cell"></td><td class="fill-cell"></td></tr>'
+    ).join('');
+    const hours = m.aulas.reduce((s, a) => s + a.hours, 0);
+    return '<div class="ficha" data-ficha="' + m.id + '">' +
+        fichaHead('FIC-' + m.id.toUpperCase().replace('M', 'M'), 'Avaliação — Módulo M' + m.number, m.title + ' · ' + hours + 'h · Nível: ' + m.level) +
+        '<h4 class="ficha-h">Parte A — Avaliação teórica (10,0 pontos · aprovação ≥ 7,0)</h4>' +
+        questionsHtml(quiz, 1) +
+        '<h4 class="ficha-h">Parte B — Avaliação prática (todos os critérios devem estar conformes)</h4>' +
+        '<table class="ficha-table"><thead><tr><th>Nº</th><th>Critério de execução</th><th>Conf.</th><th>Não conf.</th><th>Observação</th></tr></thead>' +
+        '<tbody>' + critRows + '</tbody></table>' +
+        '<div class="ficha-result">' +
+        '<span>Nota teórica: ' + fillLine('s') + ' / 10,0</span>' +
+        '<span>Prática: □ Conforme&nbsp;&nbsp;□ Não conforme</span>' +
+        '<span class="big">Conceito: □ APROVADO&nbsp;&nbsp;□ REPROVADO</span>' +
+        '</div>' +
+        '<div class="ficha-obs">Observações do instrutor: ' + fillLine('xl') + '<br>' + fillLine('xl') + '</div>' +
+        fichaSigns(['Participante', 'Instrutor(a)']) +
+        '</div>';
+}
+
+function buildFichaProvaFinal() {
+    return '<div class="ficha" data-ficha="prova-final">' +
+        fichaHead('FIC-90', 'Prova Final Integradora', COURSE.title + ' · 10,0 pontos · aprovação ≥ 7,0') +
+        '<h4 class="ficha-h">Parte A — Questões (10 × 1,0 = 10,0 pontos)</h4>' +
+        questionsHtml(QUIZ.final, 1) +
+        '<h4 class="ficha-h">Parte B — Atividade integradora (prática — avaliação do instrutor)</h4>' +
+        '<p class="ficha-text">Peça surpresa: leitura do desenho, programação no app (ISO e/ou macro), simulação e apresentação do código ao instrutor. Critérios: interpretação correta, código sem erros, simulação aprovada e justificativa técnica.</p>' +
+        '<div class="ficha-result">' +
+        '<span>Nota da prova: ' + fillLine('s') + ' / 10,0</span>' +
+        '<span>Integradora: □ Aprovado&nbsp;&nbsp;□ Não aprovado</span>' +
+        '<span class="big">Conceito final: □ APROVADO&nbsp;&nbsp;□ REPROVADO</span>' +
+        '</div>' +
+        '<div class="ficha-obs">Observações: ' + fillLine('xl') + '</div>' +
+        fichaSigns(['Participante', 'Instrutor(a)']) +
+        '</div>';
+}
+
+function buildFichaEficacia() {
+    const statements = [
+        'O colaborador aplica os conhecimentos do treinamento no trabalho diário?',
+        'Houve redução de erros, refugo ou retrabalhos após o treinamento?',
+        'O colaborador interpreta desenhos técnicos com autonomia?',
+        'O colaborador elabora e ajusta programas CNC com supervisão mínima?',
+        'Os procedimentos de segurança (NR-12) estão sendo seguidos no posto?',
+        'Houve necessidade de retreinamento ou apoio adicional?'
+    ];
+    const rows = statements.map((s, i) =>
+        '<tr><td class="center">' + (i + 1) + '</td><td>' + s + '</td>' +
+        '<td class="center fill-cell"></td><td class="center fill-cell"></td><td class="center fill-cell"></td></tr>'
+    ).join('');
+    return '<div class="ficha" data-ficha="eficacia">' +
+        fichaHead('FIC-91', 'Avaliação de Eficácia do Treinamento', 'Aplicar em até 90 dias após a conclusão · NR-12 / gestão de pessoas') +
+        '<div class="ficha-fields">' +
+        '<span class="fi">Colaborador: ' + fillLine('xl') + '</span>' +
+        '<span class="fi">Gestor responsável: ' + fillLine('m') + '</span>' +
+        '<span class="fi">Data da avaliação: ' + fillLine('s') + '</span>' +
+        '</div>' +
+        '<table class="ficha-table"><thead><tr><th>Nº</th><th>Verificação</th><th>Sim</th><th>Parcial</th><th>Não</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table>' +
+        '<div class="ficha-obs">Principais ganhos observados: ' + fillLine('xl') + '<br>' + fillLine('xl') + '</div>' +
+        '<div class="ficha-obs">Sugestões / necessidade de retreinamento: ' + fillLine('xl') + '<br>' + fillLine('xl') + '</div>' +
+        fichaSigns(['Colaborador', 'Gestor imediato', 'Instrutor(a)', 'RH / SST']) +
+        '</div>';
+}
+
+function buildFichaGabarito() {
+    let body = '';
+    ['m0', 'm1', 'm2', 'm3', 'm4', 'm5'].forEach(mid => {
+        const m = COURSE.modules.find(mm => mm.id === mid);
+        body += '<h4 class="ficha-h">M' + m.number + ' — ' + m.title + '</h4>' +
+            '<table class="ficha-table"><thead><tr><th>Q</th><th>Tipo</th><th>Resposta</th></tr></thead><tbody>' +
+            (QUIZ[mid] || []).map((q, i) =>
+                '<tr><td class="center">' + (i + 1) + '</td><td>' + (q.type === 'multi' ? 'Objetiva' : 'Discursiva') + '</td>' +
+                '<td class="gabarito-a">' + (q.type === 'multi' ? 'Letra ' + q.a : q.a) + '</td></tr>'
+            ).join('') + '</tbody></table>';
+    });
+    body += '<h4 class="ficha-h">Prova final integradora</h4>' +
+        '<table class="ficha-table"><thead><tr><th>Q</th><th>Tipo</th><th>Resposta</th></tr></thead><tbody>' +
+        QUIZ.final.map((q, i) =>
+            '<tr><td class="center">' + (i + 1) + '</td><td>' + (q.type === 'multi' ? 'Objetiva' : 'Discursiva') + '</td>' +
+            '<td class="gabarito-a">' + (q.type === 'multi' ? 'Letra ' + q.a : q.a) + '</td></tr>'
+        ).join('') + '</tbody></table>';
+    return '<div class="ficha" data-ficha="gabarito">' +
+        fichaHead('FIC-99', 'Gabarito do Instrutor', 'Uso interno — não distribuir aos participantes') +
+        body +
+        '<p class="ficha-note"><b>Correção:</b> questões objetivas = 2,0 pts (módulo) / 1,0 pt (prova final) quando corretas. Discursivas avaliar completude técnica conforme resposta-modelo. Nota mínima de aprovação: 7,0.</p>' +
+        fichaSigns(['Instrutor(a)', 'Responsável pelo treinamento']) +
+        '</div>';
+}
+
+function renderFicha(id) {
+    switch (id) {
+        case 'identificacao': return buildFichaIdentificacao();
+        case 'presenca': return buildFichaPresenca();
+        case 'prova-final': return buildFichaProvaFinal();
+        case 'eficacia': return buildFichaEficacia();
+        case 'gabarito': return buildFichaGabarito();
+        default:
+            if (/^m\d$/.test(id)) return buildFichaModule(id);
+            return '';
+    }
+}
+
+function renderFichaGrid() {
+    const grid = $('#fichaGrid');
+    if (!grid || typeof FICHAS === 'undefined') return;
+    grid.innerHTML = FICHAS.map(f =>
+        '<div class="ficha-card">' +
+        '<div class="ficha-card-icon">' + f.icon + '</div>' +
+        '<p class="ficha-card-doc">' + f.doc + '</p>' +
+        '<p class="ficha-card-title">' + f.title + '</p>' +
+        '<p class="ficha-card-desc">' + f.desc + '</p>' +
+        '<div class="ficha-card-actions">' +
+        '<button type="button" class="btn btn-sm ficha-view" data-ficha="' + f.id + '">👁 Visualizar</button>' +
+        '<button type="button" class="btn btn-sm btn-accent ficha-print" data-ficha="' + f.id + '">🖨️ Imprimir</button>' +
+        '</div>' +
+        '</div>'
+    ).join('');
+}
+
+function showFichaPreview(id) {
+    const meta = FICHAS.find(f => f.id === id);
+    const paper = $('#fichaPaper');
+    const wrap = $('#fichaPreviewWrap');
+    if (!paper || !wrap) return;
+    paper.innerHTML = renderFicha(id);
+    paper.dataset.current = id;
+    $('#fichaPreviewTitle').textContent = (meta ? meta.doc + ' — ' + meta.title : 'Ficha');
+    wrap.style.display = 'block';
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeFichaPreview() {
+    const wrap = $('#fichaPreviewWrap');
+    if (wrap) wrap.style.display = 'none';
+}
+
+function printSingleFicha() {
+    const paper = $('#fichaPaper');
+    if (!paper || !paper.dataset.current) {
+        showToast('⚠️ Visualize uma ficha antes de imprimir.');
+        return;
+    }
+    $('#printFichaMeta').textContent = (FICHAS.find(f => f.id === paper.dataset.current) || {}).doc + ' · ' + todayBR();
+    document.body.classList.add('print-ficha');
+    window.print();
+    setTimeout(() => document.body.classList.remove('print-ficha'), 500);
+}
+
+function printFichaById(id) {
+    showFichaPreview(id);
+    printSingleFicha();
+}
+
+function printFichaKit() {
+    const kit = $('#fichaKitPrint');
+    if (!kit) return;
+    kit.innerHTML = FICHAS.map(f => renderFicha(f.id)).join('<div class="ficha-break"></div>');
+    $('#printFichaMeta').textContent = 'Kit completo · ' + FICHAS.length + ' fichas · ' + todayBR();
+    document.body.classList.add('print-ficha-kit');
+    window.print();
+    setTimeout(() => {
+        document.body.classList.remove('print-ficha-kit');
+        kit.innerHTML = ''; // evita vazar para outras impressões
+    }, 500);
+}
+
+// ============================================================
 // UPLOAD / FLUXO PRINCIPAL
 // ============================================================
 function revealApp(fileName, opts) {
@@ -990,6 +1265,26 @@ function setupGeneralEvents() {
     const printCourseBtn = $('#btnPrintCourse');
     if (printCourseBtn) printCourseBtn.addEventListener('click', printCourse);
 
+    // Kit de fichas: visualizar, imprimir
+    const fichaGrid = $('#fichaGrid');
+    if (fichaGrid) {
+        fichaGrid.addEventListener('click', e => {
+            const view = e.target.closest('.ficha-view');
+            if (view) {
+                showFichaPreview(view.dataset.ficha);
+                return;
+            }
+            const pr = e.target.closest('.ficha-print');
+            if (pr) printFichaById(pr.dataset.ficha);
+        });
+    }
+    const btnPrintKit = $('#btnPrintFichaKit');
+    if (btnPrintKit) btnPrintKit.addEventListener('click', printFichaKit);
+    const btnPrintCurrent = $('#btnPrintCurrentFicha');
+    if (btnPrintCurrent) btnPrintCurrent.addEventListener('click', printSingleFicha);
+    const btnClosePreview = $('#btnCloseFichaPreview');
+    if (btnClosePreview) btnClosePreview.addEventListener('click', closeFichaPreview);
+
     // Upload
     $('#btnDemo').addEventListener('click', () => revealApp(PARTS[DEFAULT_PART_ID].exampleFile, { partId: DEFAULT_PART_ID }));
     $('#btnBrowse').addEventListener('click', () => $('#fileInput').click());
@@ -1111,6 +1406,7 @@ function init() {
     setupOrbit();
     setupSplash();
     renderCourse();
+    renderFichaGrid();
     refreshSheet();
 
     if (saved && saved.revealed) {
@@ -1126,9 +1422,10 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.2 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.3 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
+    console.log('📝 Kit de fichas de avaliação: ' + FICHAS.length + ' documentos prontos para impressão.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');
 }
 
