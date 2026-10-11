@@ -1,10 +1,16 @@
 # COTA — do desenho à peça pronta
 
-Assistente de CAD em português para ensino de modelagem 3D: você sobe um desenho
-técnico, confirma as features detectadas, escolhe o seu software (SolidWorks,
-Fusion 360 ou Inventor) e recebe um **roteiro de modelagem passo a passo** com o
-comando certo para cada etapa — além de uma **folha de desenho técnica** com
-vistas ortográficas cotadas, corte A-A e especificações calculadas.
+Assistente de CAD + CNC em português para ensino de manufatura: você escolhe uma
+**situação de usinagem**, confirma as features detectadas, ajusta as dimensões e
+recebe, de uma vez:
+
+- **Folha técnica** com vistas ortográficas cotadas, corte, detalhes e massa calculada
+- **Roteiro de modelagem CAD** passo a passo (SolidWorks, Fusion 360 ou Inventor)
+- **Programação CNC**: código ISO 6983 (G-code) pronto para o painel **e**
+  programa paramétrico (macro com variáveis e laços)
+
+Tudo é **paramétrico**: mude qualquer dimensão e a folha, o roteiro e os dois
+programas de CNC são recalculados na hora.
 
 ## Como usar
 
@@ -16,40 +22,46 @@ python3 -m http.server 8000
 # http://localhost:8000
 ```
 
+## Situações de usinagem (exemplos)
+
+| Exemplo | Processo | O que treina no CNC |
+|---|---|---|
+| 🔧 Suporte em L | Fresamento 2,5D | faceamento, contorno, G83, chanfro |
+| 📏 Placa com rasgo | Fresamento 2,5D | Extruded Cut, padrão de furos, rasgo |
+| ⚙️ Flange circular | Fresamento circular | contorno G02/G03, interpolação helicoidal, padrão polar com COS/SIN |
+| 📦 Caixa com cavidade | Fresamento de cavidade | desbaste de pocket em zig-zag, acabamento de parede |
+| 🔄 Eixo escalonado | Torneamento CNC | perfil de revolução, G71 (desbaste) / G70 (acabamento), ranhura |
+
 ## Estrutura
 
 ```
 index.html        Página principal (HTML semântico)
 css/styles.css    Estilos (tema claro/escuro, responsivo, impressão)
-js/app.js         Lógica do app (estado, roteiro, folha de desenho, exportação)
+js/parts.js       Catálogo de peças: vistas SVG, roteiro, G-code e macros
+js/app.js         UI: galeria, features, folha, programação CNC, sessão
 ```
-
-> O arquivo único `Cnc.html` foi dividido nestes três arquivos na refatoração
-> v4.1. O conteúdo é o mesmo, agora organizado e mais fácil de manter.
 
 ## Funcionalidades
 
-- **Upload de desenho** (PDF, DWG, DXF ou imagem) por arrastar-e-soltar, ou use
-  a peça de exemplo
-- **Detecção de features** com parâmetros editáveis (dimensões, furos, chanfro)
-  — desmarcar uma feature recalcula folha, roteiro e massa em tempo real
-- **Roteiro por software**: comandos traduzidos para SolidWorks, Fusion 360 e
-  Inventor
-- **Folha de desenho** com vistas frontal, superior, lateral e corte A-A em
-  SVG, cotas dinâmicas e viewBox ajustável a qualquer dimensão
-- **Massa estimada** calculada a partir do volume (aço SAE 1020, 7,85 g/cm³)
-- **Progresso visual**: a cena 3D se monta conforme você marca as etapas
-- **Exportar TXT** e **Imprimir / PDF** (folha + roteiro com layout de impressão)
-- **Sessão persistida**: features, software, progresso e tema sobrevivem ao
-  recarregamento da página
-- **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D
-  também no toque
+- **Galeria de exemplos** com 5 situações de usinagem (fresamento e torneamento)
+- **Features paramétricas** por peça — desmarcar/excluir recalcula tudo
+- **Folha técnica** em SVG com cotas dinâmicas e viewBox ajustável a qualquer dimensão
+- **Massa estimada** calculada do volume (aço SAE 1020, 7,85 g/cm³)
+- **Código ISO** comentado, com tabela de ferramentas e ciclos (G81/G83/G71/G70)
+- **Programa paramétrico** com variáveis `#`, expressões e laços `WHILE/DO`
+- **Copiar / Baixar .tap** do programa ativo; **Imprimir/PDF** com folha + roteiro + os 2 códigos
+- **Exportar TXT** com especificações, etapas e os dois programas
+- **Sessão persistida**: peça, features, software, progresso, aba de código e tema
+- **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
-## Melhorias da v4.1
+## Histórico
 
-- Corrigido: a miniatura 3D da folha sumia após o upload
-- Corrigido: massa e chanfro exibidos valores fixos no lugar dos calculados
-- Corrigido: cotas eram cortadas quando as dimensões ultrapassavam 400 mm
-- Corrigido: furos/chanfros da cena da folha ignoravam as features desmarcadas
-- Desenho técnico agora respeita as features incluídas/excluídas
-- Refatoração: HTML/CSS/JS separados, JS organizado por responsabilidade
+### v5.0
+- Galeria com 5 situações de usinagem paramétricas
+- Geração de código ISO (G-code) + programa paramétrico por peça
+- Seção Passo 4 — Programação CNC com abas, realce de sintaxe, copiar e download
+- Folha técnica e roteiro genéricos (cada peça traz suas vistas e etapas)
+
+### v4.1
+- Arquivo único `Cnc.html` dividido em HTML/CSS/JS
+- Correções de bugs (miniatura 3D, massa/chanfro fixos, viewBox, features)

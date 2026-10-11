@@ -9,6 +9,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' rx='3' fill='none' stroke='%236FD3E0' stroke-width='2'/%3E%3Cpath d='M16 1v6M1 16h6' stroke='%236FD3E0' stroke-width='2'/%3E%3Cpath d='M11 20l4-6 3 4 3-5' stroke='%23FF7A3D' stroke-width='2' fill='none'/%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
+    <script src="js/parts.js" defer></script>
     <script src="js/app.js" defer></script>
 </head>
 
@@ -23,7 +24,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v4.1 · CAD Assistant</div>
+            <div class="version">v5.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -102,12 +103,23 @@
                         <div class="hole hole-wall" id="hole-wall"></div>
                     </div>
                 </div>
+                <div class="hero-alt-view" id="heroAltSvg" style="display:none;"></div>
             </div>
             <div class="progress-label">
-                <span>SUPORTE-EM-L · REV.A</span>
+                <span id="partLabel">SUPORTE-EM-L · REV.A</span>
                 <span><b id="stepCount">0</b>/<span id="stepTotal">7</span> etapas</span>
             </div>
         </div>
+    </section>
+
+    <!-- ===== EXEMPLOS DE USINAGEM ===== -->
+    <section id="examplesSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Exemplos</div>
+            <h2 class="section-title">Escolha uma situação de usinagem</h2>
+            <p class="section-sub">Cada exemplo traz features paramétricas, folha técnica, roteiro de modelagem e programação CNC (código ISO + paramétrico) recalculados a partir das dimensões.</p>
+        </div>
+        <div class="example-grid" id="exampleGrid"></div>
     </section>
 
     <!-- ===== DETECT ===== -->
@@ -162,6 +174,14 @@
             <span class="ph-title">COTA — Roteiro de Modelagem</span>
             <span class="ph-meta" id="printMeta">SUPORTE-EM-L · REV.A</span>
         </div>
+        <div class="print-only print-code-block">
+            <h3>Código ISO (G-code)</h3>
+            <pre id="printCodeIso"></pre>
+        </div>
+        <div class="print-only print-code-block">
+            <h3>Programa paramétrico</h3>
+            <pre id="printCodeMacro"></pre>
+        </div>
         <div class="section-head" style="border-top:1px solid var(--line-soft);">
             <div class="section-eyebrow">Documentação Técnica</div>
             <h2 class="section-title">📐 Folha de Desenho</h2>
@@ -172,8 +192,8 @@
             <!-- CABEÇALHO -->
             <div class="sheet-header">
                 <div class="title-block">
-                    <h2>SUPORTE-EM-L</h2>
-                    <div class="subtitle">Desenho de conjunto · Peça única</div>
+                    <h2 id="sheetTitle">SUPORTE-EM-L</h2>
+                    <div class="subtitle" id="sheetSubtitle">Fresamento 2,5D · Centro de usinagem 3 eixos</div>
                 </div>
                 <div class="info-block">
                     <div class="info-item">
@@ -206,20 +226,20 @@
                     <div class="views-title">📐 Vistas Ortográficas</div>
                     <div class="views-grid-sheet">
                         <div class="view-box">
-                            <span class="view-label">FRONTAL</span>
-                            <div class="view-svg" id="svgFrontalSheet"></div>
+                            <span class="view-label" id="viewLabel0">VISTA 1</span>
+                            <div class="view-svg" id="svgView0"></div>
                         </div>
                         <div class="view-box">
-                            <span class="view-label">SUPERIOR</span>
-                            <div class="view-svg" id="svgSuperiorSheet"></div>
+                            <span class="view-label" id="viewLabel1">VISTA 2</span>
+                            <div class="view-svg" id="svgView1"></div>
                         </div>
                         <div class="view-box">
-                            <span class="view-label">LATERAL ESQ.</span>
-                            <div class="view-svg" id="svgLateralSheet"></div>
+                            <span class="view-label" id="viewLabel2">VISTA 3</span>
+                            <div class="view-svg" id="svgView2"></div>
                         </div>
                         <div class="view-box">
-                            <span class="view-label">CORTE A-A</span>
-                            <div class="view-svg" id="svgCorteSheet"></div>
+                            <span class="view-label" id="viewLabel3">VISTA 4</span>
+                            <div class="view-svg" id="svgView3"></div>
                         </div>
                     </div>
                 </div>
@@ -229,20 +249,11 @@
                     <!-- INFO TÉCNICA -->
                     <div class="tech-info">
                         <div class="tech-title">📋 Especificações Técnicas</div>
-                        <div class="tech-row"><span class="tech-label">Comprimento total</span><span class="tech-value" id="techWidth">160 mm</span></div>
-                        <div class="tech-row"><span class="tech-label">Largura total</span><span class="tech-value" id="techDepth">160 mm</span></div>
-                        <div class="tech-row"><span class="tech-label">Altura total</span><span class="tech-value" id="techHeight">122 mm</span></div>
-                        <div class="tech-row"><span class="tech-label">Espessura da base</span><span class="tech-value" id="techBaseThick">22 mm</span></div>
-                        <div class="tech-row"><span class="tech-label">Espessura da parede</span><span class="tech-value" id="techWallThick">18 mm</span></div>
-                        <div class="tech-row"><span class="tech-label">Furo base</span><span class="tech-value" id="techHoleBase">Ø26 mm</span></div>
-                        <div class="tech-row"><span class="tech-label">Furo parede</span><span class="tech-value" id="techHoleWall">Ø20 mm</span></div>
-                        <div class="tech-row"><span class="tech-label">Chanfro</span><span class="tech-value" id="techChamfer">3 × 45°</span></div>
-                        <div class="tech-row"><span class="tech-label">Tolerância</span><span class="tech-value">ISO 2768-m</span></div>
-                        <div class="tech-row"><span class="tech-label">Acabamento</span><span class="tech-value">Usinagem</span></div>
+                        <div id="techRows"></div>
                     </div>
 
                     <!-- VISUALIZAÇÃO 3D -->
-                    <div class="view-3d-box">
+                    <div class="view-3d-box" id="sheet3dBox">
                         <div class="view-3d-title">🎯 Visualização 3D</div>
                         <div class="scene-3d-wrap-sheet">
                             <div class="stage-3d-sheet">
@@ -306,9 +317,31 @@
         </div>
     </section>
 
+    <!-- ===== PROGRAMAÇÃO CNC ===== -->
+    <section class="code-wrap" id="codeSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Passo 4</div>
+            <h2 class="section-title">⚙️ Programação CNC</h2>
+            <p class="section-sub">O mesmo programa em duas versões: código ISO 6983 pronto para o painel e programa paramétrico com variáveis — mude as dimensões e tudo é recalculado.</p>
+        </div>
+        <div class="code-meta" id="codeMeta"></div>
+        <div class="code-tabs" role="tablist" aria-label="Versões do programa CNC">
+            <button type="button" class="code-tab active" data-code="iso" role="tab" aria-selected="true">📄 Código ISO (G-code)</button>
+            <button type="button" class="code-tab" data-code="macro" role="tab" aria-selected="false">🧮 Programa paramétrico</button>
+        </div>
+        <div class="code-toolbar">
+            <span class="code-hint">💡 Edite qualquer dimensão no Passo 1 — o código acompanha.</span>
+            <div class="code-actions">
+                <button type="button" class="btn" id="btnCopyCode">📋 Copiar</button>
+                <button type="button" class="btn btn-accent" id="btnDownloadCode">💾 Baixar .tap</button>
+            </div>
+        </div>
+        <pre class="code-view" id="codeView" tabindex="0"></pre>
+    </section>
+
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v4.1 — CAD Assistant · Do desenho à peça pronta
+        COTA v5.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->
