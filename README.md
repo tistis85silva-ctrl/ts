@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v5.5.0.zip** (publicado em [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v5.5.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
