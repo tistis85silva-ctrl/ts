@@ -48,13 +48,35 @@ A galeria tem **filtro por processo** (Todas / Fresamento / Torneamento) para
 organizar as turmas. A bucha e o eixo rosqueado formam um **par de ajuste
 6H/6g** — dá para usar em aula de montagem e tolerâncias.
 
+## 📚 Roteiro de aulas (trilha de formação)
+
+O app inclui um **curso estruturado de 64h** (6 módulos · 13 aulas), pronto para
+formar operadores e programadores de CNC:
+
+| Módulo | Conteúdo | Carga |
+|---|---|---|
+| M0 — Fundamentos | segurança (NR-12), fixação, zero-peça, leitura de desenho, estrutura ISO | 8h |
+| M1 — Fresamento básico | faceamento, contorno, G83, rasgo, padrão de furos | 8h |
+| M2 — Interpolação circular | G02/G03, helicoidal, padrão polar SIN/COS, pockets | 12h |
+| M3 — Situações especiais | rampas X/Z simultâneos, ciclos G81/G82/G83 | 8h |
+| M4 — Torneamento | G71/G70, ranhura, rasgo em V, G74 | 12h |
+| M5 — Roscas e montagem | G76 interno/externo, par 6H/6g, avaliação final | 16h |
+
+Cada aula traz **objetivos de aprendizagem**, **conteúdos técnicos**, **roteiro
+por fases cronometradas** (teoria → demonstração → prática guiada → prática
+independente → avaliação), **pontos de atenção** (segurança e erros clássicos),
+**critérios de avaliação** e botão para abrir o **exemplo prático** no app.
+O progresso do aluno fica salvo no navegador e o roteiro pode ser **impresso**
+para a sala de aula (formato handout profissional).
+
 ## Estrutura
 
 ```
 index.html        Página principal (HTML semântico)
 css/styles.css    Estilos (tema claro/escuro, responsivo, impressão)
 js/parts.js       Catálogo de peças: vistas SVG, roteiro, G-code e macros
-js/app.js         UI: galeria, features, folha, programação CNC, sessão
+js/curso.js       Trilha de formação: módulos, aulas e avaliação
+js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 ```
 
 ## Funcionalidades
@@ -71,6 +93,12 @@ js/app.js         UI: galeria, features, folha, programação CNC, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v5.2
+- Roteiro de aulas profissional (trilha de formação de 64h) integrado ao app
+- Objetivos, roteiro cronometrado, pontos de atenção e checklist por aula
+- Progresso do aluno salvo na sessão + impressão do roteiro para sala de aula
+
 
 ### v5.1
 - +5 exemplos: cunha inclinada, gabarito de furação, polia em V, bucha com rosca e eixo rosqueado

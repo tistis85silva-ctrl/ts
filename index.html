@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <script src="js/parts.js" defer></script>
+    <script src="js/curso.js" defer></script>
     <script src="js/app.js" defer></script>
 </head>
 
@@ -24,7 +25,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v5.0 · CAD + CNC Assistant</div>
+            <div class="version">v5.2 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -127,6 +128,31 @@
         <div class="example-grid" id="exampleGrid"></div>
     </section>
 
+    <!-- ===== TRILHA DE FORMAÇÃO ===== -->
+    <section id="courseSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Formação</div>
+            <h2 class="section-title">📚 Roteiro de Aulas — Trilha Completa</h2>
+            <p class="section-sub">Curso estruturado para operadores e programadores de CNC: objetivos, roteiro de cada aula por fases cronometradas, pontos de atenção e critérios de avaliação. Acompanhe o progresso e imprima o roteiro para a sala de aula.</p>
+        </div>
+        <div class="course-meta" id="courseMeta"></div>
+        <div class="course-progress-wrap">
+            <div class="plan-progress-bar" role="progressbar" aria-label="Progresso da trilha"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="courseProgress">
+                <div class="plan-progress-fill" id="courseFill"></div>
+            </div>
+            <span class="plan-progress-pct" id="coursePct">0%</span>
+        </div>
+        <div class="course-toolbar">
+            <span class="course-done-count" id="courseDoneCount">0/13 aulas concluídas</span>
+            <div class="code-actions">
+                <button type="button" class="btn" id="btnToggleAllAulas">📂 Expandir tudo</button>
+                <button type="button" class="btn btn-accent" id="btnPrintCourse">🖨️ Imprimir roteiro de aulas</button>
+            </div>
+        </div>
+        <div id="courseModules"></div>
+    </section>
+
     <!-- ===== DETECT ===== -->
     <section class="detect-wrap" id="detectSection">
         <div class="section-head">
@@ -175,6 +201,10 @@
 
     <!-- ===== FOLHA DE DESENHO ===== -->
     <section class="drawing-sheet-wrap" id="drawingSheetSection">
+        <div class="print-only print-header print-header-course">
+            <span class="ph-title">COTA — Roteiro de Aulas</span>
+            <span class="ph-meta" id="printCourseMeta">Trilha de formação CNC</span>
+        </div>
         <div class="print-only print-header">
             <span class="ph-title">COTA — Roteiro de Modelagem</span>
             <span class="ph-meta" id="printMeta">SUPORTE-EM-L · REV.A</span>
@@ -346,7 +376,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v5.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v5.2 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

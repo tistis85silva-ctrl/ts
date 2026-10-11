@@ -28,7 +28,8 @@ const app = {
     confirmed: false,
     fileName: '',
     codeTab: 'iso', // 'iso' | 'macro'
-    filter: 'todas' // 'todas' | 'Fresamento' | 'Torneamento'
+    filter: 'todas', // 'todas' | 'Fresamento' | 'Torneamento'
+    doneAulas: new Set()
 };
 
 function currentPart() {
@@ -120,6 +121,7 @@ function saveSession() {
         fileName: app.fileName,
         codeTab: app.codeTab,
         doneIds: Array.from(app.doneIds),
+        doneAulas: Array.from(app.doneAulas),
         features: compact
     }));
 }
@@ -588,6 +590,141 @@ function downloadCode() {
 }
 
 // ============================================================
+// TRILHA DE FORMAÇÃO (roteiro de aulas)
+// ============================================================
+function courseTotals() {
+    let totalAulas = 0, totalHours = 0;
+    COURSE.modules.forEach(m => m.aulas.forEach(a => { totalAulas++; totalHours += a.hours; }));
+    return { totalAulas: totalAulas, totalHours: totalHours };
+}
+
+function renderCourse() {
+    const meta = $('#courseMeta');
+    const modules = $('#courseModules');
+    if (!modules || typeof COURSE === 'undefined') return;
+
+    const tot = courseTotals();
+    if (meta) {
+        meta.innerHTML =
+            '<span class="course-chip">🎓 ' + COURSE.modules.length + ' módulos</span>' +
+            '<span class="course-chip">📖 ' + tot.totalAulas + ' aulas</span>' +
+            '<span class="course-chip">⏱ ' + tot.totalHours + 'h de carga horária</span>' +
+            '<span class="course-chip">📈 Iniciante → Avançado</span>' +
+            '<span class="course-chip">📋 ' + COURSE.certification + '</span>';
+    }
+
+    modules.innerHTML = COURSE.modules.map(m => {
+        const hours = m.aulas.reduce((s, a) => s + a.hours, 0);
+        const aulasHtml = m.aulas.map(a => {
+            const part = a.partId ? PARTS[a.partId] : null;
+            const done = app.doneAulas.has(a.id);
+            const roteiroRows = a.roteiro.map(r =>
+                '<tr><td class="rt-fase">' + r.fase + '</td><td class="rt-min">' + r.min + ' min</td><td class="rt-desc">' + r.desc + '</td></tr>'
+            ).join('');
+            const roteiroTotal = a.roteiro.reduce((s, r) => s + r.min, 0);
+
+            return '<div class="aula' + (done ? ' done' : '') + '" id="aula-' + a.id + '">' +
+                '<div class="aula-head">' +
+                '<label class="aula-check-label">' +
+                '<input type="checkbox" class="aula-check" data-aula="' + a.id + '"' + (done ? ' checked' : '') +
+                ' aria-label="Marcar aula ' + a.num + ' como concluída">' +
+                '</label>' +
+                '<button type="button" class="aula-toggle" aria-expanded="false">' +
+                '<span class="aula-num">' + a.num + '</span>' +
+                '<span class="aula-title">' + a.title + '</span>' +
+                '<span class="aula-hours">' + a.hours + 'h</span>' +
+                '</button>' +
+                (part ? '<button type="button" class="aula-open" data-part="' + part.id + '" title="Abrir o exemplo prático desta aula">' +
+                    part.icon + ' <span>exemplo</span> →</button>' : '') +
+                '</div>' +
+                '<div class="aula-panel">' +
+                '<div class="aula-cols">' +
+                '<div>' +
+                '<h4 class="aula-h">🎯 Objetivos de aprendizagem</h4>' +
+                '<ul class="aula-items">' + a.objectives.map(o => '<li>' + o + '</li>').join('') + '</ul>' +
+                '<h4 class="aula-h">📚 Conteúdos técnicos</h4>' +
+                '<ul class="aula-items">' + a.topics.map(o => '<li>' + o + '</li>').join('') + '</ul>' +
+                '</div>' +
+                '<div>' +
+                '<h4 class="aula-h">⏱ Roteiro da aula <span class="aula-total-min">(' + roteiroTotal + ' min)</span></h4>' +
+                '<table class="roteiro-table">' +
+                '<thead><tr><th>Fase</th><th>Tempo</th><th>Descrição</th></tr></thead>' +
+                '<tbody>' + roteiroRows + '</tbody>' +
+                '</table>' +
+                '</div>' +
+                '</div>' +
+                '<div class="aula-cols">' +
+                '<div>' +
+                '<h4 class="aula-h">⚠️ Pontos de atenção</h4>' +
+                '<ul class="aula-attention">' + a.attention.map(o => '<li>' + o + '</li>').join('') + '</ul>' +
+                '</div>' +
+                '<div>' +
+                '<h4 class="aula-h">✅ Critérios de avaliação</h4>' +
+                '<ul class="aula-checklist">' + a.checklist.map(o => '<li>' + o + '</li>').join('') + '</ul>' +
+                '</div>' +
+                '</div>' +
+                (part ? '<div class="aula-practice">🧪 <b>Prática no app:</b> use o exemplo <b>' + part.name + '</b> — features paramétricas, folha técnica, código ISO e macro. ' +
+                    '<button type="button" class="btn btn-sm aula-open" data-part="' + part.id + '">Abrir exemplo →</button></div>' : '') +
+                '</div>' +
+                '</div>';
+        }).join('');
+
+        return '<div class="module-card">' +
+            '<div class="module-head">' +
+            '<div class="module-badge">M' + m.number + '</div>' +
+            '<div class="module-info">' +
+            '<h3 class="module-title">' + m.title + '</h3>' +
+            '<p class="module-goal">' + m.goal + '</p>' +
+            '</div>' +
+            '<div class="module-meta">' +
+            '<span class="ex-tag ex-tag-diff">' + m.level + '</span>' +
+            '<span class="ex-tag">' + hours + 'h</span>' +
+            '</div>' +
+            '</div>' +
+            (m.note ? '<p class="module-note">💡 <b>Dica do instrutor:</b> ' + m.note + '</p>' : '') +
+            '<div class="aula-list">' + aulasHtml + '</div>' +
+            '</div>';
+    }).join('');
+
+    updateCourseProgress();
+}
+
+function updateCourseProgress() {
+    const tot = courseTotals();
+    const done = app.doneAulas.size;
+    const pct = tot.totalAulas ? Math.round(done / tot.totalAulas * 100) : 0;
+    $('#courseFill').style.width = pct + '%';
+    $('#coursePct').textContent = pct + '%';
+    $('#courseDoneCount').textContent = done + '/' + tot.totalAulas + ' aulas concluídas' +
+        (done === tot.totalAulas && tot.totalAulas > 0 ? ' — trilha completa! 🎉' : '');
+    const bar = $('#courseProgress');
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+}
+
+function toggleAllAulas() {
+    const panels = $$('.aula-panel');
+    const anyClosed = panels.some(p => !p.classList.contains('open'));
+    panels.forEach(p => p.classList.toggle('open', anyClosed));
+    $$('.aula-toggle').forEach(b => b.setAttribute('aria-expanded', anyClosed ? 'true' : 'false'));
+    const btn = $('#btnToggleAllAulas');
+    if (btn) btn.textContent = anyClosed ? '📕 Recolher tudo' : '📂 Expandir tudo';
+}
+
+function printCourse() {
+    const tot = courseTotals();
+    const meta = $('#printCourseMeta');
+    if (meta) {
+        meta.textContent = COURSE.title + ' · ' + COURSE.modules.length + ' módulos · ' +
+            tot.totalAulas + ' aulas · ' + tot.totalHours + 'h · ' + todayBR();
+    }
+    // garante todos os painéis abertos na impressão
+    $$('.aula-panel').forEach(p => p.classList.add('open'));
+    document.body.classList.add('print-course-only');
+    window.print();
+    setTimeout(() => document.body.classList.remove('print-course-only'), 500);
+}
+
+// ============================================================
 // UPLOAD / FLUXO PRINCIPAL
 // ============================================================
 function revealApp(fileName, opts) {
@@ -814,6 +951,45 @@ function setupGeneralEvents() {
         });
     }
 
+    // Trilha de formação: expandir painéis, marcar aulas, abrir exemplos
+    const courseModules = $('#courseModules');
+    if (courseModules) {
+        courseModules.addEventListener('click', e => {
+            const toggle = e.target.closest('.aula-toggle');
+            if (toggle) {
+                const panel = toggle.closest('.aula').querySelector('.aula-panel');
+                const open = panel.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                return;
+            }
+            const openBtn = e.target.closest('.aula-open');
+            if (openBtn) {
+                const part = PARTS[openBtn.dataset.part];
+                if (!part) return;
+                selectPart(part.id);
+                revealApp(part.exampleFile);
+            }
+        });
+        courseModules.addEventListener('change', e => {
+            const chk = e.target.closest('.aula-check');
+            if (!chk) return;
+            const id = chk.dataset.aula;
+            if (chk.checked) {
+                app.doneAulas.add(id);
+            } else {
+                app.doneAulas.delete(id);
+            }
+            const aulaEl = document.getElementById('aula-' + id);
+            if (aulaEl) aulaEl.classList.toggle('done', chk.checked);
+            updateCourseProgress();
+            saveSession();
+        });
+    }
+    const toggleAllBtn = $('#btnToggleAllAulas');
+    if (toggleAllBtn) toggleAllBtn.addEventListener('click', toggleAllAulas);
+    const printCourseBtn = $('#btnPrintCourse');
+    if (printCourseBtn) printCourseBtn.addEventListener('click', printCourse);
+
     // Upload
     $('#btnDemo').addEventListener('click', () => revealApp(PARTS[DEFAULT_PART_ID].exampleFile, { partId: DEFAULT_PART_ID }));
     $('#btnBrowse').addEventListener('click', () => $('#fileInput').click());
@@ -917,8 +1093,9 @@ function setupDemoPulse() {
 function init() {
     renderGallery();
 
-    // Restaura sessão anterior (peça, features, software, progresso)
+    // Restaura sessão anterior (peça, features, software, progresso, aulas)
     const saved = loadSession();
+    if (saved && saved.doneAulas) app.doneAulas = new Set(saved.doneAulas);
     if (saved && saved.partId && PARTS[saved.partId]) {
         selectPart(saved.partId, { silent: true });
         applyFeatureState(saved.features);
@@ -933,6 +1110,7 @@ function init() {
     setupGeneralEvents();
     setupOrbit();
     setupSplash();
+    renderCourse();
     refreshSheet();
 
     if (saved && saved.revealed) {
@@ -948,8 +1126,9 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.2 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
+    console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');
 }
 
