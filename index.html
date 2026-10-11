@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="COTA — assistente de CAD que transforma desenho técnico em roteiro de modelagem passo a passo para SolidWorks, Fusion 360 e Inventor.">
+    <meta name="theme-color" content="#0B1017">
+    <title>COTA — do desenho à peça pronta</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' rx='3' fill='none' stroke='%236FD3E0' stroke-width='2'/%3E%3Cpath d='M16 1v6M1 16h6' stroke='%236FD3E0' stroke-width='2'/%3E%3Cpath d='M11 20l4-6 3 4 3-5' stroke='%23FF7A3D' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/app.js" defer></script>
+</head>
+
+    <!-- ===== SPLASH ===== -->
+    <div id="splash">
+        <div class="splash-content">
+            <div class="logo-big">
+                <div class="logo-mark-big"></div>
+                <h1>COTA<span>.</span></h1>
+            </div>
+            <div class="sub">do desenho à peça pronta</div>
+            <div class="loader">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="version">v4.1 · CAD Assistant</div>
+        </div>
+    </div>
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <div class="logo" id="logoHome">
+            <div class="logo-mark"></div>
+            <div>
+                <div class="logo-text">COTA<span>.</span></div>
+                <div class="logo-sub">desenho &rarr; peça</div>
+            </div>
+        </div>
+        <div class="header-controls">
+            <nav aria-label="Navegação principal">
+                <button type="button" data-scroll-to="hero">Início</button>
+                <button type="button" data-scroll-to="softwareSection">Softwares</button>
+                <button type="button" class="nav-badge" data-action="demo">🎯 Exemplo</button>
+            </nav>
+            <button type="button" class="theme-toggle" id="themeToggle" role="switch" aria-checked="false"
+                    aria-label="Alternar tema claro/escuro">
+                <span class="icon icon-sun" aria-hidden="true">☀️</span>
+                <span class="icon icon-moon" aria-hidden="true">🌙</span>
+                <span class="toggle-slider" aria-hidden="true"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <div class="eyebrow">Ensino de CAD passo a passo</div>
+            <h1>Do desenho técnico<br>à peça <span class="highlight">montada</span>.</h1>
+            <p class="lead">Suba um desenho mecânico, confirme as features detectadas, escolha o software 3D que você usa — o COTA monta o roteiro de modelagem com o comando certo para cada etapa.</p>
+
+            <div class="upload-zone" id="dropzone">
+                <div class="upload-row">
+                    <div class="upload-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M12 3v12m0-12l-4 4m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="upload-title">Solte o desenho aqui</p>
+                        <p class="upload-sub">PDF, DWG, DXF ou imagem da prancha cotada</p>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.svg" style="display:none" aria-label="Selecionar arquivo de desenho técnico">
+                <div class="upload-actions">
+                    <button type="button" class="btn" id="btnBrowse">📂 Escolher arquivo</button>
+                    <button type="button" class="btn btn-accent" id="btnDemo">🎯 Usar peça de exemplo</button>
+                </div>
+                <div class="file-chip" id="fileChip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                    <span id="fileChipText"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene-wrap">
+            <div class="stage">
+                <div class="iso-scene" id="mainScene" title="Arraste para girar a peça">
+                    <div class="box base-plate" id="box-base">
+                        <div class="face f-top"></div>
+                        <div class="face f-front"></div>
+                        <div class="face f-side"></div>
+                        <div class="hole hole-base" id="hole-base"></div>
+                        <div class="chamfer-mark cm1" id="cm1"></div>
+                        <div class="chamfer-mark cm2" id="cm2"></div>
+                    </div>
+                    <div class="box wall" id="box-wall">
+                        <div class="face f-top"></div>
+                        <div class="face f-front"></div>
+                        <div class="face f-side"></div>
+                        <div class="hole hole-wall" id="hole-wall"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="progress-label">
+                <span>SUPORTE-EM-L · REV.A</span>
+                <span><b id="stepCount">0</b>/<span id="stepTotal">7</span> etapas</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== DETECT ===== -->
+    <section class="detect-wrap" id="detectSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Passo 1</div>
+            <h2 class="section-title">Confirme as features detectadas</h2>
+            <p class="section-sub">O COTA leu as vistas e cotas do desenho e sugeriu estas features. Ajuste os valores ou desmarque o que não se aplica antes de gerar o roteiro.</p>
+        </div>
+        <div class="detect-banner">
+            <span class="dot"></span>
+            <span>Leitura automática a partir do arquivo enviado — confira contra o desenho original antes de prosseguir.</span>
+        </div>
+        <div class="feature-grid" id="featureGrid"></div>
+        <div class="detect-cta">
+            <button type="button" class="btn btn-accent" id="btnConfirmFeatures">✅ Confirmar e gerar roteiro</button>
+        </div>
+    </section>
+
+    <!-- ===== SOFTWARE ===== -->
+    <section id="softwareSection">
+        <div class="section-head" id="softHead" style="display:none;">
+            <div class="section-eyebrow">Passo 2</div>
+            <h2 class="section-title">Escolha seu software</h2>
+            <p class="section-sub">O roteiro é o mesmo — mas os comandos e o caminho de menu mudam. O COTA traduz cada etapa para a interface que você já usa.</p>
+        </div>
+        <div class="soft-grid" id="softGrid" style="display:none;">
+            <button type="button" class="soft-card active" data-soft="solidworks" aria-pressed="true">
+                <div class="soft-badge" aria-hidden="true">SW</div>
+                <p class="soft-name">SolidWorks</p>
+                <p class="soft-desc">Feature-based, árvore de projeto (FeatureManager) à esquerda.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </button>
+            <button type="button" class="soft-card" data-soft="fusion" aria-pressed="false">
+                <div class="soft-badge" aria-hidden="true">F360</div>
+                <p class="soft-name">Fusion 360</p>
+                <p class="soft-desc">Timeline na parte inferior, workspace de Design.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </button>
+            <button type="button" class="soft-card" data-soft="inventor" aria-pressed="false">
+                <div class="soft-badge" aria-hidden="true">INV</div>
+                <p class="soft-name">Inventor</p>
+                <p class="soft-desc">Ambiente de Peça (Part), navegador de modelo à esquerda.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </button>
+        </div>
+    </section>
+
+    <!-- ===== FOLHA DE DESENHO ===== -->
+    <section class="drawing-sheet-wrap" id="drawingSheetSection">
+        <div class="print-only print-header">
+            <span class="ph-title">COTA — Roteiro de Modelagem</span>
+            <span class="ph-meta" id="printMeta">SUPORTE-EM-L · REV.A</span>
+        </div>
+        <div class="section-head" style="border-top:1px solid var(--line-soft);">
+            <div class="section-eyebrow">Documentação Técnica</div>
+            <h2 class="section-title">📐 Folha de Desenho</h2>
+            <p class="section-sub">Desenho técnico completo com vistas ortográficas, cotas, corte A-A e especificações da peça.</p>
+        </div>
+
+        <div class="drawing-sheet">
+            <!-- CABEÇALHO -->
+            <div class="sheet-header">
+                <div class="title-block">
+                    <h2>SUPORTE-EM-L</h2>
+                    <div class="subtitle">Desenho de conjunto · Peça única</div>
+                </div>
+                <div class="info-block">
+                    <div class="info-item">
+                        <span class="label">Rev.</span>
+                        <span class="value">A</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Escala</span>
+                        <span class="value" id="techScale">1:1</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Material</span>
+                        <span class="value" id="techMaterial">Aço SAE 1020</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Massa</span>
+                        <span class="value" id="techWeight">0,84 kg</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Data</span>
+                        <span class="value" id="techDate">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CORPO -->
+            <div class="sheet-body">
+                <!-- VISTAS -->
+                <div class="views-area">
+                    <div class="views-title">📐 Vistas Ortográficas</div>
+                    <div class="views-grid-sheet">
+                        <div class="view-box">
+                            <span class="view-label">FRONTAL</span>
+                            <div class="view-svg" id="svgFrontalSheet"></div>
+                        </div>
+                        <div class="view-box">
+                            <span class="view-label">SUPERIOR</span>
+                            <div class="view-svg" id="svgSuperiorSheet"></div>
+                        </div>
+                        <div class="view-box">
+                            <span class="view-label">LATERAL ESQ.</span>
+                            <div class="view-svg" id="svgLateralSheet"></div>
+                        </div>
+                        <div class="view-box">
+                            <span class="view-label">CORTE A-A</span>
+                            <div class="view-svg" id="svgCorteSheet"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LADO DIREITO -->
+                <div class="side-info">
+                    <!-- INFO TÉCNICA -->
+                    <div class="tech-info">
+                        <div class="tech-title">📋 Especificações Técnicas</div>
+                        <div class="tech-row"><span class="tech-label">Comprimento total</span><span class="tech-value" id="techWidth">160 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Largura total</span><span class="tech-value" id="techDepth">160 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Altura total</span><span class="tech-value" id="techHeight">122 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Espessura da base</span><span class="tech-value" id="techBaseThick">22 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Espessura da parede</span><span class="tech-value" id="techWallThick">18 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Furo base</span><span class="tech-value" id="techHoleBase">Ø26 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Furo parede</span><span class="tech-value" id="techHoleWall">Ø20 mm</span></div>
+                        <div class="tech-row"><span class="tech-label">Chanfro</span><span class="tech-value" id="techChamfer">3 × 45°</span></div>
+                        <div class="tech-row"><span class="tech-label">Tolerância</span><span class="tech-value">ISO 2768-m</span></div>
+                        <div class="tech-row"><span class="tech-label">Acabamento</span><span class="tech-value">Usinagem</span></div>
+                    </div>
+
+                    <!-- VISUALIZAÇÃO 3D -->
+                    <div class="view-3d-box">
+                        <div class="view-3d-title">🎯 Visualização 3D</div>
+                        <div class="scene-3d-wrap-sheet">
+                            <div class="stage-3d-sheet">
+                                <div class="iso-scene-sheet">
+                                    <div class="box-sheet base-plate-s" id="box-sheet-base">
+                                        <div class="face-sheet f-top-s"></div>
+                                        <div class="face-sheet f-front-s"></div>
+                                        <div class="face-sheet f-side-s"></div>
+                                        <div class="hole-s hole-base-s" id="hole-sheet-base"></div>
+                                        <div class="chamfer-s cm1-s" id="cm1-sheet"></div>
+                                        <div class="chamfer-s cm2-s" id="cm2-sheet"></div>
+                                    </div>
+                                    <div class="box-sheet wall-s" id="box-sheet-wall">
+                                        <div class="face-sheet f-top-s"></div>
+                                        <div class="face-sheet f-front-s"></div>
+                                        <div class="face-sheet f-side-s"></div>
+                                        <div class="hole-s hole-wall-s" id="hole-sheet-wall"></div>
+                                    </div>
+                                    <span class="view-label-sheet">SUPORTE-EM-L · REV.A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OBSERVAÇÕES -->
+            <div class="sheet-notes">
+                <span class="note-label">Obs.:</span>
+                <span class="note-text">Peça fabricada por usinagem a partir de bloco maciço. Tolerâncias gerais ISO 2768-m. Aplicar tratamento superficial contra corrosão. Cotas em milímetros (mm).</span>
+                <span class="note-label">Projetista:</span>
+                <span class="note-text">COTA CAD Assistant</span>
+                <span class="note-label">Aprovado:</span>
+                <span class="note-text">—</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== PLAN ===== -->
+    <section class="plan-wrap" id="planSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Passo 3</div>
+            <h2 class="section-title">📐 Roteiro de modelagem</h2>
+            <p class="section-sub">Siga cada etapa com atenção. Marque cada passo conforme for concluído no seu software. A visualização 3D da peça vai se montando junto com você.</p>
+        </div>
+        <div class="plan-progress-wrap">
+            <div class="plan-progress-bar" role="progressbar" aria-label="Progresso do roteiro"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="planProgress">
+                <div class="plan-progress-fill" id="planFill"></div>
+            </div>
+            <span class="plan-progress-pct" id="planPct">0%</span>
+        </div>
+        <div id="stepsList" role="list" aria-label="Etapas do roteiro de modelagem"></div>
+        <div class="cta-row">
+            <span class="cta-note">Peça única concluída — a montagem com peças adicionais está disponível abaixo.</span>
+            <div class="cta-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="button" class="btn" id="btnResetPlan">🔄 Recomeçar</button>
+                <button type="button" class="btn" id="btnExportTxt">💾 Exportar TXT</button>
+                <button type="button" class="btn btn-accent" id="btnPrint">🖨️ Imprimir / PDF</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        COTA v4.1 — CAD Assistant · Do desenho à peça pronta
+    </footer>
+
+    <!-- ===== TOAST ===== -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+</body>
+</html>
