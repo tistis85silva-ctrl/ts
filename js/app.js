@@ -27,7 +27,8 @@ const app = {
     revealed: false,
     confirmed: false,
     fileName: '',
-    codeTab: 'iso' // 'iso' | 'macro'
+    codeTab: 'iso', // 'iso' | 'macro'
+    filter: 'todas' // 'todas' | 'Fresamento' | 'Torneamento'
 };
 
 function currentPart() {
@@ -138,7 +139,11 @@ function loadSession() {
 function renderGallery() {
     const grid = $('#exampleGrid');
     if (!grid) return;
-    grid.innerHTML = Object.keys(PARTS).map(id => {
+    const ids = Object.keys(PARTS).filter(id => {
+        if (app.filter === 'todas') return true;
+        return PARTS[id].process.indexOf(app.filter) === 0;
+    });
+    grid.innerHTML = ids.map(id => {
         const p = PARTS[id];
         return '<button type="button" class="example-card' + (id === app.partId ? ' active' : '') +
             '" data-part="' + id + '" aria-pressed="' + (id === app.partId) + '">' +
@@ -151,6 +156,13 @@ function renderGallery() {
             '</div>' +
             '</button>';
     }).join('');
+    if (!ids.length) {
+        grid.innerHTML = '<p class="ex-empty">Nenhum exemplo neste filtro.</p>';
+    }
+    // estado dos chips
+    $$('#filterChips .chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.filter === app.filter);
+    });
 }
 
 function updateGallerySelection() {
@@ -789,6 +801,16 @@ function setupGeneralEvents() {
             if (!part) return;
             selectPart(card.dataset.part);
             revealApp(part.exampleFile);
+        });
+    }
+    // Filtros por processo
+    const chips = $('#filterChips');
+    if (chips) {
+        chips.addEventListener('click', e => {
+            const chip = e.target.closest('.chip');
+            if (!chip) return;
+            app.filter = chip.dataset.filter;
+            renderGallery();
         });
     }
 

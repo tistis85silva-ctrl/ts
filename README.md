@@ -22,7 +22,9 @@ python3 -m http.server 8000
 # http://localhost:8000
 ```
 
-## Situações de usinagem (exemplos)
+## Situações de usinagem (10 exemplos)
+
+**Fresamento (6):**
 
 | Exemplo | Processo | O que treina no CNC |
 |---|---|---|
@@ -30,7 +32,21 @@ python3 -m http.server 8000
 | 📏 Placa com rasgo | Fresamento 2,5D | Extruded Cut, padrão de furos, rasgo |
 | ⚙️ Flange circular | Fresamento circular | contorno G02/G03, interpolação helicoidal, padrão polar com COS/SIN |
 | 📦 Caixa com cavidade | Fresamento de cavidade | desbaste de pocket em zig-zag, acabamento de parede |
-| 🔄 Eixo escalonado | Torneamento CNC | perfil de revolução, G71 (desbaste) / G70 (acabamento), ranhura |
+| 📐 Cunha inclinada | Fresamento de rampa | movimento simultâneo X/Z, profundidade variável calculada |
+| 🎯 Gabarito de furação | Fresamento — furação | G81/G82/G83, contrabore, furos cegos com demora |
+
+**Torneamento (4):**
+
+| Exemplo | Processo | O que treina no CNC |
+|---|---|---|
+| 🔄 Eixo escalonado | Torneamento CNC | perfil de revolução, G71/G70, ranhura |
+| 🎡 Polia em V | Torneamento — rasgo em V | rasgo angular, geometria por ângulo (TAN), G74 de furação |
+| 🔩 Bucha com rosca | Torneamento — rosca interna | mandrilamento, rosca interna **G76** (par M20×1,5) |
+| 🛠️ Eixo rosqueado | Torneamento — rosca externa | rosca externa **G76**, rasgo de escape (par com a bucha) |
+
+A galeria tem **filtro por processo** (Todas / Fresamento / Torneamento) para
+organizar as turmas. A bucha e o eixo rosqueado formam um **par de ajuste
+6H/6g** — dá para usar em aula de montagem e tolerâncias.
 
 ## Estrutura
 
@@ -55,6 +71,12 @@ js/app.js         UI: galeria, features, folha, programação CNC, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v5.1
+- +5 exemplos: cunha inclinada, gabarito de furação, polia em V, bucha com rosca e eixo rosqueado
+- Filtro da galeria por processo (fresamento / torneamento)
+- Ciclos G82/G76, raspas de escape e par de rosca M20×1,5 para aulas de montagem
+
 
 ### v5.0
 - Galeria com 5 situações de usinagem paramétricas

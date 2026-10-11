@@ -2274,3 +2274,38 @@ button.theme-toggle {
         flex-direction: column;
     }
 }
+
+/* ===== FILTROS DA GALERIA ===== */
+.filter-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.chip {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    color: var(--text-muted);
+    padding: 7px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.chip:hover {
+    color: var(--text);
+    border-color: var(--cyan);
+}
+.chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1A0D06;
+}
+.ex-empty {
+    grid-column: 1 / -1;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 20px 0;
+}
