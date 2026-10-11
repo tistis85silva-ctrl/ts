@@ -1561,7 +1561,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.4 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.5 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
     console.log('📝 Kit de fichas de avaliação: ' + FICHAS.length + ' documentos prontos para impressão.');

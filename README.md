@@ -12,6 +12,21 @@ recebe, de uma vez:
 Tudo é **paramétrico**: mude qualquer dimensão e a folha, o roteiro e os dois
 programas de CNC são recalculados na hora.
 
+## 📦 Instalação (Windows)
+
+O **COTA-Instalador-v5.5.0.zip** (publicado em [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
+
+1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
+2. Pronto — atalho "COTA - Formacao CNC" na Área de Trabalho (com ícone),
+   entrada no Menu Iniciar e desinstalador
+3. O COTA abre em **modo aplicativo** (janela sem barra de endereço) no
+   Edge/Chrome e funciona offline
+
+Também há empacotamento Electron (`package.json` + `desktop/main.js`): em uma
+máquina Windows com internet, `npm install && npm run dist:win` gera o
+`COTA-Instalador.exe` (NSIS) e a versão portátil em `release/`.
+
 ## Como usar
 
 Basta abrir o `index.html` em qualquer navegador (duplo clique funciona — sem
@@ -122,6 +137,13 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v5.5
+- Ícone da marca (favicon.ico multi-tamanho + PNGs) e manifest PWA
+- Instalador Windows offline (`instalar-cota.bat`): atalhos com ícone, modo
+  aplicativo Edge/Chrome, Menu Iniciar e desinstalador — sem admin
+- Pacote Electron pronto para gerar Setup.exe (NSIS) em máquina Windows
+
 
 ### v5.4
 - Certificado de conclusão personalizável (A4 paisagem, selo dourado, nº de registro)
