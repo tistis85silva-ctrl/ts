@@ -87,6 +87,15 @@ critérios práticos extraídos automaticamente da trilha e linhas de assinatura
 (participante, instrutor, gestor, RH/SST). Cada ficha tem código documental e
 revisão para controle de documentos (ISO 9001).
 
+## 🏆 Certificado de conclusão
+
+Certificado A4 paisagem com design profissional: moldura dupla dourada,
+ornamentos de canto, marca d'água, selo circular em SVG ("APROVADO") e
+numeração de registro automática (ex.: COTA-2026-1234) para controle de
+validade. Personalização ao vivo pelo formulário (nome, nota final, período,
+instrutor, responsável, local) com pré-visualização instantânea — pronto para
+imprimir em papel offset 180 g.
+
 ## Estrutura
 
 ```
@@ -95,6 +104,7 @@ css/styles.css    Estilos (tema claro/escuro, responsivo, impressão)
 js/parts.js       Catálogo de peças: vistas SVG, roteiro, G-code e macros
 js/curso.js       Trilha de formação: módulos, aulas e avaliação
 js/fichas.js      Kit de fichas: questões, gabarito e modelos
+certificado       (renderizado pelo app.js com dados do formulário)
 js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 ```
 
@@ -112,6 +122,11 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v5.4
+- Certificado de conclusão personalizável (A4 paisagem, selo dourado, nº de registro)
+- Formulário com pré-visualização ao vivo e impressão dedicada
+
 
 ### v5.3
 - Kit de fichas de avaliação pronto para impressão (11 documentos)

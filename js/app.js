@@ -1000,6 +1000,144 @@ function printFichaKit() {
 }
 
 // ============================================================
+// CERTIFICADO DE CONCLUSÃO
+// ============================================================
+function certCornerSvg() {
+    return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+        '<path d="M6,94 L6,22 Q6,6 22,6 L94,6" fill="none" stroke="url(#certGold)" stroke-width="3"/>' +
+        '<path d="M16,94 L16,32 Q16,16 32,16 L94,16" fill="none" stroke="url(#certGold)" stroke-width="1.2"/>' +
+        '<circle cx="22" cy="22" r="4.5" fill="none" stroke="url(#certGold)" stroke-width="1.5"/>' +
+        '<circle cx="22" cy="22" r="1.6" fill="#B8860B"/>' +
+        '</svg>';
+}
+
+function certSealSvg() {
+    return '<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" class="cert-seal" aria-hidden="true">' +
+        '<defs>' +
+        '<path id="certSealArc" d="M110,110 m-82,0 a82,82 0 1,1 164,0 a82,82 0 1,1 -164,0"/>' +
+        '<path id="certSealArc2" d="M110,110 m-82,0 a82,82 0 1,0 164,0 a82,82 0 1,0 -164,0"/>' +
+        '<linearGradient id="certGold" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="#D4AF37"/><stop offset="0.5" stop-color="#F5D778"/>' +
+        '<stop offset="1" stop-color="#A67C00"/></linearGradient>' +
+        '</defs>' +
+        '<circle cx="110" cy="110" r="104" fill="none" stroke="url(#certGold)" stroke-width="7"/>' +
+        '<circle cx="110" cy="110" r="92" fill="none" stroke="url(#certGold)" stroke-width="2"/>' +
+        '<circle cx="110" cy="110" r="62" fill="none" stroke="url(#certGold)" stroke-width="1.5"/>' +
+        '<text class="seal-ring"><textPath href="#certSealArc" startOffset="50%" text-anchor="middle">' +
+        'COTA · FORMAÇÃO CNC · CURSO PROFISSIONALIZANTE</textPath></text>' +
+        '<text class="seal-ring seal-ring-b"><textPath href="#certSealArc2" startOffset="50%" text-anchor="middle">' +
+        'DO DESENHO À PEÇA PRONTA · 64 HORAS</textPath></text>' +
+        '<text x="110" y="104" text-anchor="middle" class="seal-main">APROVADO</text>' +
+        '<text x="110" y="128" text-anchor="middle" class="seal-sub" id="sealYear">' + new Date().getFullYear() + '</text>' +
+        '<path d="M110,140 l3.2,6.5 7.2,1 -5.2,5.1 1.2,7.2 -6.4,-3.4 -6.4,3.4 1.2,-7.2 -5.2,-5.1 7.2,-1 z" fill="url(#certGold)"/>' +
+        '</svg>';
+}
+
+function certData() {
+    return {
+        nome: ($('#certNome') && $('#certNome').value.trim()) || 'Nome do Participante',
+        nota: ($('#certNota') && $('#certNota').value.trim()) || '—',
+        periodo: ($('#certPeriodo') && $('#certPeriodo').value.trim()) || '—',
+        data: ($('#certData') && $('#certData').value.trim()) || todayBR(),
+        instrutor: ($('#certInstrutor') && $('#certInstrutor').value.trim()) || 'Instrutor(a)',
+        responsavel: ($('#certResponsavel') && $('#certResponsavel').value.trim()) || 'Responsável pelo treinamento',
+        local: ($('#certLocal') && $('#certLocal').value.trim()) || '—',
+        registro: ($('#certRegistro') && $('#certRegistro').value.trim()) || '—'
+    };
+}
+
+function renderCertificate() {
+    const paper = $('#certPaper');
+    if (!paper) return;
+    const c = certData();
+    const tot = courseTotals();
+    paper.innerHTML =
+        '<div class="cert-watermark" aria-hidden="true">COTA</div>' +
+        '<span class="cert-corner tl">' + certCornerSvg() + '</span>' +
+        '<span class="cert-corner tr">' + certCornerSvg() + '</span>' +
+        '<span class="cert-corner bl">' + certCornerSvg() + '</span>' +
+        '<span class="cert-corner br">' + certCornerSvg() + '</span>' +
+        '<header class="cert-header">' +
+        '<div class="cert-brand">COTA<span> · </span>FORMAÇÃO PROFISSIONAL EM MANUFATURA</div>' +
+        '<div class="cert-reg">REGISTRO Nº <b>' + c.registro + '</b></div>' +
+        '</header>' +
+        '<h1 class="cert-title">CERTIFICADO</h1>' +
+        '<h2 class="cert-subtitle">DE CONCLUSÃO</h2>' +
+        '<p class="cert-lead">Certificamos que</p>' +
+        '<p class="cert-name">' + c.nome + '</p>' +
+        '<p class="cert-text">concluiu com aproveitamento o curso <b>' + COURSE.title + '</b>, ' +
+        'com carga horária de <b>' + tot.totalHours + ' horas</b> (' + COURSE.modules.length + ' módulos · ' +
+        tot.totalAulas + ' aulas), no período de <b>' + c.periodo + '</b>, ' +
+        'tendo sido <b>APROVADO</b> nas avaliações teóricas e práticas da trilha de formação ' +
+        'em programação e operação de CNC.</p>' +
+        '<div class="cert-facts">' +
+        '<div class="cf"><b>' + tot.totalHours + 'h</b><span>Carga horária</span></div>' +
+        '<div class="cf"><b>' + COURSE.modules.length + '</b><span>Módulos</span></div>' +
+        '<div class="cf"><b>' + tot.totalAulas + '</b><span>Aulas</span></div>' +
+        '<div class="cf"><b>' + c.nota + '</b><span>Nota final</span></div>' +
+        '<div class="cf cf-ok"><b>APROVADO</b><span>Conceito</span></div>' +
+        '</div>' +
+        '<div class="cert-bottom">' +
+        '<div class="cert-signs">' +
+        '<div class="cert-sign-block"><i class="cert-sign-line"></i><span class="cert-sign-name">' + c.instrutor + '</span><span class="cert-sign-role">Instrutor(a)</span></div>' +
+        '<div class="cert-sign-block"><i class="cert-sign-line"></i><span class="cert-sign-name">' + c.responsavel + '</span><span class="cert-sign-role">Responsável pelo treinamento</span></div>' +
+        '</div>' +
+        '<div class="cert-seal-wrap">' + certSealSvg() + '</div>' +
+        '</div>' +
+        '<footer class="cert-footer">' +
+        '<span>' + c.local + '</span>' +
+        '<span>Emitido em ' + c.data + '</span>' +
+        '<span>Doc. COTA-CERT · Rev. 01</span>' +
+        '</footer>';
+}
+
+function initCertForm() {
+    const reg = $('#certRegistro');
+    if (reg && !reg.value) {
+        const y = new Date().getFullYear();
+        const seq = String(Math.floor(Math.random() * 9000) + 1000);
+        reg.value = 'COTA-' + y + '-' + seq;
+    }
+    const data = $('#certData');
+    if (data && !data.value) data.value = todayBR();
+
+    const form = $('#certForm');
+    if (form) {
+        form.addEventListener('input', renderCertificate);
+    }
+    const resetBtn = $('#btnCertReset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            ['certNome', 'certPeriodo', 'certInstrutor', 'certResponsavel', 'certLocal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const nota = $('#certNota');
+            if (nota) nota.value = '8,5';
+            const regEl = $('#certRegistro');
+            if (regEl) {
+                const y = new Date().getFullYear();
+                regEl.value = 'COTA-' + y + '-' + String(Math.floor(Math.random() * 9000) + 1000);
+            }
+            const dataEl = $('#certData');
+            if (dataEl) dataEl.value = todayBR();
+            renderCertificate();
+            showToast('↺ Campos do certificado limpos');
+        });
+    }
+    const printBtn = $('#btnPrintCert');
+    if (printBtn) {
+        printBtn.addEventListener('click', () => {
+            renderCertificate();
+            document.body.classList.add('print-certificado');
+            window.print();
+            setTimeout(() => document.body.classList.remove('print-certificado'), 500);
+        });
+    }
+    renderCertificate();
+}
+
+// ============================================================
 // UPLOAD / FLUXO PRINCIPAL
 // ============================================================
 function revealApp(fileName, opts) {
@@ -1407,6 +1545,7 @@ function init() {
     setupSplash();
     renderCourse();
     renderFichaGrid();
+    initCertForm();
     refreshSheet();
 
     if (saved && saved.revealed) {
@@ -1422,10 +1561,11 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.3 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.4 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
     console.log('📝 Kit de fichas de avaliação: ' + FICHAS.length + ' documentos prontos para impressão.');
+    console.log('🏆 Certificado de conclusão personalizável pronto para impressão.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');
 }
 

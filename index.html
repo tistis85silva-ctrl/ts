@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0B1017">
     <title>COTA — do desenho à peça pronta</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' rx='3' fill='none' stroke='%236FD3E0' stroke-width='2'/%3E%3Cpath d='M16 1v6M1 16h6' stroke='%236FD3E0' stroke-width='2'/%3E%3Cpath d='M11 20l4-6 3 4 3-5' stroke='%23FF7A3D' stroke-width='2' fill='none'/%3E%3C/svg%3E">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <script src="js/parts.js" defer></script>
     <script src="js/curso.js" defer></script>
@@ -26,7 +26,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v5.3 · CAD + CNC Assistant</div>
+            <div class="version">v5.4 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -181,6 +181,43 @@
             <span class="ph-meta" id="printFichaMeta"></span>
         </div>
         <div class="print-only" id="fichaKitPrint"></div>
+    </section>
+
+    <!-- ===== CERTIFICADO ===== -->
+    <section id="certSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Certificação</div>
+            <h2 class="section-title">🏆 Certificado de Conclusão</h2>
+            <p class="section-sub">Preencha os dados do participante, confira a pré-visualização e imprima em A4 paisagem. Numeração de registro automática para controle de validade.</p>
+        </div>
+        <div class="cert-form" id="certForm">
+            <div class="cert-field"><label for="certNome">Nome do participante</label>
+                <input type="text" id="certNome" placeholder="Nome completo do colaborador" maxlength="60"></div>
+            <div class="cert-field"><label for="certNota">Nota final</label>
+                <input type="text" id="certNota" value="8,5" maxlength="5"></div>
+            <div class="cert-field"><label for="certPeriodo">Período do curso</label>
+                <input type="text" id="certPeriodo" placeholder="ex.: 10/2026 a 11/2026" maxlength="30"></div>
+            <div class="cert-field"><label for="certData">Data de conclusão</label>
+                <input type="text" id="certData" maxlength="12"></div>
+            <div class="cert-field"><label for="certInstrutor">Instrutor(a)</label>
+                <input type="text" id="certInstrutor" placeholder="Nome do instrutor" maxlength="40"></div>
+            <div class="cert-field"><label for="certResponsavel">Responsável pelo treinamento</label>
+                <input type="text" id="certResponsavel" placeholder="Nome do responsável" maxlength="40"></div>
+            <div class="cert-field"><label for="certLocal">Local</label>
+                <input type="text" id="certLocal" placeholder="Cidade — UF / empresa" maxlength="40"></div>
+            <div class="cert-field"><label for="certRegistro">Nº de registro</label>
+                <input type="text" id="certRegistro" maxlength="20"></div>
+        </div>
+        <div class="cert-toolbar">
+            <span class="ficha-hint">💡 Recomendado: papel offset 180 g ou cartolina · impressão A4 paisagem · cores.</span>
+            <div class="code-actions">
+                <button type="button" class="btn" id="btnCertReset">↺ Limpar campos</button>
+                <button type="button" class="btn btn-accent" id="btnPrintCert">🖨️ Imprimir certificado</button>
+            </div>
+        </div>
+        <div class="cert-preview-wrap">
+            <div class="cert-paper" id="certPaper"></div>
+        </div>
     </section>
 
     <!-- ===== DETECT ===== -->
@@ -406,7 +443,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v5.3 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v5.4 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->
