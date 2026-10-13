@@ -3460,3 +3460,161 @@ body.print-certificado #certPaper {
         letter-spacing: 16px;
     }
 }
+
+/* ============================================================
+   v5.7 — FIGURAS EXPLICATIVAS + IMPRESSÃO SEM PÁGINAS EM BRANCO
+   ============================================================ */
+
+/* ===== FLUXO DO PROCESSO ===== */
+.process-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 18px;
+}
+.pf-step {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text);
+}
+.pf-n {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #1A0D06;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.pf-ic {
+    font-size: 14px;
+}
+.pf-arrow {
+    color: var(--cyan);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* ===== FIGURA TÉCNICA DA AULA ===== */
+.aula-figure {
+    margin: 4px 0 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: #F7F4EE;
+    page-break-inside: avoid;
+}
+.af-svg {
+    padding: 8px 10px 0;
+}
+.af-svg svg {
+    width: 100%;
+    height: auto;
+    max-height: 230px;
+    display: block;
+}
+.af-cap {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: #5A5A6E;
+    padding: 6px 12px 9px;
+    border-top: 1px solid #D5CDC0;
+    background: #FBF9F5;
+}
+
+/* ===== IMPRESSÃO: SEM PÁGINAS EM BRANCO ===== */
+@media print {
+    /* UI que nunca deve aparecer na impressão (as views dedicadas reexibem o que interessa) */
+    #examplesSection,
+    #courseSection,
+    #fichaSection,
+    #certSection,
+    .ficha-preview-wrap {
+        display: none !important;
+    }
+    /* cada modo reexibe apenas a sua seção */
+    body.print-course-only #courseSection,
+    body.print-ficha #fichaSection,
+    body.print-ficha-kit #fichaSection,
+    body.print-certificado #certSection {
+        display: block !important;
+    }
+    body.print-ficha .ficha-preview-wrap {
+        display: block !important;
+    }
+
+    /* kit de fichas: quebra apenas ENTRE fichas (nunca depois da última) */
+    body.print-ficha-kit .ficha {
+        page-break-after: auto;
+    }
+    body.print-ficha-kit .ficha + .ficha {
+        page-break-before: always;
+    }
+
+    /* módulos grandes podem quebrar naturalmente; blocos pequenos evitam quebra */
+    body.print-course-only .module-card {
+        page-break-inside: auto;
+    }
+
+    /* código longo quebra linha em vez de ser cortado na borda do papel */
+    .code-view,
+    .print-code-block pre {
+        white-space: pre-wrap !important;
+        word-break: break-word;
+        max-height: none !important;
+        overflow: visible !important;
+        font-size: 8.5pt;
+        line-height: 1.45;
+    }
+    /* blocos de código vazios não imprimem caixinhas em branco */
+    .print-code-block:has(pre:empty),
+    .print-code-block:has(pre:only-child:empty) {
+        display: none !important;
+    }
+
+    /* cores e figuras preservadas na impressão */
+    .aula-figure,
+    .af-cap,
+    .process-flow,
+    .pf-step,
+    .pf-n,
+    .ficha-table th,
+    .module-badge,
+    .cf,
+    .cert-paper,
+    .drawing-sheet {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    .process-flow {
+        border-color: #999 !important;
+    }
+    .pf-step {
+        border-color: #666 !important;
+        color: #111 !important;
+        page-break-inside: avoid;
+    }
+    .aula-figure {
+        border-color: #999 !important;
+        max-width: 480px;
+    }
+    .af-cap {
+        color: #444 !important;
+    }
+}

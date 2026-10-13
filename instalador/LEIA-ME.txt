@@ -38,4 +38,4 @@ SUPORTE / DUVIDAS
 -----------------
 Fale com o responsavel pelo treinamento da sua unidade.
 
-Versao 5.6.1
+Versao 5.7.0

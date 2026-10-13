@@ -590,6 +590,60 @@ function downloadCode() {
 }
 
 // ============================================================
+// FIGURAS TÉCNICAS (imagens explicativas do processo)
+// ============================================================
+// Paleta clara de prancha técnica — figuras imprimem como desenho em papel
+function paperTheme() {
+    return {
+        bg: '#F7F4EE',
+        stroke: '#5A5A6E',
+        dimStroke: '#2D6B8F',
+        dimText: '#2D6B8F',
+        surfaceBase: '#D5CDC0',
+        surfaceWall: '#C4B8A8',
+        holeFill: '#B0A898',
+        chamferStroke: '#D95A1A',
+        labelColor: '#5A5A6E',
+        hiddenStroke: '#8A8A9E'
+    };
+}
+
+// Vista técnica principal da peça (com dimensões padrão) para ilustrar a aula
+function partFigure(part) {
+    try {
+        const st = {};
+        part.features.forEach(f => {
+            st[f.id] = { included: true, params: {} };
+            f.params.forEach(p => { st[f.id].params[p.key] = p.value; });
+        });
+        const d = part.dimsFromState(st);
+        const views = part.views({ d: d, st: st, t: paperTheme() });
+        return (views[0] && views[0].svg) || '';
+    } catch (e) {
+        return '';
+    }
+}
+
+function processFlowHtml() {
+    const steps = [
+        ['📄', 'Desenho técnico'],
+        ['🔍', 'Features paramétricas'],
+        ['🧭', 'Roteiro CAD'],
+        ['⚙️', 'Código ISO + Macro'],
+        ['🏭', 'Usinagem CNC'],
+        ['✅', 'Inspeção e certificado']
+    ];
+    return '<div class="process-flow" aria-label="Fluxo do processo de usinagem">' +
+        steps.map((s, i) =>
+            '<div class="pf-step"><span class="pf-n">' + (i + 1) + '</span>' +
+            '<span class="pf-ic" aria-hidden="true">' + s[0] + '</span>' +
+            '<span class="pf-tx">' + s[1] + '</span></div>' +
+            (i < steps.length - 1 ? '<span class="pf-arrow" aria-hidden="true">→</span>' : '')
+        ).join('') +
+        '</div>';
+}
+
+// ============================================================
 // TRILHA DE FORMAÇÃO (roteiro de aulas)
 // ============================================================
 function courseTotals() {
@@ -604,6 +658,7 @@ function renderCourse() {
     if (!modules || typeof COURSE === 'undefined') return;
 
     const tot = courseTotals();
+    let figN = 0;
     if (meta) {
         meta.innerHTML =
             '<span class="course-chip">🎓 ' + COURSE.modules.length + ' módulos</span>' +
@@ -613,7 +668,7 @@ function renderCourse() {
             '<span class="course-chip">📋 ' + COURSE.certification + '</span>';
     }
 
-    modules.innerHTML = COURSE.modules.map(m => {
+    modules.innerHTML = processFlowHtml() + COURSE.modules.map(m => {
         const hours = m.aulas.reduce((s, a) => s + a.hours, 0);
         const aulasHtml = m.aulas.map(a => {
             const part = a.partId ? PARTS[a.partId] : null;
@@ -663,8 +718,17 @@ function renderCourse() {
                 '<ul class="aula-checklist">' + a.checklist.map(o => '<li>' + o + '</li>').join('') + '</ul>' +
                 '</div>' +
                 '</div>' +
-                (part ? '<div class="aula-practice">🧪 <b>Prática no app:</b> use o exemplo <b>' + part.name + '</b> — features paramétricas, folha técnica, código ISO e macro. ' +
-                    '<button type="button" class="btn btn-sm aula-open" data-part="' + part.id + '">Abrir exemplo →</button></div>' : '') +
+                (part ? (function () {
+                    figN++;
+                    const svg = partFigure(part);
+                    return (svg ? '<figure class="aula-figure">' +
+                        '<div class="af-svg">' + svg + '</div>' +
+                        '<figcaption class="af-cap">Fig. ' + figN + ' — ' + part.name +
+                        ': vista técnica principal usada na aula (extraída do exemplo no app)</figcaption>' +
+                        '</figure>' : '') +
+                        '<div class="aula-practice">🧪 <b>Prática no app:</b> use o exemplo <b>' + part.name + '</b> — features paramétricas, folha técnica, código ISO e macro. ' +
+                        '<button type="button" class="btn btn-sm aula-open" data-part="' + part.id + '">Abrir exemplo →</button></div>';
+                })() : '') +
                 '</div>' +
                 '</div>';
         }).join('');
@@ -989,7 +1053,9 @@ function printFichaById(id) {
 function printFichaKit() {
     const kit = $('#fichaKitPrint');
     if (!kit) return;
-    kit.innerHTML = FICHAS.map(f => renderFicha(f.id)).join('<div class="ficha-break"></div>');
+    // fichas encadeadas: a quebra de página é feita pelo CSS (.ficha + .ficha),
+    // sem elementos extras — evita páginas em branco entre as fichas
+    kit.innerHTML = FICHAS.map(f => renderFicha(f.id)).join('');
     $('#printFichaMeta').textContent = 'Kit completo · ' + FICHAS.length + ' fichas · ' + todayBR();
     document.body.classList.add('print-ficha-kit');
     window.print();
@@ -1734,7 +1800,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.6.1 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.7.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
     console.log('📝 Kit de fichas de avaliação: ' + FICHAS.length + ' documentos prontos para impressão.');
