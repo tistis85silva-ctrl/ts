@@ -295,4 +295,11 @@ const FICHAS = [{
     icon: '🔑',
     title: 'Gabarito do instrutor',
     desc: 'Respostas de todas as questões das avaliações de módulo e da prova final.'
+}, {
+    id: 'setup',
+    num: '12',
+    doc: 'FIC-SETUP',
+    icon: '🧰',
+    title: 'Ficha de setup de usinagem',
+    desc: 'Setup da peça selecionada: ferramentas e operações extraídas do programa + checklist de primeiro ciclo.'
 }];

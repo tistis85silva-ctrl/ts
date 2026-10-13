@@ -546,6 +546,7 @@ function renderCode() {
         meta.textContent = part.machine + ' · ' + part.control + ' · ' + part.stock +
             ' · Programa ' + (app.codeTab === 'macro' ? 'paramétrico (macro)' : 'ISO 6983');
     }
+    renderSimulator();
 }
 
 function downloadText(filename, text, mime) {
@@ -993,6 +994,7 @@ function renderFicha(id) {
         case 'prova-final': return buildFichaProvaFinal();
         case 'eficacia': return buildFichaEficacia();
         case 'gabarito': return buildFichaGabarito();
+        case 'setup': return buildFichaSetup();
         default:
             if (/^m\d$/.test(id)) return buildFichaModule(id);
             return '';
@@ -1356,6 +1358,489 @@ function handleUploadFile(file) {
 }
 
 // ============================================================
+// SIMULADOR DE PERCURSO (G-code) — Passo 5
+// ============================================================
+// Interpreta o código ISO gerado e desenha o caminho da ferramenta
+function parseToolpath(code) {
+    const segs = [];
+    let x = 0, y = 0, z = 0;
+    let motion = 'rapid'; // G00
+    String(code).split('\n').forEach((raw, idx) => {
+        const line = String(raw).split('(')[0]; // remove comentários
+        if (!line.trim()) return;
+        const words = {};
+        line.replace(/([A-Z])\s*(-?\d+\.?\d*)/g, (m, c, v) => {
+            words[c] = parseFloat(v);
+            return m;
+        });
+        if (words.G !== undefined) {
+            const g = words.G;
+            if (g === 0 || g === 80) motion = 'rapid';
+            else if (g === 1) motion = 'feed';
+            else if (g === 2) motion = 'arc-cw';
+            else if (g === 3) motion = 'arc-ccw';
+        }
+        const isCanned = /G8[123]/.test(line);
+        const hasXY = words.X !== undefined || words.Y !== undefined;
+        const nx = words.X !== undefined ? words.X : x;
+        const ny = words.Y !== undefined ? words.Y : y;
+        const nz = words.Z !== undefined ? words.Z : z;
+
+        const push = (x1, y1, z1, x2, y2, z2, type) => {
+            if (x1 === x2 && y1 === y2 && z1 === z2) return;
+            segs.push({
+                x1: x1, y1: y1, z1: z1, x2: x2, y2: y2, z2: z2,
+                type: type, i: words.I, j: words.J,
+                text: String(raw).trim(), line: idx + 1
+            });
+        };
+
+        if (isCanned && hasXY && words.Z !== undefined) {
+            // ciclo fixo: aproxima em XY (rápido) e mergulha em Z (corte)
+            push(x, y, z, nx, ny, z, 'rapid');
+            push(nx, ny, z, nx, ny, nz, 'feed');
+        } else if (motion.indexOf('arc') === 0) {
+            push(x, y, z, nx, ny, nz, motion);
+        } else {
+            push(x, y, z, nx, ny, nz, motion);
+        }
+        x = nx; y = ny; z = nz;
+    });
+    return { segs: segs };
+}
+
+function sampleArc(seg) {
+    const cx = seg.x1 + (seg.i || 0);
+    const cy = seg.y1 + (seg.j || 0);
+    const r = Math.hypot(seg.x1 - cx, seg.y1 - cy);
+    const a0 = Math.atan2(seg.y1 - cy, seg.x1 - cx);
+    const a1 = Math.atan2(seg.y2 - cy, seg.x2 - cx);
+    let da = a1 - a0;
+    if (seg.type === 'arc-cw') {
+        while (da > 0) da -= 2 * Math.PI;
+        if (Math.abs(da) < 1e-6) da = -2 * Math.PI;
+    } else {
+        while (da < 0) da += 2 * Math.PI;
+        if (Math.abs(da) < 1e-6) da = 2 * Math.PI;
+    }
+    const pts = [];
+    const steps = Math.max(10, Math.ceil(Math.abs(da) / (Math.PI / 18)));
+    for (let k = 0; k <= steps; k++) {
+        const a = a0 + da * k / steps;
+        pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+    return pts;
+}
+
+function renderSimulator() {
+    const box = $('#simPlot');
+    if (!box) return;
+    const part = currentPart();
+    const turning = !!part.isTurning;
+    let segs = [];
+    try {
+        segs = parseToolpath(part.gcode(getDims(), getFeatureState())).segs;
+    } catch (e) { segs = []; }
+    app.simSegs = segs;
+    app.simTurning = turning;
+
+    const info = $('#simInfo');
+    if (!segs.length) {
+        box.innerHTML = '<p class="sim-empty">🎯 Gere o roteiro no Passo 3 para visualizar o percurso da ferramenta.</p>';
+        if (info) info.textContent = 'Aguardando código…';
+        const sl = $('#simSlider');
+        if (sl) { sl.max = 0; sl.value = 0; sl.disabled = true; }
+        return;
+    }
+
+    // mapeia eixos: fresamento = X×Y (vista superior) | torno = Z×X (perfil)
+    const uv = s => ({
+        u1: turning ? s.z1 : s.x1, v1: turning ? s.x1 : s.y1,
+        u2: turning ? s.z2 : s.x2, v2: turning ? s.x2 : s.y2
+    });
+    let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
+    segs.forEach(s => {
+        const p = uv(s);
+        [p.u1, p.u2].forEach(u => { uMin = Math.min(uMin, u); uMax = Math.max(uMax, u); });
+        [p.v1, p.v2].forEach(v => { vMin = Math.min(vMin, v); vMax = Math.max(vMax, v); });
+    });
+    const pad = Math.max((uMax - uMin) * 0.08, 5);
+    const W = 640, H = 420;
+    const sc = Math.min((W - 40) / Math.max(uMax - uMin + 2 * pad, 1), (H - 40) / Math.max(vMax - vMin + 2 * pad, 1));
+    const px = u => 20 + (u - uMin + pad) * sc;
+    const py = v => H - 20 - (v - vMin + pad) * sc;
+
+    const upto = Math.min(app.simIndex == null ? segs.length : app.simIndex, segs.length);
+    const drawSeg = (s, done) => {
+        const p = uv(s);
+        const cls = done ? (s.type === 'rapid' ? 'tp-rapid' : 'tp-feed') : 'tp-future';
+        if (s.type.indexOf('arc') === 0) {
+            const pts = sampleArc(s).map(pt => {
+                const u = turning ? pt[1] : pt[0];
+                const v = turning ? pt[0] : pt[1];
+                return px(u) + ',' + py(v);
+            }).join(' ');
+            return '<polyline points="' + pts + '" class="' + cls + '"/>';
+        }
+        return '<line x1="' + px(p.u1) + '" y1="' + py(p.v1) + '" x2="' + px(p.u2) + '" y2="' + py(p.v2) + '" class="' + cls + '"/>';
+    };
+
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" class="tp-svg">' +
+        '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#0E1621"/>';
+    segs.forEach((s, i) => { svg += drawSeg(s, i < upto); });
+    // marcadores início/fim/posição atual
+    const p0 = uv(segs[0]);
+    svg += '<circle cx="' + px(p0.u1) + '" cy="' + py(p0.v1) + '" r="5" class="tp-start"/>';
+    const last = segs[Math.max(upto - 1, 0)];
+    const pl = uv(last);
+    svg += '<circle cx="' + px(pl.u2) + '" cy="' + py(pl.v2) + '" r="7" class="tp-tool"/>';
+    svg += '<text x="12" y="20" class="tp-label">' +
+        (turning ? 'PERFIL (Z × X — diâmetro)' : 'VISTA SUPERIOR (X × Y)') + '</text>';
+    svg += '</svg>';
+    box.innerHTML = svg;
+
+    const sl = $('#simSlider');
+    if (sl) {
+        sl.disabled = false;
+        sl.max = segs.length;
+        if (app.simIndex == null) sl.value = segs.length;
+    }
+    const counter = $('#simCounter');
+    if (counter) counter.textContent = upto + '/' + segs.length + ' blocos';
+    if (info) {
+        info.textContent = last && last.text ? ('Bloco ' + last.line + ': ' + last.text) : '—';
+    }
+}
+
+function simStep(delta) {
+    const n = (app.simSegs || []).length;
+    if (!n) return;
+    if (app.simIndex == null) app.simIndex = delta > 0 ? 1 : n - 1;
+    else app.simIndex = Math.min(Math.max(app.simIndex + delta, 0), n);
+    renderSimulator();
+}
+
+function simTogglePlay() {
+    const btn = $('#simPlay');
+    if (app.simTimer) {
+        clearInterval(app.simTimer);
+        app.simTimer = null;
+        if (btn) btn.textContent = '▶ Reproduzir';
+        return;
+    }
+    const n = (app.simSegs || []).length;
+    if (!n) return;
+    if (app.simIndex == null || app.simIndex >= n) app.simIndex = 1;
+    app.simTimer = setInterval(() => {
+        if (app.simIndex >= n) {
+            simTogglePlay();
+            return;
+        }
+        simStep(1);
+    }, 160);
+    if (btn) btn.textContent = '⏸ Pausar';
+}
+
+// ============================================================
+// QUIZ DE TREINO
+// ============================================================
+function renderQuiz() {
+    const list = $('#quizList');
+    if (!list || typeof QUIZ === 'undefined') return;
+    const filter = app.quizFilter || 'all';
+    const keys = filter === 'all' ? ['m0', 'm1', 'm2', 'm3', 'm4', 'm5', 'final'] : [filter];
+    const totalName = id => id === 'final' ? 'Prova final' : id.toUpperCase();
+
+    let html = '';
+    keys.forEach(mid => {
+        const quiz = QUIZ[mid] || [];
+        html += '<div class="quiz-block"><h3 class="quiz-block-title">' + totalName(mid) +
+            ' <span class="qb-count">' + quiz.length + ' questões</span></h3>';
+        quiz.forEach((q, i) => {
+            const qid = mid + '-' + i;
+            const answered = app.quizAnswers[qid];
+            html += '<div class="quiz-q' + (answered ? ' answered ' + (answered.ok ? 'ok' : 'bad') : '') + '" data-qid="' + qid + '">' +
+                '<p class="qq-text">' + (i + 1) + '. ' + q.q +
+                ' <span class="qq-pts">(' + q.pts.toFixed(1).replace('.', ',') + ' pt)</span></p>';
+            if (q.type === 'multi') {
+                html += '<div class="qq-opts">' + q.opts.map((o, oi) => {
+                    const letter = String.fromCharCode(65 + oi);
+                    let cls = 'qq-opt';
+                    if (answered) {
+                        if (letter === q.a) cls += ' correct';
+                        else if (answered.pick === letter) cls += ' wrong';
+                        else cls += ' dim';
+                    }
+                    return '<button type="button" class="' + cls + '" data-qid="' + qid + '" data-ans="' + letter + '"' +
+                        (answered ? ' disabled' : '') + '>' + letter + ') ' + o + '</button>';
+                }).join('') + '</div>';
+                if (answered) {
+                    html += '<p class="qq-feedback">' + (answered.ok ? '✅ Correto!' : '❌ Incorreto.') +
+                        ' Resposta: <b>' + q.a + '</b></p>';
+                }
+            } else {
+                html += '<div class="qq-disc">' +
+                    '<button type="button" class="btn btn-sm qq-show" data-qid="' + qid + '">👁 Ver resposta-modelo</button>' +
+                    '<div class="qq-model" id="model-' + qid + '" style="display:none;">' + q.a + '</div>' +
+                    (answered ? '<p class="qq-feedback">' + (answered.ok ? '✅ Autoavaliação: acertou' : '📌 Autoavaliação: rever o conteúdo') + '</p>' :
+                        '<div class="qq-self">' +
+                        '<button type="button" class="btn btn-sm qq-mark" data-qid="' + qid + '" data-ok="1">Acertei</button>' +
+                        '<button type="button" class="btn btn-sm qq-mark" data-qid="' + qid + '" data-ok="0">Errei</button>' +
+                        '</div>') +
+                    '</div>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+    });
+    list.innerHTML = html;
+
+    // placar
+    let score = 0, total = 0;
+    keys.forEach(mid => {
+        (QUIZ[mid] || []).forEach((q, i) => {
+            total += q.pts;
+            const a = app.quizAnswers[mid + '-' + i];
+            if (a && a.ok) score += q.pts;
+        });
+    });
+    const scoreEl = $('#quizScore');
+    if (scoreEl) scoreEl.textContent = score.toFixed(1).replace('.', ',') + ' / ' + total.toFixed(1).replace('.', ',') + ' pts';
+
+    $$('#quizFilters .chip').forEach(c => c.classList.toggle('active', c.dataset.qfilter === filter));
+}
+
+function answerQuiz(qid, pick) {
+    const parts = qid.split('-');
+    const mid = parts[0], i = parseInt(parts[1], 10);
+    const q = (QUIZ[mid] || [])[i];
+    if (!q || app.quizAnswers[qid]) return;
+    app.quizAnswers[qid] = { ok: pick === q.a, pick: pick };
+    renderQuiz();
+}
+
+function markQuizSelf(qid, ok) {
+    if (app.quizAnswers[qid]) return;
+    app.quizAnswers[qid] = { ok: !!ok, pick: 'self' };
+    renderQuiz();
+}
+
+// ============================================================
+// CALCULADORA DE PARÂMETROS DE CORTE
+// ============================================================
+const CUT_MATERIALS = {
+    'aco1020': { name: 'Aço SAE 1020', vc: 160 },
+    'inox': { name: 'Aço inox', vc: 100 },
+    'aluminio': { name: 'Alumínio', vc: 400 },
+    'fundido': { name: 'Ferro fundido', vc: 120 },
+    'bronze': { name: 'Bronze/Latão', vc: 200 }
+};
+
+function updateCalc() {
+    const mat = CUT_MATERIALS[$('#calcMat') ? $('#calcMat').value : 'aco1020'] || CUT_MATERIALS.aco1020;
+    const hard = $('#calcTool') ? $('#calcTool').value : 'carbide';
+    const vc = (parseFloat($('#calcVc') && $('#calcVc').value) || mat.vc) * (hard === 'hss' ? 0.45 : 1);
+    const D = Math.max(parseFloat($('#calcD') && $('#calcD').value) || 10, 0.1);
+    const op = $('#calcOp') ? $('#calcOp').value : 'milling';
+
+    // mostra só os campos da operação escolhida
+    $$('#calcForm .calc-milling').forEach(el => { el.style.display = op === 'milling' ? '' : 'none'; });
+    $$('#calcForm .calc-turning').forEach(el => { el.style.display = op === 'turning' ? '' : 'none'; });
+
+    const n = Math.round(vc * 1000 / (Math.PI * D));
+    let vf = 0, q = 0, extra = '';
+    if (op === 'milling') {
+        const z = Math.max(parseFloat($('#calcZ') && $('#calcZ').value) || 4, 1);
+        const fz = Math.max(parseFloat($('#calcFz') && $('#calcFz').value) || 0.05, 0.001);
+        const ap = Math.max(parseFloat($('#calcAp') && $('#calcAp').value) || 2, 0.1);
+        const ae = Math.max(parseFloat($('#calcAe') && $('#calcAe').value) || 10, 0.1);
+        vf = fz * z * n;
+        q = ap * ae * vf / 1000;
+        extra = 'fz = ' + fz + ' mm/dente · z = ' + z + ' dentes';
+    } else {
+        const f = Math.max(parseFloat($('#calcF') && $('#calcF').value) || 0.2, 0.01);
+        const ap = Math.max(parseFloat($('#calcAp') && $('#calcAp').value) || 1, 0.1);
+        vf = f * n;
+        q = ap * f * vf / 1000;
+        extra = 'f = ' + f + ' mm/rev';
+    }
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('calcVcOut', Math.round(vc) + ' m/min');
+    set('calcN', n.toLocaleString('pt-BR') + ' rpm');
+    set('calcVf', Math.round(vf).toLocaleString('pt-BR') + ' mm/min');
+    set('calcQ', q.toFixed(1).replace('.', ',') + ' cm³/min');
+    set('calcExtra', extra);
+    const warn = $('#calcWarn');
+    if (warn) {
+        warn.textContent = n > 10000 ? '⚠️ Rotação acima do típico para centros de usinagem (10.000 rpm) — confira o limite da sua máquina.' : '';
+    }
+}
+
+function copyCalc() {
+    const txt = 'Parâmetros de corte COTA\n' +
+        'S = ' + $('#calcN').textContent + ' | F = ' + $('#calcVf').textContent + '\n' +
+        'vc = ' + $('#calcVcOut').textContent + ' | Q = ' + $('#calcQ').textContent + '\n' +
+        $('#calcExtra').textContent;
+    fallbackCopy(txt, () => showToast('📋 Parâmetros copiados'));
+}
+
+// ============================================================
+// TABELAS DE APOIO
+// ============================================================
+function renderTables() {
+    const box = $('#tablesContent');
+    if (!box) return;
+
+    const gCodes = [
+        ['G00', 'Posicionamento rápido', 'G00 X50. Y30.'],
+        ['G01', 'Interpolação linear (corte)', 'G01 X100. F250.'],
+        ['G02', 'Arco horário (CW)', 'G02 X20. I10. J0.'],
+        ['G03', 'Arco anti-horário (CCW)', 'G03 X20. I10. J0.'],
+        ['G17', 'Plano de interpolação XY', 'G17'],
+        ['G21', 'Programação em milímetros', 'G21'],
+        ['G28', 'Retorno à referência', 'G91 G28 Z0.'],
+        ['G40', 'Cancela compensação de raio', 'G40'],
+        ['G43', 'Compensação de comprimento (+)', 'G43 Z50. H01'],
+        ['G54', 'Sistema de coordenadas da peça', 'G54'],
+        ['G70', 'Ciclo de acabamento (torno)', 'G70 P100 Q200'],
+        ['G71', 'Ciclo de desbaste (torno)', 'G71 U1.5 R0.5'],
+        ['G74', 'Furação com retorno de lascas', 'G74 X0. Z-40. Q4000'],
+        ['G76', 'Ciclo de rosqueamento', 'G76 X18.4 Z-40. P920 Q200 F1.5'],
+        ['G80', 'Cancela ciclos fixos', 'G80'],
+        ['G81', 'Furação simples', 'G81 X10. Y0. Z-20. R2. F140.'],
+        ['G82', 'Furação com demora (fund0 liso)', 'G82 X10. Z-6. R2. P500 F100.'],
+        ['G83', 'Furação com lascamento (profundo)', 'G83 X10. Z-30. R2. Q4. F120.'],
+        ['G90', 'Programação absoluta', 'G90'],
+        ['G94', 'Avanço em mm/min', 'G94']
+    ];
+    const mCodes = [
+        ['M00', 'Parada programada (aguarda operador)'],
+        ['M03', 'Spindle horário'],
+        ['M05', 'Spindle parado'],
+        ['M06', 'Troca de ferramenta'],
+        ['M08', 'Refrigerante ligado'],
+        ['M09', 'Refrigerante desligado'],
+        ['M30', 'Fim de programa (rebobina)'],
+        ['M98', 'Chama subprograma'],
+        ['M99', 'Retorna do subprograma']
+    ];
+    // rosca métrica: broca = Ønom − passo | Ø menor = Ønom − 1,0825 × passo
+    const threads = [
+        ['M6×1', 6, 1], ['M8×1,25', 8, 1.25], ['M10×1,5', 10, 1.5],
+        ['M12×1,75', 12, 1.75], ['M14×2', 14, 2], ['M16×2', 16, 2],
+        ['M20×1,5', 20, 1.5], ['M20×2,5', 20, 2.5], ['M24×3', 24, 3]
+    ];
+    const iso = [
+        ['0,5 a 3', '±0,05', '±0,1'],
+        ['3 a 6', '±0,05', '±0,1'],
+        ['6 a 30', '±0,1', '±0,2'],
+        ['30 a 120', '±0,15', '±0,3'],
+        ['120 a 400', '±0,2', '±0,5'],
+        ['400 a 1000', '±0,3', '±0,8']
+    ];
+
+    box.innerHTML =
+        '<div class="tables-grid">' +
+        '<div class="table-card"><h3 class="table-title">⚙️ Códigos G — uso comum</h3>' +
+        '<table class="ref-table"><thead><tr><th>Cód.</th><th>Função</th><th>Exemplo</th></tr></thead><tbody>' +
+        gCodes.map(r => '<tr><td class="rt-code">' + r[0] + '</td><td>' + r[1] + '</td><td class="rt-ex">' + r[2] + '</td></tr>').join('') +
+        '</tbody></table></div>' +
+
+        '<div class="table-card"><h3 class="table-title">🔧 Códigos M — uso comum</h3>' +
+        '<table class="ref-table"><thead><tr><th>Cód.</th><th>Função</th></tr></thead><tbody>' +
+        mCodes.map(r => '<tr><td class="rt-code">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') +
+        '</tbody></table></div>' +
+
+        '<div class="table-card"><h3 class="table-title">🔩 Roscas métricas — broca e Ø menor</h3>' +
+        '<table class="ref-table"><thead><tr><th>Rosca</th><th>Broca (Ø menor)</th><th>Ø menor do filete</th></tr></thead><tbody>' +
+        threads.map(r => '<tr><td class="rt-code">' + r[0] + '</td><td>Ø' + (r[1] - r[2]).toFixed(1).replace('.', ',') +
+            ' mm</td><td>Ø' + (r[1] - 1.0825 * r[2]).toFixed(2).replace('.', ',') + ' mm</td></tr>').join('') +
+        '</tbody></table>' +
+        '<p class="table-note">Broca ≈ Ønominal − passo · Ømenor ≈ Ønominal − 1,0825 × passo</p></div>' +
+
+        '<div class="table-card"><h3 class="table-title">📏 Tolerâncias gerais ISO 2768</h3>' +
+        '<table class="ref-table"><thead><tr><th>Faixa nominal (mm)</th><th>f (± mm)</th><th>m (± mm)</th></tr></thead><tbody>' +
+        iso.map(r => '<tr><td class="rt-code">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') +
+        '</tbody></table>' +
+        '<p class="table-note">m = tolerância média (comum em desenhos) · f = fina</p></div>' +
+        '</div>';
+}
+
+function printTabelas() {
+    $('#printFichaMeta') && ($('#printFichaMeta').textContent = 'Tabelas de apoio · ' + todayBR());
+    document.body.classList.add('print-tabelas');
+    window.print();
+    setTimeout(() => document.body.classList.remove('print-tabelas'), 500);
+}
+
+// ============================================================
+// FICHA DE SETUP POR PEÇA
+// ============================================================
+function extractSetupInfo(code) {
+    const tools = [];
+    const ops = [];
+    let m;
+    const reTool = /\(T(\d+)\s*-\s*([^)]+)\)/g;
+    while ((m = reTool.exec(code)) !== null) {
+        tools.push({ id: 'T' + m[1], desc: m[2].trim() });
+    }
+    const reOp = /\(===\s*([^=]+?)\s*===\)/g;
+    while ((m = reOp.exec(code)) !== null) {
+        ops.push(m[1].trim());
+    }
+    return { tools: tools, ops: ops };
+}
+
+function buildFichaSetup() {
+    const part = currentPart();
+    const fState = getFeatureState();
+    const d = part.dimsFromState(fState);
+    const info = extractSetupInfo(part.gcode(d, fState));
+
+    const toolRows = (info.tools.length ? info.tools : [{ id: 'T01', desc: '—' }]).map(t =>
+        '<tr><td class="center rt-code">' + t.id + '</td><td>' + t.desc + '</td>' +
+        '<td class="fill-cell"></td><td class="fill-cell"></td><td class="fill-cell"></td></tr>'
+    ).join('');
+    const opRows = (info.ops.length ? info.ops : ['—']).map((o, i) =>
+        '<tr><td class="center">' + (i + 1) + '</td><td>' + o + '</td><td class="fill-cell"></td><td class="center fill-cell"></td></tr>'
+    ).join('');
+
+    return '<div class="ficha" data-ficha="setup">' +
+        fichaHead('FIC-SETUP', 'Ficha de Setup de Usinagem', part.tag + ' · REV.' + part.rev + ' · ' + part.machine) +
+        '<div class="ficha-fields">' +
+        '<span class="fi">Operador: ' + fillLine('m') + '</span>' +
+        '<span class="fi">Máquina: ' + fillLine('m') + '</span>' +
+        '<span class="fi">Data: ' + fillLine('s') + '</span>' +
+        '<span class="fi">Fixação (morsa/garra): ' + fillLine('m') + '</span>' +
+        '<span class="fi">Zero-peça (G54): X ' + fillLine('s') + ' Y ' + fillLine('s') + ' Z ' + fillLine('s') + '</span>' +
+        '<span class="fi">Material/Estoque: ' + fillLine('m') + '</span>' +
+        '</div>' +
+        '<h4 class="ficha-h">Tabela de ferramentas</h4>' +
+        '<table class="ficha-table"><thead><tr><th>T</th><th>Descrição (do programa)</th><th>Comp.</th><th>Raio</th><th>Desloc.</th></tr></thead>' +
+        '<tbody>' + toolRows + '</tbody></table>' +
+        '<h4 class="ficha-h">Sequência de operações</h4>' +
+        '<table class="ficha-table"><thead><tr><th>Nº</th><th>Operação</th><th>Observações</th><th>OK</th></tr></thead>' +
+        '<tbody>' + opRows + '</tbody></table>' +
+        '<h4 class="ficha-h">Checklist de primeiro ciclo</h4>' +
+        '<ul class="aula-checklist">' +
+        '<li>Programa simulado (Single Block + Dry Run) sem alarmes</li>' +
+        '<li>Zero-peça conferido com indicador/apalpador</li>' +
+        '<li>Ferramentas e deslocamentos conferidos (H/D)</li>' +
+        '<li>Fixação apertada e peça sem folga</li>' +
+        '<li>Refrigerante e velocidade verificados</li>' +
+        '<li>Primeira peça medida antes do lote</li>' +
+        '</ul>' +
+        '<div class="ficha-result">' +
+        '<span>Peça OK: □ Sim&nbsp;&nbsp;□ Não</span>' +
+        '<span class="big">Liberação: □ APROVADO&nbsp;&nbsp;□ REPROVADO</span>' +
+        '</div>' +
+        '<div class="ficha-obs">Ajustes / deslocamentos de correção (wear): ' + fillLine('xl') + '<br>' + fillLine('xl') + '</div>' +
+        fichaSigns(['Operador', 'Preparador', 'Supervisor']) +
+        '</div>';
+}
+
+// ============================================================
 // UPLOAD / FLUXO PRINCIPAL
 // ============================================================
 function revealApp(fileName, opts) {
@@ -1649,6 +2134,71 @@ function setupGeneralEvents() {
     const btnClosePreview = $('#btnCloseFichaPreview');
     if (btnClosePreview) btnClosePreview.addEventListener('click', closeFichaPreview);
 
+    // Simulador de percurso
+    const simPlay = $('#simPlay');
+    if (simPlay) simPlay.addEventListener('click', simTogglePlay);
+    const simSlider = $('#simSlider');
+    if (simSlider) simSlider.addEventListener('input', e => {
+        app.simIndex = parseInt(e.target.value, 10) || 0;
+        renderSimulator();
+    });
+    const simReset = $('#simReset');
+    if (simReset) simReset.addEventListener('click', () => {
+        if (app.simTimer) simTogglePlay();
+        app.simIndex = null;
+        renderSimulator();
+    });
+
+    // Quiz de treino
+    const quizList = $('#quizList');
+    if (quizList) {
+        quizList.addEventListener('click', e => {
+            const opt = e.target.closest('.qq-opt');
+            if (opt) {
+                answerQuiz(opt.dataset.qid, opt.dataset.ans);
+                return;
+            }
+            const show = e.target.closest('.qq-show');
+            if (show) {
+                const model = document.getElementById('model-' + show.dataset.qid);
+                if (model) {
+                    const vis = model.style.display !== 'none';
+                    model.style.display = vis ? 'none' : 'block';
+                    show.textContent = vis ? '👁 Ver resposta-modelo' : '🙈 Ocultar resposta';
+                }
+                return;
+            }
+            const mark = e.target.closest('.qq-mark');
+            if (mark) markQuizSelf(mark.dataset.qid, mark.dataset.ok === '1');
+        });
+    }
+    const quizFilters = $('#quizFilters');
+    if (quizFilters) quizFilters.addEventListener('click', e => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        app.quizFilter = chip.dataset.qfilter;
+        renderQuiz();
+    });
+    const quizReset = $('#quizReset');
+    if (quizReset) quizReset.addEventListener('click', () => {
+        app.quizAnswers = {};
+        renderQuiz();
+        showToast('🔄 Quiz reiniciado');
+    });
+
+    // Calculadora de corte
+    const calcForm = $('#calcForm');
+    if (calcForm) {
+        calcForm.addEventListener('input', updateCalc);
+        calcForm.addEventListener('change', updateCalc);
+    }
+    const calcCopy = $('#calcCopy');
+    if (calcCopy) calcCopy.addEventListener('click', copyCalc);
+
+    // Tabelas de apoio
+    const printTabs = $('#btnPrintTabelas');
+    if (printTabs) printTabs.addEventListener('click', printTabelas);
+
     // Upload (com detecção do exemplo: nome + geometria DXF)
     $('#btnDemo').addEventListener('click', () => revealApp(PARTS[DEFAULT_PART_ID].exampleFile, { partId: DEFAULT_PART_ID }));
     $('#btnBrowse').addEventListener('click', () => $('#fileInput').click());
@@ -1763,6 +2313,9 @@ function setupManifest() {
 // ============================================================
 function init() {
     setupManifest();
+    app.quizFilter = 'all';
+    app.quizAnswers = {};
+    app.simIndex = null;
     renderGallery();
 
     // Restaura sessão anterior (peça, features, software, progresso, aulas)
@@ -1785,6 +2338,10 @@ function init() {
     renderCourse();
     renderFichaGrid();
     initCertForm();
+    renderQuiz();
+    renderTables();
+    updateCalc();
+    renderSimulator();
     refreshSheet();
 
     if (saved && saved.revealed) {
@@ -1800,11 +2357,9 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.7.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.8.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
-    console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
-    console.log('📝 Kit de fichas de avaliação: ' + FICHAS.length + ' documentos prontos para impressão.');
-    console.log('🏆 Certificado de conclusão personalizável pronto para impressão.');
+    console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');
 }
 

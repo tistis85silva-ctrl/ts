@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v5.7.0 · CAD + CNC Assistant</div>
+            <div class="version">v5.8.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -156,6 +156,33 @@
             </div>
         </div>
         <div id="courseModules"></div>
+    </section>
+
+    <!-- ===== QUIZ DE TREINO ===== -->
+    <section id="quizSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Treino</div>
+            <h2 class="section-title">📝 Quiz de Treino</h2>
+            <p class="section-sub">As mesmas questões das fichas de avaliação em modo interativo: responda, veja o gabarito na hora e acompanhe sua pontuação antes da avaliação de papel.</p>
+        </div>
+        <div class="quiz-toolbar">
+            <div class="filter-chips" id="quizFilters" role="group" aria-label="Filtrar questões por módulo">
+                <button type="button" class="chip active" data-qfilter="all">Todas</button>
+                <button type="button" class="chip" data-qfilter="m0">M0</button>
+                <button type="button" class="chip" data-qfilter="m1">M1</button>
+                <button type="button" class="chip" data-qfilter="m2">M2</button>
+                <button type="button" class="chip" data-qfilter="m3">M3</button>
+                <button type="button" class="chip" data-qfilter="m4">M4</button>
+                <button type="button" class="chip" data-qfilter="m5">M5</button>
+                <button type="button" class="chip" data-qfilter="final">Prova final</button>
+            </div>
+            <div class="quiz-score-wrap">
+                <span class="quiz-score-label">Pontuação</span>
+                <b class="quiz-score" id="quizScore">0,0 / 0,0 pts</b>
+                <button type="button" class="btn btn-sm" id="quizReset">↺ Reiniciar</button>
+            </div>
+        </div>
+        <div id="quizList"></div>
     </section>
 
     <!-- ===== KIT DE FICHAS DE AVALIAÇÃO ===== -->
@@ -445,9 +472,89 @@
         <pre class="code-view" id="codeView" tabindex="0"></pre>
     </section>
 
+    <!-- ===== SIMULADOR DE PERCURSO ===== -->
+    <section class="sim-wrap-section" id="simSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Passo 5</div>
+            <h2 class="section-title">🎯 Simulador de Percurso</h2>
+            <p class="section-sub">Veja o caminho da ferramenta gerado pelo código ISO antes de ir para a máquina. Simule bloco a bloco e confira cada movimento — previne colisões e refugo.</p>
+        </div>
+        <div class="sim-toolbar">
+            <button type="button" class="btn btn-accent" id="simPlay">▶ Reproduzir</button>
+            <input type="range" id="simSlider" min="0" max="0" value="0" class="sim-slider" aria-label="Avançar blocos do programa">
+            <button type="button" class="btn" id="simReset">↺ Início</button>
+            <span class="sim-counter" id="simCounter">0/0 blocos</span>
+        </div>
+        <div class="sim-main">
+            <div class="sim-plot" id="simPlot"></div>
+            <div class="sim-side">
+                <h4 class="sim-side-title">Bloco atual</h4>
+                <pre class="sim-line" id="simInfo">—</pre>
+                <p class="sim-legend"><span class="lg rapid"></span> G00 rápido &nbsp; <span class="lg feed"></span> G01/G02/G03 corte &nbsp; <span class="lg tool"></span> ferramenta</p>
+                <p class="sim-note">💡 A simulação usa o código ISO do exemplo selecionado. Movimentos de descida em Z aparecem como pontos no plano de vista.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== CALCULADORA DE CORTE ===== -->
+    <section id="calcSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Referência</div>
+            <h2 class="section-title">🧮 Calculadora de Parâmetros de Corte</h2>
+            <p class="section-sub">Calcule rotação (S), avanço (F) e remoção de material a partir da ferramenta e do material — use os valores no painel da máquina.</p>
+        </div>
+        <div class="calc-grid">
+            <div class="calc-form" id="calcForm">
+                <div class="cert-field"><label for="calcOp">Operação</label>
+                    <select id="calcOp"><option value="milling">Fresamento</option><option value="turning">Torneamento</option></select></div>
+                <div class="cert-field"><label for="calcMat">Material</label>
+                    <select id="calcMat"><option value="aco1020">Aço SAE 1020</option><option value="inox">Aço inox</option><option value="aluminio">Alumínio</option><option value="fundido">Ferro fundido</option><option value="bronze">Bronze/Latão</option></select></div>
+                <div class="cert-field"><label for="calcTool">Ferramenta</label>
+                    <select id="calcTool"><option value="carbide">Metal duro (carbide)</option><option value="hss">HSS (rápida)</option></select></div>
+                <div class="cert-field"><label for="calcD">Diâmetro da ferramenta (mm)</label>
+                    <input type="number" id="calcD" value="12" min="0.5" step="0.5"></div>
+                <div class="cert-field calc-milling"><label for="calcZ">Nº de dentes</label>
+                    <input type="number" id="calcZ" value="4" min="1" step="1"></div>
+                <div class="cert-field calc-milling"><label for="calcFz">Avanço por dente fz (mm)</label>
+                    <input type="number" id="calcFz" value="0.05" min="0.005" step="0.005"></div>
+                <div class="cert-field calc-turning" style="display:none;"><label for="calcF">Avanço f (mm/rev)</label>
+                    <input type="number" id="calcF" value="0.2" min="0.01" step="0.01"></div>
+                <div class="cert-field"><label for="calcAp">Profundidade ap (mm)</label>
+                    <input type="number" id="calcAp" value="2" min="0.1" step="0.1"></div>
+                <div class="cert-field calc-milling"><label for="calcAe">Largura ae (mm)</label>
+                    <input type="number" id="calcAe" value="10" min="0.1" step="0.1"></div>
+                <div class="cert-field"><label for="calcVc">vc opcional (m/min) — vazio usa o do material</label>
+                    <input type="number" id="calcVc" placeholder="ex.: 180" min="1" step="1"></div>
+            </div>
+            <div class="calc-out">
+                <div class="calc-res"><span class="cr-label">Rotação (S)</span><b class="cr-value" id="calcN">—</b></div>
+                <div class="calc-res"><span class="cr-label">Avanço (F)</span><b class="cr-value" id="calcVf">—</b></div>
+                <div class="calc-res"><span class="cr-label">vc usado</span><b class="cr-value" id="calcVcOut">—</b></div>
+                <div class="calc-res"><span class="cr-label">Remoção (Q)</span><b class="cr-value" id="calcQ">—</b></div>
+                <p class="calc-extra" id="calcExtra"></p>
+                <p class="calc-warn" id="calcWarn"></p>
+                <button type="button" class="btn btn-accent" id="calcCopy">📋 Copiar parâmetros</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TABELAS DE APOIO ===== -->
+    <section id="tablesSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Consulta rápida</div>
+            <h2 class="section-title">📚 Tabelas de Apoio</h2>
+            <p class="section-sub">Códigos G/M, roscas métricas com diâmetro de broca e tolerâncias ISO 2768 — tudo para consulta no chão de fábrica.</p>
+        </div>
+        <div class="course-toolbar">
+            <span class="ficha-hint">💡 Dica: imprima e deixe plastificado ao lado da máquina.</span>
+            <button type="button" class="btn btn-accent" id="btnPrintTabelas">🖨️ Imprimir tabelas</button>
+        </div>
+        <div id="tablesContent"></div>
+    </section>
+
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v5.7.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v5.8.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->
