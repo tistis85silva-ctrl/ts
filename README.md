@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v5.5.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v5.6.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,12 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v5.6
+- Detecção real do exemplo ao enviar arquivo: correspondência pelo nome
+  (ex.: flange.dxf abre o Flange) + análise geométrica de DXF (padrão polar
+  de furos) para nomes desconhecidos — antes, tudo abria o exemplo base
+
 
 ### v5.5
 - Ícone da marca (favicon.ico multi-tamanho + PNGs) e manifest PWA

@@ -1138,6 +1138,158 @@ function initCertForm() {
 }
 
 // ============================================================
+// DETECÇÃO DO EXEMPLO A PARTIR DO ARQUIVO ENVIADO
+// ============================================================
+// Palavras-chave por exemplo (específicos primeiro vencem pelo peso)
+const PART_NAME_KEYS = [
+    { id: 'eixo-rosqueado', keys: ['eixo-rosqueado', 'eixo rosqueado', 'eixo roscado', 'rosqueado', 'parafuso'] },
+    { id: 'bucha-rosca', keys: ['bucha', 'rosca interna', 'porca'] },
+    { id: 'eixo-escalonado', keys: ['eixo-escalonado', 'eixo escalonado', 'escalonado', 'eixo'] },
+    { id: 'placa-rasgo', keys: ['placa', 'rasgo', 'slot', 'ranhura'] },
+    { id: 'gabarito-furacao', keys: ['gabarito', 'furacao'] },
+    { id: 'caixa-cavidade', keys: ['caixa', 'cavidade', 'pocket'] },
+    { id: 'flange', keys: ['flange'] },
+    { id: 'polia-v', keys: ['polia'] },
+    { id: 'cunha', keys: ['cunha', 'rampa'] },
+    { id: 'suporte-l', keys: ['suporte', 'cantoneira', 'peca em l'] }
+];
+
+function normText(s) {
+    return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w]+/g, ' ').trim();
+}
+
+// Escolhe o exemplo pelo nome do arquivo (peso = tamanho das chaves encontradas)
+function matchPartByFileName(fileName) {
+    const n = ' ' + normText(fileName) + ' ';
+    let best = null, bestScore = 0;
+    PART_NAME_KEYS.forEach(rec => {
+        let score = 0;
+        rec.keys.forEach(k => {
+            const nk = normText(k);
+            if (nk && n.indexOf(nk) >= 0) score += nk.length;
+        });
+        if (score > bestScore) {
+            bestScore = score;
+            best = rec.id;
+        }
+    });
+    return best ? { partId: best, score: bestScore } : null;
+}
+
+// Lê um DXF ASCII e extrai entidades (CIRCLE, LINE, ARC, polilinhas)
+function analyzeDxf(text) {
+    const lines = String(text).split(/\r\n|\r|\n/);
+    const circles = [];
+    let current = null, x = null, y = null, r = null;
+    let nLine = 0, nArc = 0, nPoly = 0;
+
+    const flushCircle = () => {
+        if (isFinite(x) && isFinite(y) && isFinite(r) && r > 0) circles.push({ x: x, y: y, r: r });
+        x = y = r = null;
+    };
+
+    for (let i = 0; i + 1 < lines.length; i += 2) {
+        const code = lines[i].trim();
+        const val = lines[i + 1];
+        if (code === '0') {
+            if (current === 'CIRCLE') flushCircle();
+            current = val.trim();
+            if (current === 'LINE') nLine++;
+            else if (current === 'ARC') nArc++;
+            else if (current === 'LWPOLYLINE' || current === 'POLYLINE') nPoly++;
+            x = y = r = null;
+        } else if (current === 'CIRCLE') {
+            const num = parseFloat(val);
+            if (code === '10') x = num;
+            else if (code === '20') y = num;
+            else if (code === '40') r = num;
+        }
+    }
+    if (current === 'CIRCLE') flushCircle();
+    return { circles: circles, nLine: nLine, nArc: nArc, nPoly: nPoly };
+}
+
+// Reconhece peças pela geometria do DXF (ex.: flange = padrão polar de furos)
+function detectPartFromGeometry(g) {
+    const cs = g.circles.filter(c => isFinite(c.r) && c.r > 0);
+    if (cs.length >= 4) {
+        const big = cs.reduce((m, c) => (c.r > m.r ? c : m), cs[0]);
+        // candidatos a furos: distantes do centro e menores que o disco externo
+        const ring = cs.filter(c => {
+            const dist = Math.hypot(c.x - big.x, c.y - big.y);
+            return c.r < big.r * 0.75 && dist > big.r * 0.25 && dist < big.r * 1.15;
+        });
+        if (ring.length >= 3) {
+            const dists = ring.map(c => Math.hypot(c.x - big.x, c.y - big.y));
+            const mean = dists.reduce((a, b) => a + b, 0) / dists.length;
+            const spread = Math.max.apply(null, dists) - Math.min.apply(null, dists);
+            // furos equidistantes do centro => padrão polar (círculo primitivo)
+            if (spread < Math.max(mean * 0.3, 1.5)) {
+                return 'flange';
+            }
+        }
+    }
+    return null;
+}
+
+// Combina nome + geometria e devolve o exemplo mais provável
+function detectPart(fileName, text) {
+    const byName = matchPartByFileName(fileName);
+    if (byName) {
+        return {
+            partId: byName.partId,
+            method: 'nome',
+            note: 'Correspondência pelo nome do arquivo'
+        };
+    }
+    if (text && String(text).indexOf('AutoCAD Binary') !== 0) {
+        const g = analyzeDxf(text);
+        const byGeo = detectPartFromGeometry(g);
+        if (byGeo) {
+            return {
+                partId: byGeo,
+                method: 'geometria',
+                note: 'Análise geométrica do DXF: ' + g.circles.length + ' círculos com padrão polar detectado'
+            };
+        }
+        if (g.circles.length + g.nLine + g.nArc + g.nPoly > 0) {
+            return {
+                partId: null,
+                method: 'geometria',
+                note: 'DXF lido (' + g.circles.length + ' círculos, ' + (g.nLine + g.nArc + g.nPoly) +
+                    ' linhas/arcs) sem correspondência exata — usando o exemplo base'
+            };
+        }
+    }
+    return {
+        partId: null,
+        method: null,
+        note: 'Sem correspondência com os 10 exemplos — usando o exemplo base'
+    };
+}
+
+function handleUploadFile(file) {
+    const name = file.name || 'arquivo';
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'dxf' && typeof FileReader !== 'undefined') {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const res = detectPart(name, String(reader.result || ''));
+            revealApp(name, { partId: res.partId || undefined, detectNote: res.note });
+        };
+        reader.onerror = () => {
+            const res = detectPart(name, '');
+            revealApp(name, { partId: res.partId || undefined, detectNote: res.note });
+        };
+        reader.readAsText(file);
+    } else {
+        const res = detectPart(name, '');
+        revealApp(name, { partId: res.partId || undefined, detectNote: res.note });
+    }
+}
+
+// ============================================================
 // UPLOAD / FLUXO PRINCIPAL
 // ============================================================
 function revealApp(fileName, opts) {
@@ -1153,6 +1305,13 @@ function revealApp(fileName, opts) {
     $('#fileChip').classList.add('show');
     $('#detectSection').classList.add('show');
 
+    const detectNote = $('#detectNote');
+    if (detectNote) {
+        const part = currentPart();
+        detectNote.textContent = (opts.detectNote ? opts.detectNote + ' → ' : 'Exemplo selecionado → ') +
+            part.name.toUpperCase() + ' · ' + part.process;
+    }
+
     $('#planSection').classList.remove('show');
     $('#drawingSheetSection').classList.remove('show');
     $('#codeSection').classList.remove('show');
@@ -1164,7 +1323,8 @@ function revealApp(fileName, opts) {
 
     if (!opts.silent) {
         setTimeout(() => scrollToSection('detectSection'), 150);
-        showToast('📄 Arquivo "' + fileName + '" carregado — features detectadas');
+        showToast('📄 "' + fileName + '" carregado — ' + currentPart().name +
+            ' (' + currentPart().features.length + ' features sugeridas)');
     }
     saveSession();
 }
@@ -1423,11 +1583,11 @@ function setupGeneralEvents() {
     const btnClosePreview = $('#btnCloseFichaPreview');
     if (btnClosePreview) btnClosePreview.addEventListener('click', closeFichaPreview);
 
-    // Upload
+    // Upload (com detecção do exemplo: nome + geometria DXF)
     $('#btnDemo').addEventListener('click', () => revealApp(PARTS[DEFAULT_PART_ID].exampleFile, { partId: DEFAULT_PART_ID }));
     $('#btnBrowse').addEventListener('click', () => $('#fileInput').click());
     $('#fileInput').addEventListener('change', e => {
-        if (e.target.files[0]) revealApp(e.target.files[0].name);
+        if (e.target.files[0]) handleUploadFile(e.target.files[0]);
         e.target.value = '';
     });
 
@@ -1447,7 +1607,7 @@ function setupGeneralEvents() {
     });
     dz.addEventListener('drop', e => {
         e.preventDefault();
-        if (e.dataTransfer.files[0]) revealApp(e.dataTransfer.files[0].name);
+        if (e.dataTransfer.files[0]) handleUploadFile(e.dataTransfer.files[0]);
     });
 
     // Software
@@ -1561,7 +1721,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.5 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.6 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
     console.log('📝 Kit de fichas de avaliação: ' + FICHAS.length + ' documentos prontos para impressão.');
