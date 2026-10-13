@@ -1681,9 +1681,22 @@ function setupDemoPulse() {
 }
 
 // ============================================================
+// MANIFEST PWA (só em http/https — file:// bloqueia com CORS)
+// ============================================================
+function setupManifest() {
+    if (typeof location !== 'undefined' && location.protocol === 'file:') return;
+    if (document.querySelector('link[rel="manifest"]')) return;
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = 'manifest.json';
+    document.head.appendChild(link);
+}
+
+// ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 function init() {
+    setupManifest();
     renderGallery();
 
     // Restaura sessão anterior (peça, features, software, progresso, aulas)
@@ -1721,7 +1734,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.6 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v5.6.1 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('📚 Trilha de formação: ' + COURSE.modules.length + ' módulos · ' + courseTotals().totalAulas + ' aulas.');
     console.log('📝 Kit de fichas de avaliação: ' + FICHAS.length + ' documentos prontos para impressão.');
