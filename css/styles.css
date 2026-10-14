@@ -4042,3 +4042,111 @@ body.print-certificado #certPaper {
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================================
+   v5.9 — SIMULADOR 3D COM MATERIAL BRUTO (3 VISTAS)
+   ============================================================ */
+.sim-material-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.sim-mat-ic {
+    font-size: 16px;
+}
+.sim-mat-legend {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.lg.raw {
+    width: 14px;
+    height: 10px;
+    background: #6E6250;
+    border-radius: 2px;
+}
+.lg.machined {
+    width: 14px;
+    height: 10px;
+    background: #79C0CC;
+    border-radius: 2px;
+}
+.sim-views {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.sim-view-3d {
+    grid-row: 1 / 3;
+}
+.sim-view {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.sim-view-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.sim-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 400;
+    color: var(--text-dim);
+}
+.sim-view canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: #0E1621;
+}
+.sim-side-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    background: none;
+    border: none;
+    padding: 0;
+}
+.sim-side-box {
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .sim-views {
+        grid-template-columns: 1fr;
+    }
+    .sim-view-3d {
+        grid-row: auto;
+    }
+    .sim-side-row {
+        grid-template-columns: 1fr;
+    }
+}

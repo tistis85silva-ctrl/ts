@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v5.8.0 · CAD + CNC Assistant</div>
+            <div class="version">v5.9.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -485,13 +485,38 @@
             <button type="button" class="btn" id="simReset">↺ Início</button>
             <span class="sim-counter" id="simCounter">0/0 blocos</span>
         </div>
-        <div class="sim-main">
-            <div class="sim-plot" id="simPlot"></div>
-            <div class="sim-side">
+        <div class="sim-material-bar">
+            <span class="sim-mat-ic" aria-hidden="true">🧱</span>
+            <span id="simMaterial">Material bruto — gere o roteiro para simular</span>
+            <span class="sim-mat-legend">
+                <span class="lg raw"></span> bruto &nbsp;
+                <span class="lg machined"></span> usinado &nbsp;
+                <span class="lg feed"></span> corte &nbsp;
+                <span class="lg tool"></span> ferramenta
+            </span>
+        </div>
+        <div class="sim-views">
+            <div class="sim-view sim-view-3d">
+                <h4 class="sim-view-title">🧊 Vista 3D isométrica <span class="sim-hint">remoção de material do bruto</span></h4>
+                <canvas id="sim3d" width="760" height="470"></canvas>
+            </div>
+            <div class="sim-view">
+                <h4 class="sim-view-title">⬛ Vista superior (X × Y)</h4>
+                <canvas id="simTop" width="420" height="330"></canvas>
+            </div>
+            <div class="sim-view">
+                <h4 class="sim-view-title">🏔️ Vista frontal (X × Z)</h4>
+                <canvas id="simFront" width="420" height="330"></canvas>
+            </div>
+        </div>
+        <div class="sim-side sim-side-row">
+            <div class="sim-side-box">
                 <h4 class="sim-side-title">Bloco atual</h4>
                 <pre class="sim-line" id="simInfo">—</pre>
-                <p class="sim-legend"><span class="lg rapid"></span> G00 rápido &nbsp; <span class="lg feed"></span> G01/G02/G03 corte &nbsp; <span class="lg tool"></span> ferramenta</p>
-                <p class="sim-note">💡 A simulação usa o código ISO do exemplo selecionado. Movimentos de descida em Z aparecem como pontos no plano de vista.</p>
+            </div>
+            <div class="sim-side-box">
+                <h4 class="sim-side-title">Como ler a simulação</h4>
+                <p class="sim-note">💡 O bloco começa como <b>material bruto</b>. À medida que o programa roda, as áreas tocadas pela ferramenta mudam de cor — a usinagem fica visível nas 3 vistas ao mesmo tempo. Rebobine e repita quantas vezes quiser antes de ir para a máquina.</p>
             </div>
         </div>
     </section>
@@ -554,7 +579,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v5.8.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v5.9.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

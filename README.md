@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v5.8.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v5.9.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,13 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v5.9.0
+- **Simulador 3D com remoção de material (3 vistas)**: vista 3D isométrica,
+  vista superior (X×Y) e vista frontal (X×Z) — o bloco começa como **material
+  bruto** e vai sendo usinado bloco a bloco (com diâmetro real da ferramenta)
+- Suíte de testes versionada em `tests/smoke.js` (`node tests/smoke.js`)
+
 
 ### v5.8.0
 - **Simulador de percurso (G-code)**: desenha o caminho da ferramenta e simula
