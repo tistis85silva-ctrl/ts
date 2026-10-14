@@ -516,16 +516,30 @@ function syncSheet3D(fState) {
 
 function refreshSheet() {
     renderDrawingSheet();
+    if (typeof renderProcessBook === 'function') renderProcessBook();
 }
 
 // ============================================================
 // PROGRAMAÇÃO CNC (Passo 4) — ISO + PARAMÉTRICO
 // ============================================================
 function codeOf(kind) {
+    ensureSimViewState();
     const part = currentPart();
     const fState = getFeatureState();
     const d = part.dimsFromState(fState);
-    if (kind === 'macro') return part.macro(d, fState);
+    if (kind === 'macro') {
+        const bz = getPartBoundsAndZero(part, d);
+        const ap = fmt(app.cncStepDown || 2);
+        const pq = fmt(app.cncPeckQ || 1);
+        const fn = fmt(app.cncFinishAllow || 0.3);
+        const rawMacro = part.macro(d, fState);
+        const stratVars = '(=== PARAMETROS DE REMOCAO / ESTRATEGIA ===)\n' +
+            '(' + bz.zLabel + ')\n' +
+            '#190 = ' + ap + '.   (PASSO REMOVIDO POR VEZ NO DESBASTE AP/U EM MM)\n' +
+            '#191 = ' + pq + '.   (MERGULHO POR VEZ NA FURACAO G83 Q EM MM)\n' +
+            '#192 = ' + fn + '   (SOBREMETAL DEIXADO PARA ACABAMENTO EM MM)\n\n';
+        return rawMacro.replace(/(\(=== PARAMETROS)/, stratVars + '$1');
+    }
     return applyCncStrategy(part.gcode(d, fState), part, d, fState, { shiftCoords: true });
 }
 
@@ -549,6 +563,7 @@ function renderCode() {
     }
     invalidateSim();
     renderSimulator();
+    if (typeof renderProcessBook === 'function') renderProcessBook();
 }
 
 function downloadText(filename, text, mime) {
@@ -1360,10 +1375,9 @@ function handleUploadFile(file) {
 }
 
 // ============================================================
-// SIMULADOR 3D DE REMOÇÃO DE MATERIAL — Passo 5 (v6.3 Estratégias CNC + Zero G54)
+// SIMULADOR 3D + ESTRATÉGIAS DE REMOÇÃO (ap/Q) + BOOK TÉCNICO (v6.4)
 // ============================================================
 
-// Estado visual padrão da câmera, camadas e estratégias CNC do simulador
 function ensureSimViewState() {
     if (!app.simCam) {
         app.simCam = { yaw: -0.68, pitch: 0.58, zoom: 1.0 };
@@ -1377,6 +1391,10 @@ function ensureSimViewState() {
     if (!app.cncPassMode) app.cncPassMode = 'both'; // 'both' | 'rough' | 'finish'
     if (!app.cncPocketMode) app.cncPocketMode = 'spiral'; // 'spiral' | 'zigzag' | 'helical'
     if (app.cncExtraPocket === undefined) app.cncExtraPocket = false;
+    if (!app.cncStepDown) app.cncStepDown = 2.0;    // mm removidos por passada no desbaste (ap / U)
+    if (!app.cncPeckQ) app.cncPeckQ = 1.0;          // mm removidos por mergulho na furação (G83 Q / G74 Q)
+    if (!app.cncFinishAllow) app.cncFinishAllow = 0.3; // mm de sobremetal deixado para o acabamento
+    if (!app.bookPage) app.bookPage = 'all';        // 'all' | 'drawing' | 'stages' | 'charts' | 'inspection'
 }
 
 // Limites nominais da peça no espaço nativo do gerador e coordenada do Ponto Zero G54 escolhido
@@ -1424,23 +1442,27 @@ function getPartBoundsAndZero(part, d) {
 }
 
 // Gera os blocos G-code de uma Cavidade (Espiral pelo Centro, Helicoidal pelo Centro ou Zig-Zag)
+// respeitando o passe por vez (app.cncStepDown) e o sobremetal (app.cncFinishAllow)
 function buildPocketBlocks(cx, cy, cl, cp, cd, rTool, mode, passMode) {
+    ensureSimViewState();
+    const ap = Math.max(app.cncStepDown || 2, 0.25);
+    const fin = Math.max(app.cncFinishAllow || 0.3, 0.05);
     const L = [];
     const hx = Math.max(cl / 2 - rTool, 4);
     const hy = Math.max(cp / 2 - rTool, 4);
-    const hxRough = Math.max(hx - 0.3, 2);
-    const hyRough = Math.max(hy - 0.3, 2);
-    const zRough = Math.max(cd - 0.3, 1);
+    const hxRough = Math.max(hx - fin, 2);
+    const hyRough = Math.max(hy - fin, 2);
+    const zRough = Math.max(cd - fin, 0.5);
+    const zSteps = Math.max(1, Math.min(20, Math.ceil(zRough / ap)));
 
     if (passMode !== 'finish') {
         if (mode === 'spiral') {
             L.push('',
                 '(=== CAVIDADE PELO CENTRO ' + fmt(cl) + ' X ' + fmt(cp) + ' X ' + fmt(cd) + ' - ESPIRAL DO CENTRO P/ FORA ===)',
-                '(ENTRADA NO CENTRO DA PECA E ABERTURA EM ANEIS CONCENTRICOS - DEIXA 0.3MM P/ ACABAMENTO)');
-            const zSteps = Math.max(1, Math.min(3, Math.ceil(zRough / 6)));
+                '(REMOVENDO ' + fmt(ap) + 'MM POR PASSADA EM ' + zSteps + ' CAMADAS - SOBREMETAL ' + fmt(fin) + 'MM)');
             for (let zs = 1; zs <= zSteps; zs++) {
-                const zCur = -(zRough * (zs / zSteps));
-                L.push('G00 X' + gf(cx) + ' Y' + gf(cy) + '  (MERGULHO PELO CENTRO DA CAVIDADE)',
+                const zCur = -Math.min(zRough, zs * ap);
+                L.push('G00 X' + gf(cx) + ' Y' + gf(cy) + '  (CAMADA ' + zs + '/' + zSteps + ' PELO CENTRO -> Z' + gf(zCur) + ')',
                     'G01 Z' + gf(zCur) + ' F95.');
                 [0.35, 0.68, 1.0].forEach(frac => {
                     const rx = hxRough * frac, ry = hyRough * frac;
@@ -1456,12 +1478,11 @@ function buildPocketBlocks(cx, cy, cl, cp, cd, rTool, mode, passMode) {
             const rHelix = Math.max(Math.min(hxRough, hyRough) * 0.65, 3);
             L.push('',
                 '(=== CAVIDADE HELICOIDAL PELO CENTRO ' + fmt(cl) + ' X ' + fmt(cp) + ' X ' + fmt(cd) + ' ===)',
-                '(DESCIDA EM HELICE G02 PELO CENTRO + ABERTURA RADIAL)',
+                '(DESCIDA EM HELICE G02 REMOVENDO ' + fmt(ap) + 'MM POR VOLTA - ' + zSteps + ' VOLTAS)',
                 'G00 X' + gf(cx - rHelix) + ' Y' + gf(cy),
                 'G01 Z0. F100.');
-            const turns = Math.max(2, Math.min(4, Math.ceil(zRough / 4)));
-            for (let k = 1; k <= turns; k++) {
-                const zCur = -(zRough * (k / turns));
+            for (let k = 1; k <= zSteps; k++) {
+                const zCur = -Math.min(zRough, k * ap);
                 L.push('G02 X' + gf(cx - rHelix) + ' Y' + gf(cy) + ' I' + gf(rHelix) + ' J0. Z' + gf(zCur) + ' F220.');
             }
             L.push('G01 X' + gf(cx - hxRough) + ' Y' + gf(cy - hyRough) + ' F250.',
@@ -1471,17 +1492,20 @@ function buildPocketBlocks(cx, cy, cl, cp, cd, rTool, mode, passMode) {
                 'G01 X' + gf(cx - hxRough) + ' Y' + gf(cy - hyRough),
                 'G00 Z2.');
         } else {
-            // Zig-zag
             L.push('',
                 '(=== DESBASTE DA CAVIDADE ' + fmt(cl) + ' X ' + fmt(cp) + ' X ' + fmt(cd) + ' - ZIG-ZAG ===)',
-                'G00 X' + gf(cx - hxRough) + ' Y' + gf(cy - hyRough),
-                'G01 Z-' + gf(zRough) + ' F100.');
-            const rows = 4;
-            for (let r = 0; r <= rows; r++) {
-                const yy = cy - hyRough + (2 * hyRough * (r / rows));
-                const xx = (r % 2 === 0) ? (cx + hxRough) : (cx - hxRough);
-                L.push('G01 Y' + gf(yy) + ' F250.',
-                    'G01 X' + gf(xx) + ' F250.');
+                '(REMOVENDO ' + fmt(ap) + 'MM POR PASSADA EM ' + zSteps + ' CAMADAS)');
+            for (let zs = 1; zs <= zSteps; zs++) {
+                const zCur = -Math.min(zRough, zs * ap);
+                L.push('G00 X' + gf(cx - hxRough) + ' Y' + gf(cy - hyRough),
+                    'G01 Z' + gf(zCur) + ' F100.  (CAMADA ' + zs + '/' + zSteps + ')');
+                const rows = 4;
+                for (let r = 0; r <= rows; r++) {
+                    const yy = cy - hyRough + (2 * hyRough * (r / rows));
+                    const xx = (r % 2 === 0) ? (cx + hxRough) : (cx - hxRough);
+                    L.push('G01 Y' + gf(yy) + ' F250.',
+                        'G01 X' + gf(xx) + ' F250.');
+                }
             }
             L.push('G00 Z2.');
         }
@@ -1490,7 +1514,7 @@ function buildPocketBlocks(cx, cy, cl, cp, cd, rTool, mode, passMode) {
     if (passMode !== 'rough') {
         L.push('',
             '(=== ACABAMENTO FINAL DA CAVIDADE ' + fmt(cl) + ' X ' + fmt(cp) + ' ===)',
-            '(REMOVE SOBREMATERIAL DE 0.3MM NAS PAREDES E FUNDO A S3800 F180)',
+            '(REMOVE SOBREMETAL DE ' + fmt(fin) + 'MM NAS PAREDES E FUNDO A S3800 F180)',
             'S3800 M03',
             'G00 X' + gf(cx) + ' Y' + gf(cy),
             'G01 Z-' + gf(cd) + ' F90.',
@@ -1505,27 +1529,57 @@ function buildPocketBlocks(cx, cy, cl, cp, cd, rTool, mode, passMode) {
 }
 
 // Aplica todas as escolhas de estratégia CNC (Zero G54, Ciclo de Furação G81/G82/G83,
-// Modo Desbaste/Acabamento e Cavidade pelo Centro) ao programa ISO
+// Passo por vez ap/Q, Sobremetal, Modo Desbaste/Acabamento e Cavidade pelo Centro) ao programa ISO
 function applyCncStrategy(rawCode, part, d, fState, opts) {
     ensureSimViewState();
     opts = opts || {};
     let code = String(rawCode);
     const bz = getPartBoundsAndZero(part, d);
+    const ap = Math.max(app.cncStepDown || 2, 0.25);
+    const peckQ = Math.max(app.cncPeckQ || 1, 0.2);
+    const fin = Math.max(app.cncFinishAllow || 0.3, 0.05);
 
-    // 1. Atualiza o comentário do cabeçalho G54 para refletir o Ponto Zero escolhido
-    code = code.replace(/\(G54[^)]*\)/i, '(' + bz.zLabel + ')');
+    // 1. Atualiza o comentário do cabeçalho G54 + resumo de remoção por vez
+    code = code.replace(/\(G54[^)]*\)/i,
+        '(' + bz.zLabel + ')\n(ESTRATEGIA: PASSE AP=' + fmt(ap) + 'MM/VEZ | MERGULHO G83 Q=' + fmt(peckQ) + 'MM/VEZ | SOBREMETAL=' + fmt(fin) + 'MM)');
 
-    // 2. Estratégia de Cavidade (substitui ou injeta Cavidade pelo Centro nas peças de fresamento)
+    // 2. No Torneamento: aplica passo radial U = ap, sobremetal U = fin e incremento Q do G74
+    if (part.isTurning) {
+        code = code.replace(/G71\s+U\d+\.?\d*\s+R(\d+\.?\d*)/g, 'G71 U' + gf(ap) + ' R$1  (PASSE RADIAL ' + fmt(ap) + 'MM/VEZ)');
+        code = code.replace(/(G71\s+P\d+\s+Q\d+\s+)U\d+\.?\d*(\s+W\d+\.?\d*)/g, '$1U' + gf(fin) + '$2');
+        code = code.replace(/(G74\s+X0\.?\s+Z-?\d+\.?\d*\s+)Q\d+/g, '$1Q' + Math.round(peckQ * 1000));
+    }
+
+    // 3. No Fresamento: Furo Central Helicoidal do Flange usa passo `ap` por volta!
+    if (part.id === 'flange' && fState.furo_central && fState.furo_central.included) {
+        const rr = (d.furoCentral || 40) / 2;
+        const e = d.espessura || 18;
+        const nHelix = Math.max(1, Math.min(24, Math.ceil(e / ap)));
+        const hLines = [
+            '(=== FURO CENTRAL D' + gf(d.furoCentral || 40) + ' - INTERPOLACAO HELICOIDAL ===)',
+            '(DESCIDA EM ESPIRAL REMOVENDO ' + fmt(ap) + 'MM POR VOLTA - ' + nHelix + ' VOLTAS)',
+            'G00 X-' + gf(rr - 4) + ' Y0.',
+            'G01 Z0. F100.'
+        ];
+        for (let k = 1; k <= nHelix; k++) {
+            const zc = Math.min(k * ap, e);
+            hLines.push('G02 I' + gf(rr - 4) + ' Z-' + gf(zc) + ' F220.  (VOLTA ' + k + '/' + nHelix + ' -> Z-' + fmt(zc) + ')');
+        }
+        hLines.push('G02 I' + gf(rr - 4) + '  (ACABAMENTO DA PAREDE)', 'G00 Z50.');
+        code = code.replace(/\(===\s*FURO CENTRAL[\s\S]*?G00 Z50\./i, hLines.join('\n'));
+    }
+
+    // 4. Estratégia de Cavidade (substitui ou injeta Cavidade pelo Centro nas peças de fresamento)
     if (!part.isTurning) {
         const hasNativePocket = part.id === 'caixa-cavidade' || part.id === 'placa-rasgo';
-        if (hasNativePocket && (app.cncPocketMode !== 'zigzag' || app.cncPassMode !== 'both')) {
+        if (hasNativePocket) {
             const cl = d.cavL || d.rasgoComp || 70;
             const cp = d.cavP || d.rasgoLarg || 36;
             const cd = d.cavD || d.espessura || 15;
             const rT = part.id === 'placa-rasgo' ? 5 : 6;
             const pocketCode = buildPocketBlocks(bz.cx, bz.cy, cl, cp, cd, rT, app.cncPocketMode, app.cncPassMode);
             code = code.replace(
-                /\(===\s*(?:DESBASTE DA CAVIDADE|RASGO)[\s\S]*?(?=\n\s*\n|\n\(===|\nN500|\nN330|\nN900)/i,
+                /\(===\s*(?:DESBASTE DA CAVIDADE|RASGO)[\s\S]*?(?=\n\s*\n|\n\(===|\nN500|\nN330|\nN420|\nN900)/i,
                 pocketCode.trim()
             );
         } else if (app.cncExtraPocket && !hasNativePocket) {
@@ -1533,8 +1587,7 @@ function applyCncStrategy(rawCode, part, d, fState, opts) {
             const cp = Math.round((bz.py1 - bz.py0) * 0.38);
             const cd = Math.min(8, Math.max(4, Math.round(bz.thick * 0.45)));
             const pocketCode = buildPocketBlocks(bz.cx, bz.cy, cl, cp, cd, 6, app.cncPocketMode, app.cncPassMode);
-            // Injeta logo após o contorno ou faceamento
-            const insertPos = code.search(/\(===\s*(?:FURO|CHANFRO|ACABAMENTO)/i);
+            const insertPos = code.search(/\(===\s*(?:FURO|PILOTAGEM|CHANFRO|ACABAMENTO)/i);
             if (insertPos > 0) {
                 code = code.slice(0, insertPos) + pocketCode + '\n\n' + code.slice(insertPos);
             } else {
@@ -1543,18 +1596,18 @@ function applyCncStrategy(rawCode, part, d, fState, opts) {
         }
     }
 
-    // 3. Adiciona passe explícito de Acabamento Final de Contorno quando em Desbaste+Acabamento ou Só Acabamento
+    // 5. Adiciona passe explícito de Acabamento Final de Contorno quando em Desbaste+Acabamento ou Só Acabamento
     if (!part.isTurning && app.cncPassMode !== 'rough' && !/ACABAMENTO FINAL DE CONTORNO/i.test(code)) {
         let finBlock = '';
         if (part.id === 'flange') {
             const R = (d.diametro || 120) / 2;
             finBlock = '\n(=== ACABAMENTO FINAL DE CONTORNO E PAREDES ===)\n' +
-                '(PASSE DE PRECISAO A S3800 F200 REMOVENDO 0.2MM DE SOBREMATERIAL)\n' +
+                '(PASSE DE PRECISAO A S3800 F200 REMOVENDO ' + fmt(fin) + 'MM DE SOBREMETAL)\n' +
                 'S3800 M03\nG00 X-' + gf(R) + ' Y0.\nG01 Z-' + gf(bz.thick) + ' F100.\n' +
                 'G02 X-' + gf(R) + ' Y0. I' + gf(R) + ' J0. F200.\nG00 Z20.\n';
         } else if (part.id !== 'cunha') {
             finBlock = '\n(=== ACABAMENTO FINAL DE CONTORNO E PAREDES ===)\n' +
-                '(PASSE DE PRECISAO A S3800 F200 REMOVENDO 0.2MM DE SOBREMATERIAL)\n' +
+                '(PASSE DE PRECISAO A S3800 F200 REMOVENDO ' + fmt(fin) + 'MM DE SOBREMETAL)\n' +
                 'S3800 M03\nG00 X' + gf(bz.px0) + ' Y' + gf(bz.py0) + '\n' +
                 'G01 Z-' + gf(bz.thick) + ' F100.\n' +
                 'G01 X' + gf(bz.px1) + ' Y' + gf(bz.py0) + ' F200.\n' +
@@ -1567,7 +1620,7 @@ function applyCncStrategy(rawCode, part, d, fState, opts) {
         }
     }
 
-    // 4. Filtra seções conforme o Modo de Passes (Só Desbaste vs. Só Acabamento)
+    // 6. Filtra seções conforme o Modo de Passes (Só Desbaste vs. Só Acabamento)
     if (app.cncPassMode === 'rough' || app.cncPassMode === 'finish') {
         const sections = code.split(/(?=\(===\s*[^)]+===\))/g);
         const head = sections[0];
@@ -1578,37 +1631,37 @@ function applyCncStrategy(rawCode, part, d, fState, opts) {
             return app.cncPassMode === 'rough' ? !isFinishSec : isFinishSec;
         });
         const modeBanner = app.cncPassMode === 'rough'
-            ? '(MODO ATIVO: SO DESBASTE - DEIXANDO +0.3MM DE SOBREMATERIAL NAS PAREDES E FUNDO)\n'
+            ? '(MODO ATIVO: SO DESBASTE - DEIXANDO +' + fmt(fin) + 'MM DE SOBREMATERIAL NAS PAREDES E FUNDO)\n'
             : '(MODO ATIVO: SO ACABAMENTO - EXECUTANDO APENAS PASSES FINAIS DE PRECISAO)\n';
         code = head + modeBanner + (kept.length ? kept.join('\n') : sections.slice(1).join('\n'));
         if (!/M30/.test(code)) code += '\nG00 Z100. M09\nM05\nM30\n%';
     }
 
-    // 5. Substitui o Ciclo de Furação (G81 Direto | G82 Com Demora P | G83 Pica-Pau Q)
-    if (app.cncDrill !== 'auto') {
-        const targetG = app.cncDrill; // 'G81' | 'G82' | 'G83'
-        code = code.split('\n').map(line => {
-            if (!/\bG8[123]\b/.test(line)) return line;
-            let nl = line.replace(/\bG8[123]\b/, targetG);
-            if (targetG === 'G83') {
-                nl = nl.replace(/\s+P\d+\.?\d*/g, '');
-                if (!/\bQ\d/.test(nl)) nl = nl.replace(/(\bR-?\d+\.?\d*)/, '$1 Q3.');
-            } else if (targetG === 'G82') {
-                nl = nl.replace(/\s+Q\d+\.?\d*/g, '');
-                if (!/\bP\d/.test(nl)) nl = nl.replace(/(\bR-?\d+\.?\d*)/, '$1 P500');
-            } else if (targetG === 'G81') {
-                nl = nl.replace(/\s+[QP]\d+\.?\d*/g, '');
+    // 7. Aplica o incremento de mergulho `Q` (ex.: 1 mm por vez) em todos os G83 e converte ciclo se selecionado
+    code = code.split('\n').map(line => {
+        if (!/\bG8[123]\b/.test(line)) return line;
+        const targetG = app.cncDrill !== 'auto' ? app.cncDrill : (line.match(/\bG8[123]\b/)[0]);
+        let nl = line.replace(/\bG8[123]\b/, targetG);
+        if (targetG === 'G83') {
+            nl = nl.replace(/\s+P\d+\.?\d*/g, '');
+            if (/\bQ\d+\.?\d*/.test(nl)) {
+                nl = nl.replace(/\bQ\d+\.?\d*/, 'Q' + gf(peckQ));
+            } else {
+                nl = nl.replace(/(\bR-?\d+\.?\d*)/, '$1 Q' + gf(peckQ));
             }
-            return nl;
-        }).join('\n');
-    }
+        } else if (targetG === 'G82') {
+            nl = nl.replace(/\s+Q\d+\.?\d*/g, '');
+            if (!/\bP\d/.test(nl)) nl = nl.replace(/(\bR-?\d+\.?\d*)/, '$1 P500');
+        } else if (targetG === 'G81') {
+            nl = nl.replace(/\s+[QP]\d+\.?\d*/g, '');
+        }
+        return nl;
+    }).join('\n');
 
-    // 6. Desloca todas as coordenadas X/Y do texto G-code quando o Ponto Zero G54 foi alterado
+    // 8. Desloca todas as coordenadas X/Y do texto G-code quando o Ponto Zero G54 foi alterado
     if (opts.shiftCoords && !part.isTurning) {
-        const natZeroX = part.id === 'cunha' ? 0 : 0;
-        const natZeroY = part.id === 'cunha' ? 0 : 0;
-        const dx = bz.zx - natZeroX;
-        const dy = bz.zy - natZeroY;
+        const dx = bz.zx;
+        const dy = bz.zy;
         if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
             code = code.split('\n').map(raw => {
                 const idxC = raw.indexOf('(');
@@ -1629,6 +1682,7 @@ function applyCncStrategy(rawCode, part, d, fState, opts) {
 // Interpreta o código ISO completo: movimentos, ciclos modais (G81/G82/G83/G71/G70/G74/G76),
 // ferramentas (diâmetro, nome, tipo), operações, rotação S, avanço F e tempo estimado
 function parseToolpath(code) {
+    ensureSimViewState();
     const text = String(code);
     const toolDiam = {};
     const toolAltDiam = {};
@@ -1660,7 +1714,7 @@ function parseToolpath(code) {
     let motion = 'rapid';
     let gModal = 'G00';
     let canned = null; // null | 'G81' | 'G82' | 'G83'
-    let cannedZ = -10, cannedR = 2, cannedQ = 3;
+    let cannedZ = -10, cannedR = 2, cannedQ = app.cncPeckQ || 1;
     let tool = 1;
     let spindle = 1500, feed = 200, coolant = 'M09';
     let useAltDiam = false;
@@ -1737,7 +1791,7 @@ function parseToolpath(code) {
                 gModal = canned;
                 if (words.Z !== undefined) cannedZ = words.Z;
                 if (words.R !== undefined) cannedR = words.R;
-                if (words.Q !== undefined) cannedQ = Math.max(words.Q, 1);
+                if (words.Q !== undefined) cannedQ = Math.max(words.Q, 0.2);
             } else if (g === 71 || g === 70 || g === 74 || g === 76) {
                 gModal = 'G' + g;
             }
@@ -1765,8 +1819,24 @@ function parseToolpath(code) {
             return;
         }
 
+        // G74 no torno: furação axial em mergulhos de Q mm por vez!
         if (gList.indexOf(74) >= 0 && hasZ) {
-            pushSeg(x, y, z, 0, 0, nz, 'feed', Object.assign({}, baseExtra, { opKind: 'AxialDrill' }));
+            const qMm = words.Q ? Math.max(words.Q / 1000, 0.25) : Math.max(app.cncPeckQ || 1, 0.25);
+            const totalD = Math.abs(nz);
+            const nPecks = Math.min(24, Math.max(1, Math.ceil(totalD / qMm)));
+            let zPrev = 2;
+            for (let pk = 1; pk <= nPecks; pk++) {
+                const zStep = -Math.min(totalD, pk * qMm);
+                pushSeg(0, 0, zPrev, 0, 0, zStep, 'feed', Object.assign({}, baseExtra, {
+                    opKind: 'AxialDrill',
+                    peckStep: pk, peckTotal: nPecks, stepSize: qMm,
+                    text: baseExtra.text + ' [Mergulho ' + pk + '/' + nPecks + ': Z' + gf(zStep) + ' (' + fmt(qMm) + 'mm/vez)]'
+                }));
+                if (pk < nPecks) {
+                    pushSeg(0, 0, zStep, 0, 0, 2, 'rapid', Object.assign({}, baseExtra, { opKind: 'Retract' }));
+                    zPrev = zStep + 0.5;
+                }
+            }
             pushSeg(0, 0, nz, 0, 0, 2, 'rapid', Object.assign({}, baseExtra, { opKind: 'Retract' }));
             x = 0; y = 0; z = 2;
             return;
@@ -1784,27 +1854,37 @@ function parseToolpath(code) {
             return;
         }
 
-        // Ciclo fixo modal de furação (G81 simples, G82 c/ demora, G83 pica-pau c/ quebra-cavaco!)
+        // Ciclo fixo modal de furação (G81 simples, G82 c/ demora, G83 pica-pau dividindo em mergulhos de Q mm por vez!)
         if (canned && (hasXY || hasZ)) {
             if (words.Z !== undefined) cannedZ = words.Z;
             if (words.R !== undefined) cannedR = words.R;
-            if (words.Q !== undefined) cannedQ = Math.max(words.Q, 1);
+            if (words.Q !== undefined) cannedQ = Math.max(words.Q, 0.2);
 
             pushSeg(x, y, z, nx, ny, cannedR, 'rapid', baseExtra);
-            if (canned === 'G83' && Math.abs(cannedZ) > 6) {
-                // Simula o pica-pau G83 em 2 mergulhos com retorno de limpeza de cavaco ao plano R!
-                const zMid = cannedZ * 0.55;
-                pushSeg(nx, ny, cannedR, nx, ny, zMid, 'feed', Object.assign({}, baseExtra, {
-                    opKind: 'Drill', text: baseExtra.text + ' [1º Mergulho G83 Q' + fmt(cannedQ) + ']'
-                }));
-                pushSeg(nx, ny, zMid, nx, ny, cannedR, 'rapid', Object.assign({}, baseExtra, {
-                    opKind: 'Retract', text: baseExtra.text + ' [Alívio de cavaco G83 -> R' + fmt(cannedR) + ']'
-                }));
-                pushSeg(nx, ny, cannedR, nx, ny, cannedZ, 'feed', Object.assign({}, baseExtra, {
-                    opKind: 'Drill', text: baseExtra.text + ' [Mergulho final G83 -> Z' + fmt(cannedZ) + ']'
-                }));
+            if (canned === 'G83') {
+                const stepQ = Math.max(cannedQ || app.cncPeckQ || 1, 0.25);
+                const totalDepth = Math.abs(cannedZ);
+                const nPecks = Math.min(25, Math.max(1, Math.ceil(totalDepth / stepQ)));
+                let zStart = cannedR;
+                for (let pk = 1; pk <= nPecks; pk++) {
+                    const zTarget = -Math.min(totalDepth, pk * stepQ);
+                    pushSeg(nx, ny, zStart, nx, ny, zTarget, 'feed', Object.assign({}, baseExtra, {
+                        opKind: 'Drill',
+                        peckStep: pk, peckTotal: nPecks, stepSize: stepQ,
+                        text: baseExtra.text + ' [Mergulho ' + pk + '/' + nPecks + ': Z' + gf(zTarget) + ' (' + fmt(stepQ) + 'mm/vez)]'
+                    }));
+                    if (pk < nPecks) {
+                        pushSeg(nx, ny, zTarget, nx, ny, cannedR, 'rapid', Object.assign({}, baseExtra, {
+                            opKind: 'Retract',
+                            text: baseExtra.text + ' [Alívio cavaco G83 -> R' + fmt(cannedR) + ']'
+                        }));
+                        zStart = zTarget + 0.5;
+                    }
+                }
             } else {
-                pushSeg(nx, ny, cannedR, nx, ny, cannedZ, 'feed', Object.assign({}, baseExtra, { opKind: 'Drill' }));
+                pushSeg(nx, ny, cannedR, nx, ny, cannedZ, 'feed', Object.assign({}, baseExtra, {
+                    opKind: 'Drill', peckStep: 1, peckTotal: 1, stepSize: Math.abs(cannedZ)
+                }));
             }
             pushSeg(nx, ny, cannedZ, nx, ny, cannedR, 'rapid', Object.assign({}, baseExtra, { opKind: 'Retract' }));
             x = nx; y = ny; z = cannedR;
@@ -1830,6 +1910,429 @@ function parseToolpath(code) {
 
     rawLines.forEach((raw, idx) => processLine(raw, idx, null));
     return { segs: segs, ops: ops, toolDiam: toolDiam, toolName: toolName };
+}
+
+// ============================================================
+// BOOK TÉCNICO DA PEÇA — DO BRUTO À USINAGEM + TEMPOS E GRÁFICOS (v6.4)
+// ============================================================
+
+function stageDiagramSvg(kind, stepIndex, totalSteps, label, detail) {
+    const W = 280, H = 96;
+    let body = '';
+    if (kind === 'stock') {
+        body = '<rect x="52" y="20" width="140" height="54" rx="3" fill="#8C765A" stroke="#D4B892" stroke-width="1.5"/>' +
+            '<line x1="52" y1="28" x2="192" y2="28" stroke="#6FD3E0" stroke-width="1" stroke-dasharray="4,3"/>' +
+            '<text x="122" y="48" fill="#1A1408" font-size="10" font-weight="bold" text-anchor="middle" font-family="JetBrains Mono,monospace">ESTOQUE BRUTO</text>' +
+            '<text x="122" y="64" fill="#F5EBDC" font-size="8.5" text-anchor="middle" font-family="JetBrains Mono,monospace">' + escapeHtml(detail) + '</text>';
+    } else if (kind === 'setup') {
+        body = '<rect x="38" y="54" width="168" height="22" rx="2" fill="#2A3B4E" stroke="#6FD3E0" stroke-width="1"/>' +
+            '<rect x="64" y="22" width="116" height="32" rx="2" fill="#7D694F" stroke="#C5B095" stroke-width="1.2"/>' +
+            '<circle cx="122" cy="22" r="5" fill="none" stroke="#F5C542" stroke-width="1.6"/>' +
+            '<line x1="114" y1="22" x2="130" y2="22" stroke="#F5C542" stroke-width="1.3"/>' +
+            '<line x1="122" y1="14" x2="122" y2="30" stroke="#F5C542" stroke-width="1.3"/>' +
+            '<text x="132" y="16" fill="#F5C542" font-size="9" font-weight="bold" font-family="JetBrains Mono,monospace">G54</text>' +
+            '<text x="122" y="70" fill="#9BE0EE" font-size="8.5" text-anchor="middle" font-family="JetBrains Mono,monospace">' + escapeHtml(detail) + '</text>';
+    } else if (/FACEAMENTO/i.test(label)) {
+        body = '<rect x="52" y="34" width="144" height="42" fill="#5CAEC0" stroke="#9BE0EE" stroke-width="1.2"/>' +
+            '<rect x="130" y="26" width="66" height="8" fill="#8C765A"/>' +
+            '<rect x="96" y="8" width="44" height="26" fill="#DCEAF2" stroke="#6FD3E0" stroke-width="1.4"/>' +
+            '<line x1="72" y1="20" x2="168" y2="20" stroke="#FF7A3D" stroke-width="1.8" stroke-dasharray="3,2"/>' +
+            '<text x="124" y="58" fill="#09131C" font-size="9" font-weight="bold" text-anchor="middle" font-family="JetBrains Mono,monospace">' + escapeHtml(detail) + '</text>';
+    } else if (/FURO|PILOTAGEM|CONTRABORE|BROCA/i.test(label)) {
+        body = '<rect x="52" y="32" width="144" height="46" fill="#4CA6B8" stroke="#9BE0EE" stroke-width="1.2"/>' +
+            '<rect x="112" y="32" width="24" height="38" fill="#080E16" stroke="#FF7A3D" stroke-width="1.2"/>' +
+            '<polygon points="112,8 136,8 136,52 124,62 112,52" fill="#DCEAF2" stroke="#6FD3E0" stroke-width="1.2"/>' +
+            '<text x="190" y="54" fill="#FF9F5A" font-size="8.5" font-weight="bold" font-family="JetBrains Mono,monospace">' + escapeHtml(detail) + '</text>';
+    } else if (/CAVIDADE|RASGO|POCKET/i.test(label)) {
+        body = '<rect x="48" y="28" width="152" height="50" fill="#4CA6B8" stroke="#9BE0EE" stroke-width="1.2"/>' +
+            '<rect x="82" y="28" width="84" height="28" fill="#132533" stroke="#FF7A3D" stroke-width="1.4" stroke-dasharray="3,2"/>' +
+            '<rect x="114" y="6" width="20" height="44" fill="#DCEAF2" stroke="#6FD3E0" stroke-width="1.2"/>' +
+            '<text x="124" y="70" fill="#09131C" font-size="8.5" font-weight="bold" text-anchor="middle" font-family="JetBrains Mono,monospace">' + escapeHtml(detail) + '</text>';
+    } else {
+        body = '<rect x="54" y="26" width="136" height="50" rx="4" fill="#5EBBD0" stroke="#FFB067" stroke-width="1.8"/>' +
+            '<rect x="176" y="10" width="18" height="46" fill="#DCEAF2" stroke="#6FD3E0" stroke-width="1.3"/>' +
+            '<text x="122" y="54" fill="#09131C" font-size="9" font-weight="bold" text-anchor="middle" font-family="JetBrains Mono,monospace">' + escapeHtml(detail) + '</text>';
+    }
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">' +
+        '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#0B121B"/>' +
+        body +
+        '<text x="8" y="14" fill="#6FD3E0" font-size="8.5" font-family="JetBrains Mono,monospace">ETAPA ' + stepIndex + '/' + totalSteps + '</text>' +
+        '</svg>';
+}
+
+function getOperationTip(opName, toolDesc, ap, peckQ) {
+    if (/FACEAMENTO/i.test(opName)) {
+        return 'Mantenha sobremetal de 1,0 a 1,5 mm na face bruta e garanta que o centro da fresa D50 ultrapasse a borda da peça para evitar rebarba lateral.';
+    }
+    if (/CAVIDADE|RASGO/i.test(opName)) {
+        return 'Abertura com passo ap = ' + fmt(ap) + ' mm/vez: mantenha fluido M08 direcionado no centro da cavidade para expulsar o cavaco e evitar recorte.';
+    }
+    if (/FURO|PILOTAGEM|CONTRABORE/i.test(opName)) {
+        return 'Ciclo com incremento Q = ' + fmt(peckQ) + ' mm/vez: cada retração ao plano R quebra o cavaco longo do aço SAE 1020 e resfria a ponta da broca.';
+    }
+    if (/ROSCA|G76/i.test(opName)) {
+        return 'Conferir o diâmetro pré-rosca antes do ciclo G76 e validar o 1º filete com calibrador passa/não-passa ainda na fixação.';
+    }
+    if (/ACABAMENTO|G70|CHANFRO/i.test(opName)) {
+        return 'Passe de precisão com rotação elevada e avanço reduzido: elimina marcas de vibração e garante tolerância ISO 2768-m.';
+    }
+    return 'Conferir fixação rígida e simular em Single Block com avanço reduzido na 1ª peça antes de liberar o ciclo automático.';
+}
+
+// Renderiza o Book Técnico completo da peça (KPIs, Folha 2 Etapas, Folha 3 Tempos/Gráficos, Folha 4 Inspeção/Dicas)
+function renderProcessBook() {
+    ensureSimViewState();
+    const kpiRow = $('#bookKpiRow');
+    if (!kpiRow) return;
+
+    const part = currentPart();
+    const fState = getFeatureState();
+    const d = part.dimsFromState(fState);
+    const bz = getPartBoundsAndZero(part, d);
+    const ap = Math.max(app.cncStepDown || 2, 0.25);
+    const peckQ = Math.max(app.cncPeckQ || 1, 0.2);
+    const fin = Math.max(app.cncFinishAllow || 0.3, 0.05);
+
+    // 1. Cálculo de Volume/Massa Bruta vs. Peça Pronta
+    const massNet = Math.max(part.computeMass(d, fState), 0.05);
+    let volRawMm3 = 0;
+    let rawDimStr = '';
+    if (part.isTurning) {
+        const lenRaw = Math.abs(bz.px0) + 10;
+        const dRaw = Math.round(bz.thick + 5);
+        volRawMm3 = Math.PI * Math.pow(dRaw / 2, 2) * lenRaw;
+        rawDimStr = 'Barra Ø' + fmt(dRaw) + ' × ' + fmt(lenRaw) + ' mm';
+    } else {
+        const wRaw = Math.round((bz.px1 - bz.px0) + 6);
+        const dRaw = Math.round((bz.py1 - bz.py0) + 6);
+        const hRaw = Math.round(bz.thick + (part.id === 'suporte-l' && fState.wall && fState.wall.included ? (d.altura || 100) : 0) + 3);
+        volRawMm3 = wRaw * dRaw * hRaw;
+        rawDimStr = 'Bloco ' + fmt(wRaw) + ' × ' + fmt(dRaw) + ' × ' + fmt(hRaw) + ' mm';
+    }
+    const massRaw = Math.max((volRawMm3 * MATERIAL.density) / 1e6, massNet * 1.18);
+    const massChip = Math.max(massRaw - massNet, 0.02);
+    const pctChip = Math.min(92, Math.max(8, Math.round((massChip / massRaw) * 100)));
+
+    // 2. Analisa o programa CNC atual por Operação e por Ferramenta
+    const stratCode = applyCncStrategy(part.gcode(d, fState), part, d, fState, { shiftCoords: false });
+    const parsed = parseToolpath(stratCode);
+    const segs = parsed.segs || [];
+
+    const opStats = [];
+    const opMap = {};
+    let totalCutSec = 0, totalRapidSec = 0, totalPassesCount = 0;
+    const toolSet = new Set();
+
+    segs.forEach(s => {
+        toolSet.add(s.tool);
+        const key = 'T0' + s.tool + '::' + s.opName;
+        if (!opMap[key]) {
+            const isDrillOp = /FURO|PILOTAGEM|CONTRABORE|G8[123]|G74/i.test(s.opName + ' ' + s.gModal);
+            const isFinishOp = /ACABAMENTO|G70|CHANFRO/i.test(s.opName);
+            const remStep = isDrillOp ? (fmt(peckQ) + ' mm/mergulho') : (isFinishOp ? (fmt(fin) + ' mm final') : (fmt(ap) + ' mm/passe'));
+            opMap[key] = {
+                tool: s.tool,
+                toolCode: 'T0' + s.tool,
+                toolDesc: s.toolDesc || ('Ferramenta T0' + s.tool),
+                diam: Math.round((s.rTool || 5) * 2 * 10) / 10,
+                opName: s.opName,
+                spindle: s.spindle || 1500,
+                feed: s.feed || 200,
+                remStep: remStep,
+                passes: 0,
+                cutDist: 0,
+                cutSec: 0,
+                rapidSec: 0
+            };
+            opStats.push(opMap[key]);
+        }
+        const rec = opMap[key];
+        const dist = s.arcLen || Math.hypot(s.x2 - s.x1, s.y2 - s.y1, s.z2 - s.z1);
+        if (s.type === 'rapid') {
+            rec.rapidSec += s.dt;
+            totalRapidSec += s.dt;
+        } else {
+            rec.cutDist += dist;
+            rec.cutSec += s.dt;
+            totalCutSec += s.dt;
+            if (s.opKind === 'Drill' || s.opKind === 'AxialDrill' || Math.abs(s.z2 - s.z1) > 0.2 || s.fullCircle) {
+                rec.passes++;
+                totalPassesCount++;
+            }
+        }
+    });
+
+    opStats.forEach(r => { if (r.passes < 1) { r.passes = 1; totalPassesCount++; } });
+    const atcSec = Math.max(toolSet.size * 6, 6);
+    const totalCycleSec = Math.max(totalCutSec + totalRapidSec + atcSec, 1);
+
+    // 3. Renderiza KPIs Executivos do Book
+    kpiRow.innerHTML =
+        '<div class="book-kpi-card">' +
+            '<span class="bk-label">🧱 1. Material Bruto</span>' +
+            '<b class="bk-val">' + massRaw.toFixed(2).replace('.', ',') + ' kg</b>' +
+            '<span class="bk-sub">' + rawDimStr + '</span>' +
+        '</div>' +
+        '<div class="book-kpi-card kpi-ok">' +
+            '<span class="bk-label">✨ 2. Peça Pronta</span>' +
+            '<b class="bk-val">' + massNet.toFixed(2).replace('.', ',') + ' kg</b>' +
+            '<span class="bk-sub">' + MATERIAL.name + ' · Acabada</span>' +
+        '</div>' +
+        '<div class="book-kpi-card kpi-accent">' +
+            '<span class="bk-label">♻️ 3. Cavaco Removido</span>' +
+            '<b class="bk-val">' + pctChip + '% (' + massChip.toFixed(2).replace('.', ',') + ' kg)</b>' +
+            '<span class="bk-sub">Aproveitamento: ' + (100 - pctChip) + '% do bloco</span>' +
+        '</div>' +
+        '<div class="book-kpi-card">' +
+            '<span class="bk-label">⏱️ 4. Tempo de Ciclo</span>' +
+            '<b class="bk-val">' + fmtTimeMMSS(totalCycleSec) + ' min</b>' +
+            '<span class="bk-sub">Corte: ' + Math.round(totalCutSec) + 's · Rápido/ATC: ' + Math.round(totalRapidSec + atcSec) + 's</span>' +
+        '</div>' +
+        '<div class="book-kpi-card kpi-accent">' +
+            '<span class="bk-label">🎛️ 5. Remoção por Vez</span>' +
+            '<b class="bk-val">ap ' + fmt(ap) + ' mm · Q ' + fmt(peckQ) + ' mm</b>' +
+            '<span class="bk-sub">' + toolSet.size + ' ferramentas · ' + totalPassesCount + ' passes/mergulhos</span>' +
+        '</div>';
+
+    // 4. Folha 2: Timeline Visual (Do Bruto até a Peça Usinada)
+    const stagesBox = $('#bookStagesContainer');
+    const stagesBadge = $('#bookStagesSummary');
+    if (stagesBadge) {
+        stagesBadge.textContent = (opStats.length + 2) + ' etapas · Do bruto à peça pronta';
+    }
+    if (stagesBox) {
+        const totSt = opStats.length + 2;
+        const cards = [];
+
+        // Etapa 0: Bruto
+        cards.push(
+            '<div class="book-stage-card">' +
+                '<div class="bsc-head">' +
+                    '<span class="bsc-step raw-badge">ETAPA 0 · BRUTO</span>' +
+                    '<span class="bsc-tool">Serra de Fita + Rebarbadora</span>' +
+                    '<span class="bsc-time">⏱ Prep.</span>' +
+                '</div>' +
+                '<h4 class="bsc-title">Corte e Inspeção do Material Bruto</h4>' +
+                '<div class="bsc-svg">' + stageDiagramSvg('stock', 1, totSt, 'BRUTO', rawDimStr + ' · ' + massRaw.toFixed(2).replace('.', ',') + ' kg') + '</div>' +
+                '<div class="bsc-specs">' +
+                    '<span>Dimensão: <b>' + rawDimStr + '</b></span>' +
+                    '<span>Massa bruta: <b>' + massRaw.toFixed(2).replace('.', ',') + ' kg</b></span>' +
+                    '<span>Material: <b>' + MATERIAL.name + '</b></span>' +
+                    '<span>Sobremetal: <b>+1,5 mm topo / +3 mm lat.</b></span>' +
+                '</div>' +
+                '<p class="bsc-tip">💡 <b>Dica:</b> Rebarbe as arestas serradas antes de colocar na morsa/placa para garantir esquadro perfeito no assento.</p>' +
+            '</div>'
+        );
+
+        // Etapa 1: Setup e Zero-Peça G54
+        cards.push(
+            '<div class="book-stage-card">' +
+                '<div class="bsc-head">' +
+                    '<span class="bsc-step">ETAPA 1 · SETUP G54</span>' +
+                    '<span class="bsc-tool">Apalpador / Sensor de Borda</span>' +
+                    '<span class="bsc-time">⏱ Setup</span>' +
+                '</div>' +
+                '<h4 class="bsc-title">Fixação e Referenciamento Zero-Peça</h4>' +
+                '<div class="bsc-svg">' + stageDiagramSvg('setup', 2, totSt, 'G54', bz.zLabel.replace('G54 ', '')) + '</div>' +
+                '<div class="bsc-specs">' +
+                    '<span>Origem: <b>' + (app.cncZero === 'center' ? 'Centro (X0 Y0)' : app.cncZero.toUpperCase()) + '</b></span>' +
+                    '<span>Máquina: <b>' + part.machine + '</b></span>' +
+                    '<span>Fixação: <b>' + (part.isTurning ? 'Placa 3 castanhas' : 'Morsa c/ calços') + '</b></span>' +
+                    '<span>Zero Z: <b>Face superior (Z0)</b></span>' +
+                '</div>' +
+                '<p class="bsc-tip">💡 <b>Dica:</b> Confira o corretor de altura H de todas as ' + toolSet.size + ' ferramentas e valide o 1º movimento em Single Block.</p>' +
+            '</div>'
+        );
+
+        // Etapas 2..N: Operações de Usinagem
+        opStats.forEach((op, idx) => {
+            const stTotSec = op.cutSec + op.rapidSec + 3;
+            const stPct = Math.max(1, Math.round((stTotSec / totalCycleSec) * 100));
+            const vc = Math.round((Math.PI * op.diam * op.spindle) / 1000);
+            cards.push(
+                '<div class="book-stage-card">' +
+                    '<div class="bsc-head">' +
+                        '<span class="bsc-step">ETAPA ' + (idx + 2) + ' · USINAGEM</span>' +
+                        '<span class="bsc-tool">' + op.toolCode + ' · Ø' + fmt(op.diam) + ' mm</span>' +
+                        '<span class="bsc-time">⏱ ' + Math.round(stTotSec) + 's (' + stPct + '%)</span>' +
+                    '</div>' +
+                    '<h4 class="bsc-title">' + escapeHtml(op.opName) + '</h4>' +
+                    '<div class="bsc-svg">' + stageDiagramSvg('mach', idx + 3, totSt, op.opName, op.remStep + ' · ' + op.passes + ' passe(s)') + '</div>' +
+                    '<div class="bsc-specs">' +
+                        '<span>Remoção/vez: <b>' + op.remStep + '</b></span>' +
+                        '<span>Nº passes: <b>' + op.passes + 'x</b></span>' +
+                        '<span>Rotação/Avanço: <b>S' + op.spindle + ' · F' + op.feed + '</b></span>' +
+                        '<span>Vel. corte vc: <b>' + vc + ' m/min</b></span>' +
+                    '</div>' +
+                    '<p class="bsc-tip">💡 <b>Dica:</b> ' + getOperationTip(op.opName, op.toolDesc, ap, peckQ) + '</p>' +
+                '</div>'
+            );
+        });
+
+        stagesBox.innerHTML = cards.join('');
+    }
+
+    // 5. Folha 3: Tabela de Engenharia de Tempos por Ferramenta + Gráficos SVG
+    const timeBadge = $('#bookTimeSummary');
+    if (timeBadge) {
+        timeBadge.textContent = 'Tempo Total: ' + fmtTimeMMSS(totalCycleSec) + ' · ap=' + fmt(ap) + 'mm · Q=' + fmt(peckQ) + 'mm';
+    }
+    const tableWrap = $('#bookToolsTableWrap');
+    if (tableWrap) {
+        let totalDistAll = 0;
+        const rowsHtml = opStats.map(op => {
+            totalDistAll += op.cutDist;
+            const vc = Math.round((Math.PI * op.diam * op.spindle) / 1000);
+            const totOp = op.cutSec + op.rapidSec + 3;
+            const pctOp = Math.max(1, Math.round((totOp / totalCycleSec) * 100));
+            return '<tr>' +
+                '<td class="rt-code">' + op.toolCode + '</td>' +
+                '<td><b>' + escapeHtml(op.opName) + '</b><br><span style="font-size:10px;color:var(--text-dim)">' + escapeHtml(op.toolDesc) + '</span></td>' +
+                '<td>Ø' + fmt(op.diam) + ' mm</td>' +
+                '<td>' + op.spindle + ' RPM</td>' +
+                '<td>' + op.feed + '</td>' +
+                '<td>' + vc + ' m/min</td>' +
+                '<td><b>' + op.remStep + '</b></td>' +
+                '<td><b>' + op.passes + 'x</b></td>' +
+                '<td>' + Math.round(op.cutDist) + ' mm</td>' +
+                '<td>' + op.cutSec.toFixed(1).replace('.', ',') + ' s</td>' +
+                '<td>' + (op.rapidSec + 3).toFixed(1).replace('.', ',') + ' s</td>' +
+                '<td class="rt-code">' + totOp.toFixed(1).replace('.', ',') + ' s</td>' +
+                '<td><b>' + pctOp + '%</b></td>' +
+            '</tr>';
+        }).join('');
+
+        tableWrap.innerHTML =
+            '<table class="book-table">' +
+                '<thead><tr>' +
+                    '<th>T</th><th>Operação &amp; Ferramenta</th><th>Diâm.</th><th>S</th><th>F</th><th>vc</th>' +
+                    '<th>Remoção/vez</th><th>Passes</th><th>Percurso</th><th>Corte</th><th>Rápido+ATC</th><th>Total</th><th>%</th>' +
+                '</tr></thead>' +
+                '<tbody>' + rowsHtml +
+                    '<tr class="bt-total">' +
+                        '<td colspan="6">TOTAL DO PROCESSO (' + toolSet.size + ' ferramentas)</td>' +
+                        '<td>ap=' + fmt(ap) + ' / Q=' + fmt(peckQ) + '</td>' +
+                        '<td>' + totalPassesCount + 'x</td>' +
+                        '<td>' + Math.round(totalDistAll) + ' mm</td>' +
+                        '<td>' + totalCutSec.toFixed(1).replace('.', ',') + ' s</td>' +
+                        '<td>' + (totalRapidSec + atcSec).toFixed(1).replace('.', ',') + ' s</td>' +
+                        '<td>' + totalCycleSec.toFixed(1).replace('.', ',') + ' s (' + fmtTimeMMSS(totalCycleSec) + ')</td>' +
+                        '<td>100%</td>' +
+                    '</tr>' +
+                '</tbody>' +
+            '</table>';
+    }
+
+    const chartsWrap = $('#bookChartsWrap');
+    if (chartsWrap) {
+        // Gráfico 1: Barras Horizontais de Tempo por Operação
+        const barH = 28;
+        const svgH1 = Math.max(150, opStats.length * (barH + 10) + 34);
+        const maxOpSec = Math.max.apply(null, opStats.map(o => o.cutSec + o.rapidSec + 3).concat([1]));
+        const barsSvg = opStats.map((op, i) => {
+            const y = 24 + i * (barH + 10);
+            const tSec = op.cutSec + op.rapidSec + 3;
+            const wBar = Math.max(12, Math.round((tSec / maxOpSec) * 210));
+            const col = i % 2 === 0 ? '#6FD3E0' : '#FF7A3D';
+            return '<text x="6" y="' + (y + 15) + '" fill="#E7ECF2" font-size="9.5" font-family="JetBrains Mono,monospace">' +
+                escapeHtml((op.toolCode + ' ' + op.opName).slice(0, 22)) + '</text>' +
+                '<rect x="155" y="' + y + '" width="' + wBar + '" height="18" rx="4" fill="' + col + '"/>' +
+                '<text x="' + (162 + wBar) + '" y="' + (y + 13) + '" fill="#9BE0EE" font-size="9.5" font-weight="bold" font-family="JetBrains Mono,monospace">' +
+                tSec.toFixed(1).replace('.', ',') + 's (' + op.passes + 'x)</text>';
+        }).join('');
+
+        // Gráfico 2: Eficiência de Ciclo + Balanço de Material (Bruto vs Cavaco vs Peça)
+        const cutPct = Math.round((totalCutSec / totalCycleSec) * 100);
+        const rapPct = Math.round((totalRapidSec / totalCycleSec) * 100);
+        const atcPct = Math.max(1, 100 - cutPct - rapPct);
+
+        chartsWrap.innerHTML =
+            '<div class="book-chart-box">' +
+                '<h4 class="book-chart-title">📊 Gráfico 1 — Tempo e Nº de Passes por Operação (ao vivo c/ ap e Q)</h4>' +
+                '<svg viewBox="0 0 450 ' + svgH1 + '" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#0B121B;border-radius:6px">' +
+                    barsSvg +
+                '</svg>' +
+            '</div>' +
+            '<div class="book-chart-box">' +
+                '<h4 class="book-chart-title">📉 Gráfico 2 — Balanço Bruto → Cavaco &amp; Eficiência do Ciclo (OEE)</h4>' +
+                '<svg viewBox="0 0 380 175" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#0B121B;border-radius:6px">' +
+                    '<text x="14" y="24" fill="#8FA0B3" font-size="9.5" font-family="JetBrains Mono,monospace">BALANÇO METALÚRGICO (BRUTO ' + massRaw.toFixed(2).replace('.', ',') + ' kg)</text>' +
+                    '<rect x="14" y="34" width="' + Math.round(3.4 * (100 - pctChip)) + '" height="22" rx="3" fill="#5FD98A"/>' +
+                    '<rect x="' + (14 + Math.round(3.4 * (100 - pctChip))) + '" y="34" width="' + Math.round(3.4 * pctChip) + '" height="22" rx="3" fill="#FF7A3D"/>' +
+                    '<text x="14" y="72" fill="#5FD98A" font-size="9.5" font-family="JetBrains Mono,monospace">■ Peça Pronta: ' + (100 - pctChip) + '% (' + massNet.toFixed(2).replace('.', ',') + ' kg)</text>' +
+                    '<text x="195" y="72" fill="#FF7A3D" font-size="9.5" font-family="JetBrains Mono,monospace">■ Cavaco: ' + pctChip + '% (' + massChip.toFixed(2).replace('.', ',') + ' kg)</text>' +
+                    '<text x="14" y="106" fill="#8FA0B3" font-size="9.5" font-family="JetBrains Mono,monospace">DIVISÃO DO TEMPO DE CICLO (' + fmtTimeMMSS(totalCycleSec) + ')</text>' +
+                    '<rect x="14" y="116" width="' + Math.max(10, Math.round(3.4 * cutPct)) + '" height="20" rx="3" fill="#6FD3E0"/>' +
+                    '<rect x="' + (14 + Math.round(3.4 * cutPct)) + '" y="116" width="' + Math.max(6, Math.round(3.4 * rapPct)) + '" height="20" fill="#5A6F85"/>' +
+                    '<rect x="' + (14 + Math.round(3.4 * (cutPct + rapPct))) + '" y="116" width="' + Math.max(6, Math.round(3.4 * atcPct)) + '" height="20" rx="3" fill="#F5C542"/>' +
+                    '<text x="14" y="154" fill="#6FD3E0" font-size="9" font-family="JetBrains Mono,monospace">■ Corte: ' + cutPct + '%</text>' +
+                    '<text x="135" y="154" fill="#8FA0B3" font-size="9" font-family="JetBrains Mono,monospace">■ Rápido G00: ' + rapPct + '%</text>' +
+                    '<text x="265" y="154" fill="#F5C542" font-size="9" font-family="JetBrains Mono,monospace">■ Troca ATC: ' + atcPct + '%</text>' +
+                '</svg>' +
+            '</div>';
+    }
+
+    // 6. Folha 4: Plano de Inspeção Dimensional & Dicas de Processo
+    const inspWrap = $('#bookInspectionWrap');
+    if (inspWrap) {
+        const tRows = part.techRows(d, fState).filter(r => /\d/.test(r.value));
+        const inspHtml = tRows.map((r, idx) => {
+            const isHole = /Ø|Furo|Círculo/i.test(r.label + ' ' + r.value);
+            const isThread = /Rosca|M\d+/i.test(r.label + ' ' + r.value);
+            const inst = isThread ? 'Calibrador de Rosca Passa/Não-Passa'
+                : (isHole ? 'Súbito / Paquímetro Interno 0,02 mm' : 'Paquímetro / Micrômetro Externo 0,01 mm');
+            const tol = isThread ? '6H / 6g' : (isHole ? '±0,10 mm (H7/m)' : '±0,20 mm (ISO 2768-m)');
+            return '<tr>' +
+                '<td class="rt-code">0' + (idx + 1) + '</td>' +
+                '<td><b>' + escapeHtml(r.label) + '</b></td>' +
+                '<td class="rt-code">' + escapeHtml(r.value) + '</td>' +
+                '<td>' + tol + '</td>' +
+                '<td>' + inst + '</td>' +
+                '<td>1ª peça + 100% lote</td>' +
+            '</tr>';
+        }).join('');
+
+        inspWrap.innerHTML =
+            '<h4 class="book-chart-title">📏 Tabela de Controle Dimensional na Máquina</h4>' +
+            '<table class="book-table">' +
+                '<thead><tr><th>#</th><th>Característica</th><th>Nominal</th><th>Tolerância</th><th>Instrumento Recomendado</th><th>Frequência</th></tr></thead>' +
+                '<tbody>' + inspHtml + '</tbody>' +
+            '</table>';
+    }
+
+    const tipsWrap = $('#bookTipsWrap');
+    if (tipsWrap) {
+        const apTip = ap <= 1.0
+            ? 'Passo fino selecionando (' + fmt(ap) + ' mm/vez): excelente para máquinas leves, ferramentas pequenas e mínima vibração, aumentando o número de passadas.'
+            : 'Passo produtivo (' + fmt(ap) + ' mm/vez): reduz o tempo de desbaste; garanta fixação rígida e refrigeração abundante.';
+        const qTip = peckQ <= 1.0
+            ? 'Mergulho G83 curto (' + fmt(peckQ) + ' mm/vez): máxima segurança contra entupimento de cavaco e quebra de broca em furos profundos.'
+            : 'Mergulho G83 padrão (' + fmt(peckQ) + ' mm/vez): bom equilíbrio entre quebra de cavaco e tempo de furação.';
+        tipsWrap.innerHTML =
+            '<h4 class="book-chart-title">💡 Diagnóstico e Recomendações do Processo Atual</h4>' +
+            '<div class="book-tips-list">' +
+                '<div class="book-tip-item"><b>🔨 Análise do Passe de Desbaste (ap = ' + fmt(ap) + ' mm/vez):</b> ' + apTip + '</div>' +
+                '<div class="book-tip-item"><b>🔩 Análise da Furação Pica-Pau (Q = ' + fmt(peckQ) + ' mm/vez):</b> ' + qTip + '</div>' +
+                '<div class="book-tip-item"><b>💎 Sobremetal de Acabamento (' + fmt(fin) + ' mm):</b> Garante que o passe final trabalhe com carga constante e deixe rugosidade uniforme Ra ≤ 1,6 µm.</div>' +
+                '<div class="book-tip-item"><b>📍 Referência Zero-Peça (' + bz.zLabel.split('(')[0].trim() + '):</b> Confira no painel que o G54 gravado coincide com o ponto zero selecionado no simulador antes de dar Cycle Start.</div>' +
+            '</div>';
+    }
+
+    applyBookPageFilter();
+}
+
+function applyBookPageFilter() {
+    ensureSimViewState();
+    const page = app.bookPage || 'all';
+    $$('#bookTabs .chip').forEach(c => {
+        const act = c.dataset.bpage === page;
+        c.classList.toggle('active', act);
+        c.setAttribute('aria-selected', act ? 'true' : 'false');
+    });
+    $$('#drawingSheetSection .book-page').forEach(sec => {
+        const kind = sec.dataset.bpageSection;
+        sec.style.display = (page === 'all' || page === kind) ? '' : 'none';
+    });
 }
 
 function sampleArc(seg) {
@@ -3606,6 +4109,42 @@ function setupSimOrbitAndControls() {
     bindSelect('simPassSelect', 'cncPassMode', '🛠️ Modo de usinagem');
     bindSelect('simPocketSelect', 'cncPocketMode', '🌀 Estratégia de cavidade');
 
+    // Sincroniza os seletores de quanto remover por vez (ap, Q do G83 e Sobremetal) entre Passo 4 e Passo 5
+    const bindSyncedNumericSelect = (idA, idB, prop, toastPrefix) => {
+        const elA = document.getElementById(idA);
+        const elB = document.getElementById(idB);
+        const handler = e => {
+            const val = parseFloat(e.target.value) || 1;
+            app[prop] = val;
+            if (elA && elA !== e.target) elA.value = String(val);
+            if (elB && elB !== e.target) elB.value = String(val);
+            renderCode();
+            showToast(toastPrefix + ': ' + fmt(val) + ' mm por vez');
+        };
+        if (elA && !elA._bound) { elA._bound = true; elA.addEventListener('change', handler); }
+        if (elB && !elB._bound) { elB._bound = true; elB.addEventListener('change', handler); }
+    };
+    bindSyncedNumericSelect('simStepDown', 'codeStepDown', 'cncStepDown', '🔨 Remoção por passada (ap)');
+    bindSyncedNumericSelect('simPeckQ', 'codePeckQ', 'cncPeckQ', '🔩 Mergulho G83 (Q)');
+    bindSyncedNumericSelect('simFinishAllow', 'codeFinishAllow', 'cncFinishAllow', '💎 Sobremetal de acabamento');
+
+    // Abas do Book Técnico da Peça + botão de impressão do Book
+    const bookTabs = $('#bookTabs');
+    if (bookTabs && !bookTabs._bound) {
+        bookTabs._bound = true;
+        bookTabs.addEventListener('click', e => {
+            const chip = e.target.closest('.chip');
+            if (!chip) return;
+            app.bookPage = chip.dataset.bpage || 'all';
+            applyBookPageFilter();
+        });
+    }
+    bindClick('btnPrintBook', () => {
+        app.bookPage = 'all';
+        applyBookPageFilter();
+        printPlan();
+    });
+
     bindClick('simAddCenterPocket', () => {
         app.cncExtraPocket = !app.cncExtraPocket;
         const b = $('#simAddCenterPocket');
@@ -4460,7 +4999,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.3.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.4.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

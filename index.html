@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v6.3.0 · CAD + CNC Assistant</div>
+            <div class="version">v6.4.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -316,12 +316,27 @@
             <pre id="printCodeMacro"></pre>
         </div>
         <div class="section-head" style="border-top:1px solid var(--line-soft);">
-            <div class="section-eyebrow">Documentação Técnica</div>
-            <h2 class="section-title">📐 Folha de Desenho</h2>
-            <p class="section-sub">Desenho técnico completo com vistas ortográficas, cotas, corte A-A e especificações da peça.</p>
+            <div class="section-eyebrow">Documentação Técnica &amp; Engenharia de Processo</div>
+            <h2 class="section-title">📘 Book Técnico da Peça — Do Bruto à Usinagem</h2>
+            <p class="section-sub">Dossiê completo de fabricação: prancha com vistas cotadas, evolução passo a passo desde o bloco/barra bruta até a peça pronta, tabela de tempos por ferramenta, gráficos de remoção de cavaco e plano de inspeção dimensional.</p>
         </div>
 
-        <div class="drawing-sheet">
+        <div class="book-toolbar">
+            <div class="filter-chips" id="bookTabs" role="tablist" aria-label="Páginas do Book Técnico">
+                <button type="button" class="chip active" data-bpage="all" role="tab" aria-selected="true">📘 Book Completo (4 Folhas)</button>
+                <button type="button" class="chip" data-bpage="drawing" role="tab" aria-selected="false">📐 1. Desenho &amp; Vistas</button>
+                <button type="button" class="chip" data-bpage="stages" role="tab" aria-selected="false">🧱 2. Do Bruto à Usinagem</button>
+                <button type="button" class="chip" data-bpage="charts" role="tab" aria-selected="false">📊 3. Tempos &amp; Gráficos</button>
+                <button type="button" class="chip" data-bpage="inspection" role="tab" aria-selected="false">🔍 4. Inspeção &amp; Dicas</button>
+            </div>
+            <button type="button" class="btn btn-accent btn-sm" id="btnPrintBook">🖨️ Imprimir Book da Peça</button>
+        </div>
+
+        <!-- RESUMO EXECUTIVO DO BOOK (KPIs DE MANUFATURA) -->
+        <div class="book-kpi-grid" id="bookKpiRow" aria-label="Indicadores de manufatura da peça"></div>
+
+        <!-- FOLHA 1 DO BOOK: DESENHO TÉCNICO E VISTAS ORTOGRÁFICAS -->
+        <div class="drawing-sheet book-page" id="bookPageDrawing" data-bpage-section="drawing">
             <!-- CABEÇALHO -->
             <div class="sheet-header">
                 <div class="title-block">
@@ -423,6 +438,46 @@
                 <span class="note-text">—</span>
             </div>
         </div>
+
+        <!-- FOLHA 2 DO BOOK: EVOLUÇÃO PASSO A PASSO (DO BRUTO ATÉ A PEÇA USINADA) -->
+        <div class="book-page book-card" id="bookPageStages" data-bpage-section="stages">
+            <div class="book-page-head">
+                <div>
+                    <span class="book-page-num">FOLHA 02 / 04 · ROTEIRO DE FABRICAÇÃO</span>
+                    <h3 class="book-page-title">🧱 Evolução da Peça: Do Material Bruto até a Usinagem Final</h3>
+                </div>
+                <span class="book-page-badge" id="bookStagesSummary">—</span>
+            </div>
+            <div class="book-stages-grid" id="bookStagesContainer"></div>
+        </div>
+
+        <!-- FOLHA 3 DO BOOK: TEMPOS POR FERRAMENTA, REMOÇÃO DE MATERIAL E GRÁFICOS -->
+        <div class="book-page book-card" id="bookPageCharts" data-bpage-section="charts">
+            <div class="book-page-head">
+                <div>
+                    <span class="book-page-num">FOLHA 03 / 04 · ENGENHARIA DE TEMPOS &amp; CAVACO</span>
+                    <h3 class="book-page-title">📊 Estudo de Tempos por Ferramenta, Passes e Gráficos do Processo</h3>
+                </div>
+                <span class="book-page-badge" id="bookTimeSummary">—</span>
+            </div>
+            <div class="book-table-wrap" id="bookToolsTableWrap"></div>
+            <div class="book-charts-grid" id="bookChartsWrap"></div>
+        </div>
+
+        <!-- FOLHA 4 DO BOOK: PLANO DE INSPEÇÃO DIMENSIONAL & DICAS PRÁTICAS -->
+        <div class="book-page book-card" id="bookPageInspection" data-bpage-section="inspection">
+            <div class="book-page-head">
+                <div>
+                    <span class="book-page-num">FOLHA 04 / 04 · CONTROLE DE QUALIDADE &amp; CHÃO DE FÁBRICA</span>
+                    <h3 class="book-page-title">🔍 Plano de Inspeção Dimensional &amp; Dicas Práticas por Operação</h3>
+                </div>
+                <span class="book-page-badge">ISO 2768-m · Metrologia</span>
+            </div>
+            <div class="book-insp-grid">
+                <div id="bookInspectionWrap"></div>
+                <div id="bookTipsWrap"></div>
+            </div>
+        </div>
     </section>
 
     <!-- ===== PLAN ===== -->
@@ -463,7 +518,40 @@
             <button type="button" class="code-tab" data-code="macro" role="tab" aria-selected="false">🧮 Programa paramétrico</button>
         </div>
         <div class="code-toolbar">
-            <span class="code-hint">💡 Edite qualquer dimensão no Passo 1 — o código acompanha.</span>
+            <div class="code-cut-params" role="group" aria-label="Controle de quanto remover de material por vez no programa CNC">
+                <label class="sim-strat-item" for="codeStepDown" title="Quanto remover de profundidade/raio por passada no desbaste (contorno, cavidade, rasgo, rampa e G71)">
+                    <span>🔨 Passe Desbaste (ap/U):</span>
+                    <select id="codeStepDown" class="sim-speed-select">
+                        <option value="0.5">0,5 mm / vez</option>
+                        <option value="1">1,0 mm / vez</option>
+                        <option value="1.5">1,5 mm / vez</option>
+                        <option value="2" selected>2,0 mm / vez</option>
+                        <option value="3">3,0 mm / vez</option>
+                        <option value="5">5,0 mm / vez</option>
+                    </select>
+                </label>
+                <label class="sim-strat-item" for="codePeckQ" title="Quanto remover por mergulho na furação pica-pau (G83 / G74)">
+                    <span>🔩 Mergulho Furação G83 (Q):</span>
+                    <select id="codePeckQ" class="sim-speed-select">
+                        <option value="0.5">0,5 mm / vez</option>
+                        <option value="1" selected>1,0 mm / vez</option>
+                        <option value="1.5">1,5 mm / vez</option>
+                        <option value="2">2,0 mm / vez</option>
+                        <option value="3">3,0 mm / vez</option>
+                        <option value="5">5,0 mm / vez</option>
+                    </select>
+                </label>
+                <label class="sim-strat-item" for="codeFinishAllow" title="Sobrematerial deixado no desbaste para o passe de acabamento remover">
+                    <span>💎 Sobremetal Acab.:</span>
+                    <select id="codeFinishAllow" class="sim-speed-select">
+                        <option value="0.1">0,1 mm</option>
+                        <option value="0.2">0,2 mm</option>
+                        <option value="0.3" selected>0,3 mm</option>
+                        <option value="0.5">0,5 mm</option>
+                        <option value="1">1,0 mm</option>
+                    </select>
+                </label>
+            </div>
             <div class="code-actions">
                 <button type="button" class="btn" id="btnCopyCode">📋 Copiar</button>
                 <button type="button" class="btn btn-accent" id="btnDownloadCode">💾 Baixar .tap</button>
@@ -568,6 +656,38 @@
                             <option value="spiral" selected>🌀 Pelo Centro (Espiral p/ fora)</option>
                             <option value="zigzag">⚡ Zig-Zag (Varredura linear)</option>
                             <option value="helical">⭕ Helicoidal pelo Centro (G02+Z)</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simStepDown" title="Quanto remover de material por passada no desbaste (contorno, cavidade, rasgo, rampa e G71 no torno)">
+                        <span>🔨 Remover/passe (ap):</span>
+                        <select id="simStepDown" class="sim-speed-select">
+                            <option value="0.5">0,5 mm / vez</option>
+                            <option value="1">1,0 mm / vez</option>
+                            <option value="1.5">1,5 mm / vez</option>
+                            <option value="2" selected>2,0 mm / vez</option>
+                            <option value="3">3,0 mm / vez</option>
+                            <option value="5">5,0 mm / vez</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simPeckQ" title="Quanto a broca avança por mergulho no ciclo G83 / G74 (ex.: 1 mm por vez)">
+                        <span>🔩 Mergulho G83 (Q):</span>
+                        <select id="simPeckQ" class="sim-speed-select">
+                            <option value="0.5">0,5 mm / vez</option>
+                            <option value="1" selected>1,0 mm / vez</option>
+                            <option value="1.5">1,5 mm / vez</option>
+                            <option value="2">2,0 mm / vez</option>
+                            <option value="3">3,0 mm / vez</option>
+                            <option value="5">5,0 mm / vez</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simFinishAllow" title="Sobrematerial deixado pelo desbaste para o passe de acabamento limpar">
+                        <span>💎 Sobremetal:</span>
+                        <select id="simFinishAllow" class="sim-speed-select">
+                            <option value="0.1">0,1 mm</option>
+                            <option value="0.2">0,2 mm</option>
+                            <option value="0.3" selected>0,3 mm</option>
+                            <option value="0.5">0,5 mm</option>
+                            <option value="1">1,0 mm</option>
                         </select>
                     </label>
                     <button type="button" class="chip sim-toggle-btn" id="simAddCenterPocket" aria-pressed="false" title="Adicionar ou remover uma usinagem de Cavidade pelo Centro na peça atual">➕ Cavidade pelo Centro</button>
@@ -676,7 +796,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.3.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v6.4.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

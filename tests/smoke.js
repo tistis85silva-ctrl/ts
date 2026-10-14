@@ -202,7 +202,7 @@ setTimeout(() => {
         const drillSel = $('#simDrillSelect');
         drillSel.value = 'G83';
         drillSel.dispatchEvent(new window.Event('change', { bubbles: true }));
-        assert($('#codeView').textContent.includes('G83') && $('#codeView').textContent.includes('Q3.'), 'G83 c/ Q3 gerado no código');
+        assert($('#codeView').textContent.includes('G83') && /Q\d/.test($('#codeView').textContent), 'G83 c/ Q gerado no código');
 
         // 2. Mudar para G82 Com Demora
         drillSel.value = 'G82';
@@ -245,6 +245,45 @@ setTimeout(() => {
         assert(window.app || true, 'zero atualizado');
         zeroSel.value = 'center';
         zeroSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
+    step('Book Técnico da Peça + escolha de quanto remover por vez (ap e Q em mm/vez)', () => {
+        // Verifica se as 4 folhas do Book Técnico foram geradas com KPIs, etapas, tabela de tempos, gráficos SVG e inspeção
+        assert($$('#bookKpiRow .book-kpi-card').length === 5, '5 KPIs no Book Técnico');
+        assert($$('#bookStagesContainer .book-stage-card').length >= 4, 'cards de evolução do bruto à peça');
+        assert($('#bookToolsTableWrap table'), 'tabela de tempos por ferramenta');
+        assert($$('#bookChartsWrap svg').length === 2, '2 gráficos SVG de engenharia no Book');
+        assert($('#bookInspectionWrap table'), 'tabela de plano de inspeção dimensional');
+        assert($$('#bookTipsWrap .book-tip-item').length === 4, 'dicas de diagnóstico no Book');
+
+        // Testa mudança de quanto remover por vez (ex.: 1 mm por vez no G83 e 1 mm por vez no desbaste ap)
+        d.querySelector('.example-card[data-part="caixa-cavidade"]').click();
+        $('#btnConfirmFeatures').click();
+        const drillSel = $('#simDrillSelect');
+        drillSel.value = 'G83';
+        drillSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+        const peckSel = $('#simPeckQ');
+        peckSel.value = '1';
+        peckSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codePeckQ').value === '1', 'sincronizou Q=1mm entre Passo 4 e Passo 5');
+        assert($('#codeView').textContent.includes('Q1'), 'G83 com Q1 gerado no código');
+
+        const stepSel = $('#simStepDown');
+        stepSel.value = '1';
+        stepSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeStepDown').value === '1', 'sincronizou ap=1mm entre Passo 4 e Passo 5');
+        assert($('#bookKpiRow').textContent.includes('ap 1 mm · Q 1 mm'), 'Book Técnico reflete ap=1mm e Q=1mm');
+
+        // Testa no torno (G71 U1)
+        d.querySelector('.example-card[data-part="eixo-escalonado"]').click();
+        $('#btnConfirmFeatures').click();
+        assert($('#codeView').textContent.includes('G71 U1'), 'Torno G71 usa passe radial U1 (1mm/vez)');
+
+        // Testa abas do Book Técnico
+        d.querySelector('#bookTabs .chip[data-bpage="charts"]').click();
+        assert($('#bookPageCharts').style.display !== 'none', 'aba gráficos visível');
+        assert($('#bookPageDrawing').style.display === 'none', 'aba desenho oculta ao filtrar gráficos');
+        d.querySelector('#bookTabs .chip[data-bpage="all"]').click();
     });
 
     // ===== Quiz =====

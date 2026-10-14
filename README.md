@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.3.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.4.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,17 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.4.0
+- **📘 Book Técnico Completo de Manufatura da Peça (4 Folhas Integradas)**:
+  - **KPIs Executivos**: Massa Bruta vs. Peça Pronta, `%` e `kg` de Cavaco Removido, Tempo Total de Ciclo e Estratégia de Passes
+  - **Folha 1**: Prancha de Desenho Técnico com Vistas Ortográficas, Corte A-A e Especificações
+  - **Folha 2**: **Evolução Passo a Passo (Do Material Bruto até a Usinagem Final)** com diagramas SVG por etapa (Corte na Serra → Setup G54 → cada Operação de Usinagem), tempos, nº de passes e dicas práticas
+  - **Folha 3**: **Tabela de Engenharia de Tempos por Ferramenta (`T01..T05`) + Gráficos SVG** (Gráfico de Tempo/Passes por Operação, Balanço Metalúrgico Bruto→Cavaco→Peça e Eficiência OEE Corte vs. Rápido G00 vs. Troca ATC)
+  - **Folha 4**: **Plano de Inspeção Dimensional & Metrologia** (cota, tolerância, instrumento recomendado) + diagnóstico automático dos parâmetros escolhidos
+- **🎛️ Escolha de Quanto Remover de Material por Vez (`ap` e `Q` em `mm/vez`) em Todas as 10 Situações de Usinagem**:
+  - Seletor sincronizado na Programação CNC (Passo 4) e no Simulador 3D (Passo 5) para escolher **Passe de Desbaste (`ap / U`: `0,5` a `5,0 mm/vez`)**, **Mergulho Furação `G83 / G74` (`Q`: `0,5` a `5,0 mm/vez`)** e **Sobremetal de Acabamento (`0,1` a `1,0 mm`)** — recalculando o G-code, os mergulhos animados no Simulador 3D e os tempos/gráficos do Book Técnico!
+
 
 ### v6.3.0
 - **Central de Funções de Usinagem & Ponto Zero (`G54`) no Simulador e Gerador CNC**:
