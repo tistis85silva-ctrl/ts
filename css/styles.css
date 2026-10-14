@@ -4044,24 +4044,67 @@ body.print-certificado #certPaper {
 }
 
 /* ============================================================
-   v5.9 — SIMULADOR 3D COM MATERIAL BRUTO (3 VISTAS)
+   v5.9 / v6.2 — SIMULADOR WORKSTATION EM TELA ÚNICA (SEM ROLAR)
    ============================================================ */
+.sim-wrap-section {
+    max-width: 1420px;
+    margin: 0 auto;
+    padding-top: 18px;
+    padding-bottom: 24px;
+}
+.sim-head-compact {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.sim-head-compact .section-title {
+    font-size: 22px;
+    margin: 0;
+}
+.sim-head-compact .section-sub {
+    margin: 0;
+    font-size: 12.5px;
+    max-width: 620px;
+}
+.sim-cockpit-deck {
+    position: sticky;
+    top: 54px;
+    z-index: 35;
+    background: rgba(14, 20, 29, 0.96);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .sim-cockpit-deck {
+    background: rgba(245, 242, 237, 0.96);
+}
+.sim-cockpit-deck .sim-toolbar {
+    margin-bottom: 0;
+    gap: 8px;
+}
 .sim-material-bar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
-    background: var(--surface);
-    border: 1px solid var(--line-soft);
-    border-radius: var(--radius-sm);
-    padding: 10px 16px;
-    margin-bottom: 12px;
+    background: #0D1520;
+    border-top: 1px solid var(--line-soft);
+    padding: 6px 12px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 10.5px;
     color: var(--text-muted);
 }
 .sim-mat-ic {
-    font-size: 16px;
+    font-size: 13px;
 }
 .sim-mat-legend {
     margin-left: auto;
@@ -4070,26 +4113,33 @@ body.print-certificado #certPaper {
     gap: 5px;
 }
 .lg.raw {
-    width: 14px;
-    height: 10px;
-    background: #6E6250;
+    width: 12px;
+    height: 9px;
+    background: #8C765A;
     border-radius: 2px;
 }
 .lg.machined {
-    width: 14px;
-    height: 10px;
-    background: #79C0CC;
+    width: 12px;
+    height: 9px;
+    background: #6BC2D4;
     border-radius: 2px;
 }
 .sim-views {
     display: grid;
-    grid-template-columns: 1.35fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 12px;
-    margin-bottom: 12px;
+    grid-template-columns: 1.42fr 1fr 0.95fr;
+    gap: 10px;
+    align-items: stretch;
+    margin-bottom: 0;
 }
 .sim-view-3d {
-    grid-row: 1 / 3;
+    grid-row: auto;
+}
+.sim-col-2d,
+.sim-col-code {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
 }
 .sim-view {
     background: var(--surface);
@@ -4098,16 +4148,18 @@ body.print-certificado #certPaper {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    flex: 1;
 }
 .sim-view-title {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 700;
-    padding: 10px 14px 8px;
+    padding: 7px 12px;
     border-bottom: 1px solid var(--line-soft);
     display: flex;
     align-items: baseline;
     gap: 8px;
+    margin: 0;
 }
 .sim-hint {
     font-family: 'JetBrains Mono', monospace;
@@ -4117,79 +4169,87 @@ body.print-certificado #certPaper {
 }
 .sim-view canvas {
     width: 100%;
-    height: 100%;
+    height: auto;
     flex: 1;
     object-fit: contain;
     display: block;
     background: #0B121B;
 }
-.sim-side-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    background: none;
-    border: none;
-    padding: 0;
+.sim-view-3d canvas {
+    max-height: 410px;
+}
+.sim-col-2d .sim-view canvas {
+    max-height: 196px;
 }
 .sim-side-box {
     background: var(--surface);
     border: 1px solid var(--line-soft);
     border-radius: var(--radius);
-    padding: 14px 16px;
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+}
+.sim-box-current .sim-line {
+    min-height: 42px;
+    max-height: 54px;
+    padding: 6px 10px;
+    font-size: 10.5px;
+    overflow-y: auto;
+}
+.sim-box-list {
+    flex: 1;
+    min-height: 0;
 }
 
 /* ===== v6.0 — CONTROLES AVANÇADOS, DRO CNC E LISTA SINCRONIZADA ===== */
 .sim-transport {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-wrap: wrap;
+}
+.sim-transport .btn-sm {
+    padding: 5px 9px;
+    font-size: 11px;
 }
 .sim-speed-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 10.5px;
     color: var(--text-muted);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 .sim-speed-select {
     font: inherit;
-    font-size: 11px;
+    font-size: 10.5px;
     background: var(--surface-2);
     border: 1px solid var(--line);
     border-radius: 6px;
     color: var(--text);
-    padding: 4px 8px;
+    padding: 3px 6px;
     cursor: pointer;
-}
-.sim-view-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
 }
 .sim-ops-bar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    white-space: nowrap;
 }
 .sim-op-chip {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
-    padding: 5px 10px;
-    border-radius: 14px;
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 12px;
     background: var(--surface);
     border: 1px solid var(--line-soft);
     color: var(--text-muted);
     cursor: pointer;
     transition: all var(--transition);
+    flex-shrink: 0;
 }
 .sim-op-chip:hover {
     border-color: var(--cyan);
@@ -4204,76 +4264,77 @@ body.print-certificado #certPaper {
 .sim-toggles {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-wrap: wrap;
+    margin-left: auto;
 }
 .sim-toggle-btn {
-    padding: 5px 11px;
-    font-size: 11px;
+    padding: 4px 9px;
+    font-size: 10.5px;
 }
 
-/* ===== PAINEL DIGITAL CNC (DRO) ===== */
+/* ===== PAINEL DIGITAL CNC (DRO) COMPACTO ===== */
 .sim-dro-panel {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
+    display: flex;
     align-items: center;
-    gap: 14px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 12px;
     background: #0A1018;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 10px 16px;
-    margin-bottom: 12px;
-    box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 5px 10px;
+    margin-bottom: 0;
 }
 .sim-dro-axes {
     display: flex;
-    gap: 12px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 .dro-axis {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 5px;
     background: #0F1824;
     border: 1px solid #1E2D40;
-    border-radius: 6px;
-    padding: 5px 10px;
-    min-width: 118px;
+    border-radius: 5px;
+    padding: 3px 8px;
+    min-width: 104px;
 }
 .dro-k {
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
 }
 .dro-k.axis-x { color: #FF6B6B; }
 .dro-k.axis-y { color: #5FD98A; }
 .dro-k.axis-z { color: #6FD3E0; }
 .dro-v {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13.5px;
+    font-size: 12px;
     color: #E7ECF2;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     margin-left: auto;
 }
 .dro-u {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
+    font-size: 8.5px;
     color: var(--text-dim);
 }
 .sim-dro-modals {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 .dro-chip {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 10px;
     background: var(--surface-2);
     border: 1px solid var(--line-soft);
     color: var(--text-muted);
-    padding: 4px 9px;
-    border-radius: 6px;
+    padding: 2px 7px;
+    border-radius: 5px;
 }
 .dro-chip-tool {
     color: var(--cyan);
@@ -4284,22 +4345,23 @@ body.print-certificado #certPaper {
     border-color: rgba(95, 217, 138, 0.4);
 }
 .sim-dro-stats {
-    min-width: 165px;
+    min-width: 155px;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 3px;
+    margin-left: auto;
 }
 .dro-rem-head {
     display: flex;
     justify-content: space-between;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 10px;
     color: var(--text-muted);
 }
 .dro-rem-bar {
-    height: 6px;
+    height: 5px;
     background: #182330;
-    border-radius: 4px;
+    border-radius: 3px;
     overflow: hidden;
 }
 .dro-rem-fill {
@@ -4308,14 +4370,14 @@ body.print-certificado #certPaper {
     transition: width 0.15s ease;
 }
 .lg.deep {
-    width: 14px;
-    height: 10px;
+    width: 12px;
+    height: 9px;
     background: #2C677A;
     border-radius: 2px;
 }
 #sim3d {
     cursor: grab;
-    touch-action: none;
+    touch-action: pan-y;
 }
 #sim3d:active {
     cursor: grabbing;
@@ -4326,16 +4388,17 @@ body.print-certificado #certPaper {
     background: #0C131C;
     border: 1px solid var(--line-soft);
     border-radius: var(--radius-sm);
-    max-height: 148px;
+    height: 315px;
+    max-height: 315px;
     overflow-y: auto;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 10.5px;
 }
 .sim-code-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 10px;
+    gap: 6px;
+    padding: 4px 8px;
     border-bottom: 1px solid rgba(38, 49, 61, 0.5);
     color: var(--text-muted);
     cursor: pointer;
@@ -4352,7 +4415,7 @@ body.print-certificado #certPaper {
     color: var(--text);
 }
 .sim-code-item.active {
-    background: rgba(255, 122, 61, 0.15);
+    background: rgba(255, 122, 61, 0.18);
     border-left-color: var(--accent);
     color: #fff;
     font-weight: 600;
@@ -4362,29 +4425,41 @@ body.print-certificado #certPaper {
 }
 .sci-idx {
     color: var(--cyan);
-    min-width: 34px;
-    font-size: 10px;
+    min-width: 28px;
+    font-size: 9.5px;
+}
+.sci-txt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .sci-op {
     margin-left: auto;
-    font-size: 9.5px;
+    font-size: 8.5px;
     color: var(--text-dim);
     background: var(--surface);
-    padding: 1px 6px;
-    border-radius: 8px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
-    .sim-dro-panel {
-        grid-template-columns: 1fr;
+@media (max-width: 1100px) {
+    .sim-views {
+        grid-template-columns: 1.2fr 1fr;
     }
+    .sim-col-code {
+        grid-column: 1 / -1;
+    }
+    .sim-code-list {
+        height: 180px;
+        max-height: 180px;
+    }
+}
+@media (max-width: 760px) {
     .sim-views {
         grid-template-columns: 1fr;
     }
-    .sim-view-3d {
-        grid-row: auto;
-    }
-    .sim-side-row {
-        grid-template-columns: 1fr;
+    .sim-cockpit-deck {
+        position: static;
     }
 }

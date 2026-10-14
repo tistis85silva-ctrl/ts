@@ -2238,17 +2238,18 @@ function renderSim3D(model) {
     const spanX = cols * cell, spanY = rows * cell;
     const topMax = model.hasWall ? model.wallTop : model.stockTop;
     const spanZ = topMax - model.zBottom;
+    const zExag = spanZ < 32 ? 1.55 : 1.15;
     // Escala confortável com margem generosa para nunca cortar as bordas nem a ferramenta!
     const diagXY = Math.hypot(spanX, spanY);
-    const baseScale = Math.min((W * 0.74) / Math.max(diagXY, 1), (Hc * 0.64) / Math.max(diagXY * 0.55 + spanZ + 35, 1));
+    const baseScale = Math.min((W * 0.62) / Math.max(diagXY, 1), (Hc * 0.56) / Math.max(diagXY * 0.55 + spanZ * zExag + 32, 1));
     const s = baseScale * cam.zoom;
     const cxWorld = model.u0 + spanX / 2;
     const cyWorld = model.v0 + spanY / 2;
     const czWorld = (topMax + model.zBottom) / 2;
-    const ox = W * 0.5, oy = Hc * 0.56;
+    const ox = W * 0.5, oy = Hc * 0.58;
 
     const proj = (wx, wy, wz) => {
-        const dx = wx - cxWorld, dy = wy - cyWorld, dz = wz - czWorld;
+        const dx = wx - cxWorld, dy = wy - cyWorld, dz = (wz - czWorld) * zExag;
         const rx = dx * cosY - dy * sinY;
         const ry = dx * sinY + dy * cosY;
         return [
@@ -2335,6 +2336,25 @@ function renderSim3D(model) {
             drawExtrudedSolid3D(ctx, proj, cam, facedPoly, 0.05, -0.1, {
                 raw: false, topFill: metalGrad
             });
+        }
+
+        // Traçagem da peça nominal sobre o bloco bruto (mostra o contorno alvo antes da usinagem)
+        const layoutPoly = model.partId === 'flange'
+            ? makeCirclePoly2D(0, 0, model.partX1, 64, yClip)
+            : makeRoundedRectPoly2D(model.partX0, model.partY0, model.partX1, model.partY1, 2, yClip);
+        if (layoutPoly.length > 2) {
+            ctx.strokeStyle = 'rgba(231, 236, 242, 0.45)';
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            layoutPoly.forEach((p, k) => {
+                const sp = proj(p[0], p[1], topZFn(p[0], p[1]) + 0.15);
+                if (k === 0) ctx.moveTo(sp[0], sp[1]);
+                else ctx.lineTo(sp[0], sp[1]);
+            });
+            ctx.closePath();
+            ctx.stroke();
+            ctx.setLineDash([]);
         }
 
         // Canal do contorno sendo usinado
@@ -3055,11 +3075,18 @@ function renderSimCodeAndOps(model, upto) {
             ).join('');
             codeList._renderedPart = model.partId + ':' + model.segs.length;
         }
+        let activeItem = null;
         $$('.sim-code-item', codeList).forEach((el, idx) => {
             const stepNum = idx + 1;
-            el.classList.toggle('active', stepNum === upto);
+            const isAct = stepNum === upto;
+            el.classList.toggle('active', isAct);
             el.classList.toggle('done', stepNum < upto);
+            if (isAct) activeItem = el;
         });
+        if (activeItem && codeList.clientHeight > 0) {
+            const targetTop = activeItem.offsetTop - codeList.clientHeight / 2 + activeItem.clientHeight / 2;
+            codeList.scrollTop = Math.max(0, targetTop);
+        }
     }
 }
 
@@ -3211,6 +3238,7 @@ function setupSimOrbitAndControls() {
         c3d.addEventListener('pointerup', stopDrag);
         c3d.addEventListener('pointercancel', stopDrag);
         c3d.addEventListener('wheel', e => {
+            if (!e.ctrlKey && !e.altKey) return; // deixa o scroll normal da página livre; zoom com Ctrl+Scroll ou botões ➕/➖
             e.preventDefault();
             const factor = e.deltaY < 0 ? 1.1 : 0.91;
             app.simCam.zoom = Math.min(Math.max(app.simCam.zoom * factor, 0.55), 2.4);
@@ -4122,7 +4150,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.1.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.2.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

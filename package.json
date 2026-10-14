@@ -1,7 +1,7 @@
 {
   "name": "cota-formacao",
   "productName": "COTA",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "description": "COTA — do desenho à peça pronta: formação em CAD + CNC (exemplos de usinagem, código ISO, trilha de aulas, fichas e certificado)",
   "author": "COTA Formação",
   "license": "MIT",

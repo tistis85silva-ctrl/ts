@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.1.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.2.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,14 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.2.0
+- **Interface Workstation em Tela Única (Cockpit Sem Rolar)**:
+  - Barra de controle superior compacta e fixa (`sticky`) reunindo reprodução, slider, velocidade, opções 3D, DRO digital e atalhos de operação em apenas ~80px
+  - Grade de 3 colunas lado a lado na mesma visão: **Vista 3D Isométrica (Esquerda)** | **Vista Superior + Vista Frontal em Corte (Centro)** | **Bloco Atual + Programa CNC com auto-scroll interno (Direita)** — tudo visível na tela ao mesmo tempo sem precisar rolar o mouse
+  - Roda do mouse não sequestra mais a rolagem da página sobre o canvas 3D (evita o zoom acidental gigante ao rolar a tela; zoom pelos botões ➕/➖ ou Ctrl+Scroll)
+  - Traçagem da peça nominal visível sobre o bloco bruto em 3D desde o bloco 0
+
 
 ### v6.1.0
 - **Renderizador 3D Sólido Suave (Smooth CSG) — fim do serrilhado quadrado**:

@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v6.1.0 · CAD + CNC Assistant</div>
+            <div class="version">v6.2.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -474,103 +474,108 @@
 
     <!-- ===== SIMULADOR DE PERCURSO ===== -->
     <section class="sim-wrap-section" id="simSection">
-        <div class="section-head">
-            <div class="section-eyebrow">Passo 5</div>
-            <h2 class="section-title">🎯 Simulador 3D de Remoção de Material</h2>
-            <p class="section-sub">Acompanhe a usinagem do <b>material bruto</b> até a peça pronta em 3 vistas sincronizadas (3D interativa, Superior e Corte Frontal). Arraste a vista 3D para girar, ative o <b>Meio-Corte A-A</b> para ver furos e cavidades por dentro ou clique em qualquer operação/bloco.</p>
+        <div class="section-head sim-head-compact">
+            <div>
+                <div class="section-eyebrow">Passo 5 · Workstation CNC</div>
+                <h2 class="section-title">🎯 Simulador 3D de Remoção de Material</h2>
+            </div>
+            <p class="section-sub">Painel integrado em tela única: acompanhe a peça em <b>3D</b>, <b>Planta</b>, <b>Corte Frontal</b> e <b>Código G</b> ao mesmo tempo, sem precisar rolar a página.</p>
         </div>
 
-        <div class="sim-toolbar">
-            <div class="sim-transport" role="group" aria-label="Controles de reprodução da simulação">
-                <button type="button" class="btn btn-sm" id="simFirst" title="Voltar ao bloco 0 (100% material bruto)">⏮ Bruto</button>
-                <button type="button" class="btn btn-sm" id="simPrev" title="Recuar 1 bloco">⏪ -1</button>
-                <button type="button" class="btn btn-accent" id="simPlay">▶ Reproduzir</button>
-                <button type="button" class="btn btn-sm" id="simNext" title="Avançar 1 bloco">⏩ +1</button>
-                <button type="button" class="btn btn-sm" id="simLast" title="Ir para o final da usinagem">⏭ Fim</button>
-                <button type="button" class="btn btn-sm" id="simReset" title="Reiniciar simulação">↺ Início</button>
-            </div>
-            <input type="range" id="simSlider" min="0" max="0" value="0" class="sim-slider" aria-label="Avançar blocos do programa">
-            <span class="sim-counter" id="simCounter">0/0 blocos</span>
-            <label class="sim-speed-label" for="simSpeed">Vel.
-                <select id="simSpeed" class="sim-speed-select" aria-label="Velocidade da simulação">
-                    <option value="0.5">0.5×</option>
-                    <option value="1" selected>1×</option>
-                    <option value="2">2×</option>
-                    <option value="4">4×</option>
-                </select>
-            </label>
-        </div>
-
-        <div class="sim-view-controls">
-            <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
-            <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D">
-                <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A) para ver furos, cavidades e roscas internas">🔪 Meio-Corte A-A</button>
-                <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar ou ocultar linhas de percurso G00/G01/G02">🧭 Percurso</button>
-                <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar ou ocultar a ferramenta 3D e porta-ferramentas">🔧 Ferramenta 3D</button>
-                <button type="button" class="chip sim-toggle-btn" id="simZoomIn" title="Aproximar vista 3D">➕</button>
-                <button type="button" class="chip sim-toggle-btn" id="simZoomOut" title="Afastar vista 3D">➖</button>
-                <button type="button" class="chip sim-toggle-btn" id="simResetCam" title="Restaurar ângulo padrão da vista 3D">🔄 Vista 3D</button>
-            </div>
-        </div>
-
-        <div class="sim-dro-panel" id="simDroPanel" aria-label="Painel digital de coordenadas e telemetria CNC">
-            <div class="sim-dro-axes">
-                <div class="dro-axis"><span class="dro-k axis-x">X</span><b class="dro-v" id="simDroX">+000.000</b><span class="dro-u">mm</span></div>
-                <div class="dro-axis"><span class="dro-k axis-y">Y</span><b class="dro-v" id="simDroY">+000.000</b><span class="dro-u">mm</span></div>
-                <div class="dro-axis"><span class="dro-k axis-z">Z</span><b class="dro-v" id="simDroZ">+000.000</b><span class="dro-u">mm</span></div>
-            </div>
-            <div class="sim-dro-modals">
-                <span class="dro-chip" id="simModalG">G00 Rápido</span>
-                <span class="dro-chip dro-chip-tool" id="simModalT">T01 · —</span>
-                <span class="dro-chip" id="simModalSF">S0 RPM · F0</span>
-                <span class="dro-chip dro-chip-ok" id="simSafetyBadge">✅ Percurso seguro</span>
-            </div>
-            <div class="sim-dro-stats">
-                <div class="dro-rem-head">
-                    <span id="simRemPct">0% usinado</span>
-                    <span id="simCycleTime">⏱ 00:00</span>
+        <div class="sim-cockpit">
+            <!-- BARRA SUPERIOR FIXA E COMPACTA (TRANSPORTE + OPÇÕES 3D + DRO + OPERAÇÕES) -->
+            <div class="sim-cockpit-deck">
+                <div class="sim-toolbar">
+                    <div class="sim-transport" role="group" aria-label="Controles de reprodução da simulação">
+                        <button type="button" class="btn btn-sm" id="simFirst" title="Voltar ao bloco 0 (100% material bruto)">⏮ Bruto</button>
+                        <button type="button" class="btn btn-sm" id="simPrev" title="Recuar 1 bloco">⏪ -1</button>
+                        <button type="button" class="btn btn-accent btn-sm" id="simPlay">▶ Reproduzir</button>
+                        <button type="button" class="btn btn-sm" id="simNext" title="Avançar 1 bloco">⏩ +1</button>
+                        <button type="button" class="btn btn-sm" id="simLast" title="Ir para o final da usinagem">⏭ Fim</button>
+                        <button type="button" class="btn btn-sm" id="simReset" title="Reiniciar simulação">↺ Início</button>
+                    </div>
+                    <input type="range" id="simSlider" min="0" max="0" value="0" class="sim-slider" aria-label="Avançar blocos do programa">
+                    <span class="sim-counter" id="simCounter">0/0 blocos</span>
+                    <label class="sim-speed-label" for="simSpeed">Vel.
+                        <select id="simSpeed" class="sim-speed-select" aria-label="Velocidade da simulação">
+                            <option value="0.5">0.5×</option>
+                            <option value="1" selected>1×</option>
+                            <option value="2">2×</option>
+                            <option value="4">4×</option>
+                        </select>
+                    </label>
+                    <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D">
+                        <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A)">🔪 Corte A-A</button>
+                        <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar/ocultar percurso">🧭 Percurso</button>
+                        <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar/ocultar ferramenta 3D">🔧 Ferramenta</button>
+                        <button type="button" class="chip sim-toggle-btn" id="simZoomIn" title="Aproximar vista 3D">➕</button>
+                        <button type="button" class="chip sim-toggle-btn" id="simZoomOut" title="Afastar vista 3D">➖</button>
+                        <button type="button" class="chip sim-toggle-btn" id="simResetCam" title="Restaurar ângulo padrão da vista 3D">🔄 3D</button>
+                    </div>
                 </div>
-                <div class="dro-rem-bar"><div class="dro-rem-fill" id="simRemFill" style="width:0%"></div></div>
-            </div>
-        </div>
 
-        <div class="sim-material-bar">
-            <span class="sim-mat-ic" aria-hidden="true">🧱</span>
-            <span id="simMaterial">Material bruto — gere o roteiro para simular</span>
-            <span class="sim-mat-legend">
-                <span class="lg raw"></span> bruto oxidado &nbsp;
-                <span class="lg machined"></span> face usinada &nbsp;
-                <span class="lg deep"></span> cavidade/furo &nbsp;
-                <span class="lg feed"></span> corte G01/G02 &nbsp;
-                <span class="lg rapid"></span> rápido G00 &nbsp;
-                <span class="lg tool"></span> ferramenta
-            </span>
-        </div>
+                <div class="sim-dro-panel" id="simDroPanel" aria-label="Painel digital de coordenadas e telemetria CNC">
+                    <div class="sim-dro-axes">
+                        <div class="dro-axis"><span class="dro-k axis-x">X</span><b class="dro-v" id="simDroX">+000.000</b><span class="dro-u">mm</span></div>
+                        <div class="dro-axis"><span class="dro-k axis-y">Y</span><b class="dro-v" id="simDroY">+000.000</b><span class="dro-u">mm</span></div>
+                        <div class="dro-axis"><span class="dro-k axis-z">Z</span><b class="dro-v" id="simDroZ">+000.000</b><span class="dro-u">mm</span></div>
+                    </div>
+                    <div class="sim-dro-modals">
+                        <span class="dro-chip" id="simModalG">G00 Rápido</span>
+                        <span class="dro-chip dro-chip-tool" id="simModalT">T01 · —</span>
+                        <span class="dro-chip" id="simModalSF">S0 RPM · F0</span>
+                        <span class="dro-chip dro-chip-ok" id="simSafetyBadge">✅ Seguro</span>
+                    </div>
+                    <div class="sim-dro-stats">
+                        <div class="dro-rem-head">
+                            <span id="simRemPct">0% usinado</span>
+                            <span id="simCycleTime">⏱ 00:00</span>
+                        </div>
+                        <div class="dro-rem-bar"><div class="dro-rem-fill" id="simRemFill" style="width:0%"></div></div>
+                    </div>
+                </div>
 
-        <div class="sim-views">
-            <div class="sim-view sim-view-3d">
-                <h4 class="sim-view-title">🧊 Vista 3D isométrica <span class="sim-hint">arraste para girar · roda do mouse para zoom · remoção do bruto em tempo real</span></h4>
-                <canvas id="sim3d" width="760" height="640"></canvas>
+                <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
             </div>
-            <div class="sim-view">
-                <h4 class="sim-view-title" id="simTopTitle">⬛ Vista superior (X × Y) <span class="sim-hint">planta + percurso</span></h4>
-                <canvas id="simTop" width="440" height="300"></canvas>
-            </div>
-            <div class="sim-view">
-                <h4 class="sim-view-title" id="simFrontTitle">🏔️ Vista frontal em corte (X × Z) <span class="sim-hint">profundidades e furos</span></h4>
-                <canvas id="simFront" width="440" height="300"></canvas>
-            </div>
-        </div>
 
-        <div class="sim-side sim-side-row">
-            <div class="sim-side-box">
-                <h4 class="sim-side-title">Bloco em execução</h4>
-                <pre class="sim-line" id="simInfo">—</pre>
-                <p class="sim-note">💡 Clique em <b>⏮ Bruto</b> para ver o bloco 100% bruto antes da usinagem, use <b>🔪 Meio-Corte A-A</b> para inspecionar furos cegos/contrafuros/roscas por dentro, ou clique em qualquer linha ao lado para saltar até aquele bloco.</p>
-            </div>
-            <div class="sim-side-box">
-                <h4 class="sim-side-title">Programa CNC sincronizado <span class="sim-hint">clique em um bloco para saltar</span></h4>
-                <div class="sim-code-list" id="simCodeList" role="listbox" aria-label="Blocos do programa CNC"></div>
+            <!-- GRADE WORKSTATION EM TELA ÚNICA: 3D (ESQ) | SUPERIOR + FRONTAL (CENTRO) | G-CODE (DIR) -->
+            <div class="sim-views">
+                <div class="sim-view sim-view-3d">
+                    <h4 class="sim-view-title">🧊 Vista 3D isométrica <span class="sim-hint">arraste para girar · botões ➕/➖ para zoom</span></h4>
+                    <canvas id="sim3d" width="680" height="420"></canvas>
+                    <div class="sim-material-bar">
+                        <span class="sim-mat-ic" aria-hidden="true">🧱</span>
+                        <span id="simMaterial">Material bruto</span>
+                        <span class="sim-mat-legend">
+                            <span class="lg raw"></span> bruto &nbsp;
+                            <span class="lg machined"></span> usinado &nbsp;
+                            <span class="lg deep"></span> furo/cavidade &nbsp;
+                            <span class="lg feed"></span> corte
+                        </span>
+                    </div>
+                </div>
+
+                <div class="sim-col-2d">
+                    <div class="sim-view">
+                        <h4 class="sim-view-title" id="simTopTitle">⬛ Vista superior (X × Y) <span class="sim-hint">planta</span></h4>
+                        <canvas id="simTop" width="420" height="205"></canvas>
+                    </div>
+                    <div class="sim-view">
+                        <h4 class="sim-view-title" id="simFrontTitle">🏔️ Vista frontal em corte (X × Z) <span class="sim-hint">seção A-A</span></h4>
+                        <canvas id="simFront" width="420" height="205"></canvas>
+                    </div>
+                </div>
+
+                <div class="sim-col-code">
+                    <div class="sim-side-box sim-box-current">
+                        <h4 class="sim-side-title">Bloco em execução</h4>
+                        <pre class="sim-line" id="simInfo">—</pre>
+                    </div>
+                    <div class="sim-side-box sim-box-list">
+                        <h4 class="sim-side-title">Programa CNC <span class="sim-hint">clique para saltar</span></h4>
+                        <div class="sim-code-list" id="simCodeList" role="listbox" aria-label="Blocos do programa CNC"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -633,7 +638,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.1.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v6.2.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->
