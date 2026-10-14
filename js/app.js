@@ -525,7 +525,8 @@ function codeOf(kind) {
     const part = currentPart();
     const fState = getFeatureState();
     const d = part.dimsFromState(fState);
-    return kind === 'macro' ? part.macro(d, fState) : part.gcode(d, fState);
+    if (kind === 'macro') return part.macro(d, fState);
+    return applyCncStrategy(part.gcode(d, fState), part, d, fState, { shiftCoords: true });
 }
 
 function renderCode() {
@@ -1359,10 +1360,10 @@ function handleUploadFile(file) {
 }
 
 // ============================================================
-// SIMULADOR 3D DE REMOÇÃO DE MATERIAL — Passo 5 (v6.1 Smooth CSG)
+// SIMULADOR 3D DE REMOÇÃO DE MATERIAL — Passo 5 (v6.3 Estratégias CNC + Zero G54)
 // ============================================================
 
-// Estado visual padrão da câmera e camadas do simulador
+// Estado visual padrão da câmera, camadas e estratégias CNC do simulador
 function ensureSimViewState() {
     if (!app.simCam) {
         app.simCam = { yaw: -0.68, pitch: 0.58, zoom: 1.0 };
@@ -1371,6 +1372,258 @@ function ensureSimViewState() {
     if (app.simShowTool === undefined) app.simShowTool = true;
     if (app.simSectionCut === undefined) app.simSectionCut = false;
     if (!app.simSpeed) app.simSpeed = 1;
+    if (!app.cncZero) app.cncZero = 'center';       // 'center' | 'bl' | 'tl' | 'tr'
+    if (!app.cncDrill) app.cncDrill = 'auto';       // 'auto' | 'G83' | 'G81' | 'G82'
+    if (!app.cncPassMode) app.cncPassMode = 'both'; // 'both' | 'rough' | 'finish'
+    if (!app.cncPocketMode) app.cncPocketMode = 'spiral'; // 'spiral' | 'zigzag' | 'helical'
+    if (app.cncExtraPocket === undefined) app.cncExtraPocket = false;
+}
+
+// Limites nominais da peça no espaço nativo do gerador e coordenada do Ponto Zero G54 escolhido
+function getPartBoundsAndZero(part, d) {
+    ensureSimViewState();
+    let px0 = -70, px1 = 70, py0 = -50, py1 = 50, thick = 20;
+    if (part.isTurning) {
+        const len = d.L || d.e || ((d.c1 || 0) + (d.c2 || 0) + (d.c3 || 0)) || ((d.cCab || 0) + (d.cCorpo || 0)) || 60;
+        const maxD = d.D || Math.max(d.d1 || 0, d.d2 || 0, d.d3 || 0) || Math.max(d.dCab || 0, d.dCorpo || 0) || 50;
+        px0 = -len; px1 = 0; py0 = -maxD / 2; py1 = maxD / 2; thick = maxD;
+    } else if (part.id === 'cunha') {
+        px0 = 0; px1 = d.comp || 120; py0 = 0; py1 = d.larg || 80; thick = d.hMax || 40;
+    } else if (part.id === 'flange') {
+        const R = (d.diametro || 120) / 2;
+        px0 = -R; px1 = R; py0 = -R; py1 = R; thick = d.espessura || 18;
+    } else {
+        const W = d.largura || d.larg || 140;
+        const Dp = d.comprimento || d.profundidade || d.comp || 100;
+        px0 = -W / 2; px1 = W / 2; py0 = -Dp / 2; py1 = Dp / 2;
+        thick = d.espessura || d.altura || d.esp || 20;
+    }
+
+    let zx = (px0 + px1) / 2, zy = (py0 + py1) / 2;
+    let zLabel = 'G54 NO CENTRO DA PECA (X0 Y0 CENTRAL, TOPO Z0)';
+    if (part.isTurning) {
+        zx = 0; zy = 0;
+        zLabel = app.cncZero === 'bl'
+            ? 'G54 NA FACE TRASEIRA (ENCOSTO DA PLACA Z0)'
+            : 'G54 NA FACE FRONTAL / EIXO DE SIMETRIA (X0 Z0)';
+    } else if (app.cncZero === 'bl') {
+        zx = px0; zy = py0;
+        zLabel = 'G54 NO CANTO INFERIOR ESQUERDO (X0 Y0 CANTO INF. ESQ. - COTAS X+ Y+)';
+    } else if (app.cncZero === 'tl') {
+        zx = px0; zy = py1;
+        zLabel = 'G54 NO CANTO SUPERIOR ESQUERDO (X0 Y0 ENCOSTO DA MORSA FIXA)';
+    } else if (app.cncZero === 'tr') {
+        zx = px1; zy = py1;
+        zLabel = 'G54 NO CANTO SUPERIOR DIREITO (X0 Y0 CANTO SUP. DIR.)';
+    }
+    return {
+        px0: px0, px1: px1, py0: py0, py1: py1, thick: thick,
+        cx: (px0 + px1) / 2, cy: (py0 + py1) / 2,
+        zx: zx, zy: zy, zLabel: zLabel
+    };
+}
+
+// Gera os blocos G-code de uma Cavidade (Espiral pelo Centro, Helicoidal pelo Centro ou Zig-Zag)
+function buildPocketBlocks(cx, cy, cl, cp, cd, rTool, mode, passMode) {
+    const L = [];
+    const hx = Math.max(cl / 2 - rTool, 4);
+    const hy = Math.max(cp / 2 - rTool, 4);
+    const hxRough = Math.max(hx - 0.3, 2);
+    const hyRough = Math.max(hy - 0.3, 2);
+    const zRough = Math.max(cd - 0.3, 1);
+
+    if (passMode !== 'finish') {
+        if (mode === 'spiral') {
+            L.push('',
+                '(=== CAVIDADE PELO CENTRO ' + fmt(cl) + ' X ' + fmt(cp) + ' X ' + fmt(cd) + ' - ESPIRAL DO CENTRO P/ FORA ===)',
+                '(ENTRADA NO CENTRO DA PECA E ABERTURA EM ANEIS CONCENTRICOS - DEIXA 0.3MM P/ ACABAMENTO)');
+            const zSteps = Math.max(1, Math.min(3, Math.ceil(zRough / 6)));
+            for (let zs = 1; zs <= zSteps; zs++) {
+                const zCur = -(zRough * (zs / zSteps));
+                L.push('G00 X' + gf(cx) + ' Y' + gf(cy) + '  (MERGULHO PELO CENTRO DA CAVIDADE)',
+                    'G01 Z' + gf(zCur) + ' F95.');
+                [0.35, 0.68, 1.0].forEach(frac => {
+                    const rx = hxRough * frac, ry = hyRough * frac;
+                    L.push('G01 X' + gf(cx - rx) + ' Y' + gf(cy - ry) + ' F260.',
+                        'G01 X' + gf(cx + rx) + ' Y' + gf(cy - ry),
+                        'G01 X' + gf(cx + rx) + ' Y' + gf(cy + ry),
+                        'G01 X' + gf(cx - rx) + ' Y' + gf(cy + ry),
+                        'G01 X' + gf(cx - rx) + ' Y' + gf(cy - ry));
+                });
+            }
+            L.push('G00 Z2.');
+        } else if (mode === 'helical') {
+            const rHelix = Math.max(Math.min(hxRough, hyRough) * 0.65, 3);
+            L.push('',
+                '(=== CAVIDADE HELICOIDAL PELO CENTRO ' + fmt(cl) + ' X ' + fmt(cp) + ' X ' + fmt(cd) + ' ===)',
+                '(DESCIDA EM HELICE G02 PELO CENTRO + ABERTURA RADIAL)',
+                'G00 X' + gf(cx - rHelix) + ' Y' + gf(cy),
+                'G01 Z0. F100.');
+            const turns = Math.max(2, Math.min(4, Math.ceil(zRough / 4)));
+            for (let k = 1; k <= turns; k++) {
+                const zCur = -(zRough * (k / turns));
+                L.push('G02 X' + gf(cx - rHelix) + ' Y' + gf(cy) + ' I' + gf(rHelix) + ' J0. Z' + gf(zCur) + ' F220.');
+            }
+            L.push('G01 X' + gf(cx - hxRough) + ' Y' + gf(cy - hyRough) + ' F250.',
+                'G01 X' + gf(cx + hxRough) + ' Y' + gf(cy - hyRough),
+                'G01 X' + gf(cx + hxRough) + ' Y' + gf(cy + hyRough),
+                'G01 X' + gf(cx - hxRough) + ' Y' + gf(cy + hyRough),
+                'G01 X' + gf(cx - hxRough) + ' Y' + gf(cy - hyRough),
+                'G00 Z2.');
+        } else {
+            // Zig-zag
+            L.push('',
+                '(=== DESBASTE DA CAVIDADE ' + fmt(cl) + ' X ' + fmt(cp) + ' X ' + fmt(cd) + ' - ZIG-ZAG ===)',
+                'G00 X' + gf(cx - hxRough) + ' Y' + gf(cy - hyRough),
+                'G01 Z-' + gf(zRough) + ' F100.');
+            const rows = 4;
+            for (let r = 0; r <= rows; r++) {
+                const yy = cy - hyRough + (2 * hyRough * (r / rows));
+                const xx = (r % 2 === 0) ? (cx + hxRough) : (cx - hxRough);
+                L.push('G01 Y' + gf(yy) + ' F250.',
+                    'G01 X' + gf(xx) + ' F250.');
+            }
+            L.push('G00 Z2.');
+        }
+    }
+
+    if (passMode !== 'rough') {
+        L.push('',
+            '(=== ACABAMENTO FINAL DA CAVIDADE ' + fmt(cl) + ' X ' + fmt(cp) + ' ===)',
+            '(REMOVE SOBREMATERIAL DE 0.3MM NAS PAREDES E FUNDO A S3800 F180)',
+            'S3800 M03',
+            'G00 X' + gf(cx) + ' Y' + gf(cy),
+            'G01 Z-' + gf(cd) + ' F90.',
+            'G01 X' + gf(cx - hx) + ' Y' + gf(cy - hy) + ' F180.',
+            'G01 X' + gf(cx + hx) + ' Y' + gf(cy - hy),
+            'G01 X' + gf(cx + hx) + ' Y' + gf(cy + hy),
+            'G01 X' + gf(cx - hx) + ' Y' + gf(cy + hy),
+            'G01 X' + gf(cx - hx) + ' Y' + gf(cy - hy),
+            'G00 Z5.');
+    }
+    return L.join('\n');
+}
+
+// Aplica todas as escolhas de estratégia CNC (Zero G54, Ciclo de Furação G81/G82/G83,
+// Modo Desbaste/Acabamento e Cavidade pelo Centro) ao programa ISO
+function applyCncStrategy(rawCode, part, d, fState, opts) {
+    ensureSimViewState();
+    opts = opts || {};
+    let code = String(rawCode);
+    const bz = getPartBoundsAndZero(part, d);
+
+    // 1. Atualiza o comentário do cabeçalho G54 para refletir o Ponto Zero escolhido
+    code = code.replace(/\(G54[^)]*\)/i, '(' + bz.zLabel + ')');
+
+    // 2. Estratégia de Cavidade (substitui ou injeta Cavidade pelo Centro nas peças de fresamento)
+    if (!part.isTurning) {
+        const hasNativePocket = part.id === 'caixa-cavidade' || part.id === 'placa-rasgo';
+        if (hasNativePocket && (app.cncPocketMode !== 'zigzag' || app.cncPassMode !== 'both')) {
+            const cl = d.cavL || d.rasgoComp || 70;
+            const cp = d.cavP || d.rasgoLarg || 36;
+            const cd = d.cavD || d.espessura || 15;
+            const rT = part.id === 'placa-rasgo' ? 5 : 6;
+            const pocketCode = buildPocketBlocks(bz.cx, bz.cy, cl, cp, cd, rT, app.cncPocketMode, app.cncPassMode);
+            code = code.replace(
+                /\(===\s*(?:DESBASTE DA CAVIDADE|RASGO)[\s\S]*?(?=\n\s*\n|\n\(===|\nN500|\nN330|\nN900)/i,
+                pocketCode.trim()
+            );
+        } else if (app.cncExtraPocket && !hasNativePocket) {
+            const cl = Math.round((bz.px1 - bz.px0) * 0.44);
+            const cp = Math.round((bz.py1 - bz.py0) * 0.38);
+            const cd = Math.min(8, Math.max(4, Math.round(bz.thick * 0.45)));
+            const pocketCode = buildPocketBlocks(bz.cx, bz.cy, cl, cp, cd, 6, app.cncPocketMode, app.cncPassMode);
+            // Injeta logo após o contorno ou faceamento
+            const insertPos = code.search(/\(===\s*(?:FURO|CHANFRO|ACABAMENTO)/i);
+            if (insertPos > 0) {
+                code = code.slice(0, insertPos) + pocketCode + '\n\n' + code.slice(insertPos);
+            } else {
+                code = code.replace(/N\d+\s+M09/i, pocketCode + '\n$&');
+            }
+        }
+    }
+
+    // 3. Adiciona passe explícito de Acabamento Final de Contorno quando em Desbaste+Acabamento ou Só Acabamento
+    if (!part.isTurning && app.cncPassMode !== 'rough' && !/ACABAMENTO FINAL DE CONTORNO/i.test(code)) {
+        let finBlock = '';
+        if (part.id === 'flange') {
+            const R = (d.diametro || 120) / 2;
+            finBlock = '\n(=== ACABAMENTO FINAL DE CONTORNO E PAREDES ===)\n' +
+                '(PASSE DE PRECISAO A S3800 F200 REMOVENDO 0.2MM DE SOBREMATERIAL)\n' +
+                'S3800 M03\nG00 X-' + gf(R) + ' Y0.\nG01 Z-' + gf(bz.thick) + ' F100.\n' +
+                'G02 X-' + gf(R) + ' Y0. I' + gf(R) + ' J0. F200.\nG00 Z20.\n';
+        } else if (part.id !== 'cunha') {
+            finBlock = '\n(=== ACABAMENTO FINAL DE CONTORNO E PAREDES ===)\n' +
+                '(PASSE DE PRECISAO A S3800 F200 REMOVENDO 0.2MM DE SOBREMATERIAL)\n' +
+                'S3800 M03\nG00 X' + gf(bz.px0) + ' Y' + gf(bz.py0) + '\n' +
+                'G01 Z-' + gf(bz.thick) + ' F100.\n' +
+                'G01 X' + gf(bz.px1) + ' Y' + gf(bz.py0) + ' F200.\n' +
+                'G01 X' + gf(bz.px1) + ' Y' + gf(bz.py1) + '\n' +
+                'G01 X' + gf(bz.px0) + ' Y' + gf(bz.py1) + '\n' +
+                'G01 X' + gf(bz.px0) + ' Y' + gf(bz.py0) + '\nG00 Z20.\n';
+        }
+        if (finBlock) {
+            code = code.replace(/(\nN?\d*\s*G00\s+Z100)/i, '\n' + finBlock + '$1');
+        }
+    }
+
+    // 4. Filtra seções conforme o Modo de Passes (Só Desbaste vs. Só Acabamento)
+    if (app.cncPassMode === 'rough' || app.cncPassMode === 'finish') {
+        const sections = code.split(/(?=\(===\s*[^)]+===\))/g);
+        const head = sections[0];
+        const kept = sections.slice(1).filter(sec => {
+            const titleM = sec.match(/\(===\s*([^)]+)===\)/);
+            const title = titleM ? titleM[1] : '';
+            const isFinishSec = /ACABAMENTO|G70|CHANFRO/i.test(title);
+            return app.cncPassMode === 'rough' ? !isFinishSec : isFinishSec;
+        });
+        const modeBanner = app.cncPassMode === 'rough'
+            ? '(MODO ATIVO: SO DESBASTE - DEIXANDO +0.3MM DE SOBREMATERIAL NAS PAREDES E FUNDO)\n'
+            : '(MODO ATIVO: SO ACABAMENTO - EXECUTANDO APENAS PASSES FINAIS DE PRECISAO)\n';
+        code = head + modeBanner + (kept.length ? kept.join('\n') : sections.slice(1).join('\n'));
+        if (!/M30/.test(code)) code += '\nG00 Z100. M09\nM05\nM30\n%';
+    }
+
+    // 5. Substitui o Ciclo de Furação (G81 Direto | G82 Com Demora P | G83 Pica-Pau Q)
+    if (app.cncDrill !== 'auto') {
+        const targetG = app.cncDrill; // 'G81' | 'G82' | 'G83'
+        code = code.split('\n').map(line => {
+            if (!/\bG8[123]\b/.test(line)) return line;
+            let nl = line.replace(/\bG8[123]\b/, targetG);
+            if (targetG === 'G83') {
+                nl = nl.replace(/\s+P\d+\.?\d*/g, '');
+                if (!/\bQ\d/.test(nl)) nl = nl.replace(/(\bR-?\d+\.?\d*)/, '$1 Q3.');
+            } else if (targetG === 'G82') {
+                nl = nl.replace(/\s+Q\d+\.?\d*/g, '');
+                if (!/\bP\d/.test(nl)) nl = nl.replace(/(\bR-?\d+\.?\d*)/, '$1 P500');
+            } else if (targetG === 'G81') {
+                nl = nl.replace(/\s+[QP]\d+\.?\d*/g, '');
+            }
+            return nl;
+        }).join('\n');
+    }
+
+    // 6. Desloca todas as coordenadas X/Y do texto G-code quando o Ponto Zero G54 foi alterado
+    if (opts.shiftCoords && !part.isTurning) {
+        const natZeroX = part.id === 'cunha' ? 0 : 0;
+        const natZeroY = part.id === 'cunha' ? 0 : 0;
+        const dx = bz.zx - natZeroX;
+        const dy = bz.zy - natZeroY;
+        if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+            code = code.split('\n').map(raw => {
+                const idxC = raw.indexOf('(');
+                const body = idxC >= 0 ? raw.slice(0, idxC) : raw;
+                const comm = idxC >= 0 ? raw.slice(idxC) : '';
+                if (!body.trim() || body.trim().indexOf('#') === 0) return raw;
+                const shifted = body
+                    .replace(/\bX\s*(-?\d+\.?\d*)/g, (m, v) => 'X' + gf(parseFloat(v) - dx))
+                    .replace(/\bY\s*(-?\d+\.?\d*)/g, (m, v) => 'Y' + gf(parseFloat(v) - dy));
+                return shifted + comm;
+            }).join('\n');
+        }
+    }
+
+    return code;
 }
 
 // Interpreta o código ISO completo: movimentos, ciclos modais (G81/G82/G83/G71/G70/G74/G76),
@@ -1407,13 +1660,12 @@ function parseToolpath(code) {
     let motion = 'rapid';
     let gModal = 'G00';
     let canned = null; // null | 'G81' | 'G82' | 'G83'
-    let cannedZ = -10, cannedR = 2;
+    let cannedZ = -10, cannedR = 2, cannedQ = 3;
     let tool = 1;
     let spindle = 1500, feed = 200, coolant = 'M09';
     let useAltDiam = false;
-    let cumTime = 0; // segundos
+    let cumTime = 0;
 
-    // mapa de blocos N para suportar G70 P..Q no torno
     const nBlocks = {};
     const rawLines = text.split('\n');
     rawLines.forEach((raw, idx) => {
@@ -1485,6 +1737,7 @@ function parseToolpath(code) {
                 gModal = canned;
                 if (words.Z !== undefined) cannedZ = words.Z;
                 if (words.R !== undefined) cannedR = words.R;
+                if (words.Q !== undefined) cannedQ = Math.max(words.Q, 1);
             } else if (g === 71 || g === 70 || g === 74 || g === 76) {
                 gModal = 'G' + g;
             }
@@ -1531,11 +1784,28 @@ function parseToolpath(code) {
             return;
         }
 
+        // Ciclo fixo modal de furação (G81 simples, G82 c/ demora, G83 pica-pau c/ quebra-cavaco!)
         if (canned && (hasXY || hasZ)) {
             if (words.Z !== undefined) cannedZ = words.Z;
             if (words.R !== undefined) cannedR = words.R;
+            if (words.Q !== undefined) cannedQ = Math.max(words.Q, 1);
+
             pushSeg(x, y, z, nx, ny, cannedR, 'rapid', baseExtra);
-            pushSeg(nx, ny, cannedR, nx, ny, cannedZ, 'feed', Object.assign({}, baseExtra, { opKind: 'Drill' }));
+            if (canned === 'G83' && Math.abs(cannedZ) > 6) {
+                // Simula o pica-pau G83 em 2 mergulhos com retorno de limpeza de cavaco ao plano R!
+                const zMid = cannedZ * 0.55;
+                pushSeg(nx, ny, cannedR, nx, ny, zMid, 'feed', Object.assign({}, baseExtra, {
+                    opKind: 'Drill', text: baseExtra.text + ' [1º Mergulho G83 Q' + fmt(cannedQ) + ']'
+                }));
+                pushSeg(nx, ny, zMid, nx, ny, cannedR, 'rapid', Object.assign({}, baseExtra, {
+                    opKind: 'Retract', text: baseExtra.text + ' [Alívio de cavaco G83 -> R' + fmt(cannedR) + ']'
+                }));
+                pushSeg(nx, ny, cannedR, nx, ny, cannedZ, 'feed', Object.assign({}, baseExtra, {
+                    opKind: 'Drill', text: baseExtra.text + ' [Mergulho final G83 -> Z' + fmt(cannedZ) + ']'
+                }));
+            } else {
+                pushSeg(nx, ny, cannedR, nx, ny, cannedZ, 'feed', Object.assign({}, baseExtra, { opKind: 'Drill' }));
+            }
             pushSeg(nx, ny, cannedZ, nx, ny, cannedR, 'rapid', Object.assign({}, baseExtra, { opKind: 'Retract' }));
             x = nx; y = ny; z = cannedR;
             return;
@@ -1609,12 +1879,15 @@ function sampleSeg(seg, step) {
 
 // Constrói o modelo do material bruto + metadados CSG suaves para renderização CAD 3D
 function buildSimModel() {
+    ensureSimViewState();
     const part = currentPart();
     const fState = getFeatureState();
     const d = getDims();
+    const bz = getPartBoundsAndZero(part, d);
     let parsed = { segs: [], ops: [] };
     try {
-        parsed = parseToolpath(part.gcode(d, fState));
+        const stratCode = applyCncStrategy(part.gcode(d, fState), part, d, fState, { shiftCoords: false });
+        parsed = parseToolpath(stratCode);
     } catch (e) { parsed = { segs: [], ops: [] }; }
     const segs = parsed.segs;
     if (!segs.length) return null;
@@ -1654,6 +1927,7 @@ function buildSimModel() {
             kind: 'turning', partId: part.id, dims: d, fState: fState,
             cols: cols, rows: rows, cell: cell,
             u0: zMin, v0: -rStock,
+            zeroX: bz.zx, zeroY: bz.zy, zeroLabel: bz.zLabel,
             partLen: partLen, stockTop: rStock, zMin: zMin,
             H: H, machined: mach,
             R_ext: R_ext, R_int: R_int, machExt: machExt, machInt: machInt, threadPitch: threadPitch,
@@ -1661,23 +1935,7 @@ function buildSimModel() {
         };
     }
 
-    let partX0 = -70, partX1 = 70, partY0 = -50, partY1 = 50, partThick = 20;
-    if (part.id === 'cunha') {
-        partX0 = 0; partX1 = d.comp || 120;
-        partY0 = 0; partY1 = d.larg || 80;
-        partThick = d.hMax || 40;
-    } else if (part.id === 'flange') {
-        const R = (d.diametro || 120) / 2;
-        partX0 = -R; partX1 = R; partY0 = -R; partY1 = R;
-        partThick = d.espessura || 18;
-    } else {
-        const W = d.largura || d.larg || 140;
-        const Dp = d.comprimento || d.profundidade || d.comp || 100;
-        partX0 = -W / 2; partX1 = W / 2;
-        partY0 = -Dp / 2; partY1 = Dp / 2;
-        partThick = d.espessura || d.altura || d.esp || 20;
-    }
-
+    const partX0 = bz.px0, partX1 = bz.px1, partY0 = bz.py0, partY1 = bz.py1, partThick = bz.thick;
     const stockMargin = 4.0;
     const u0 = partX0 - stockMargin, u1 = partX1 + stockMargin;
     const v0 = partY0 - stockMargin, v1 = partY1 + stockMargin;
@@ -1685,7 +1943,7 @@ function buildSimModel() {
     const cell = Math.max(Math.max(spanU, spanV) / 96, 0.85);
     const cols = Math.max(28, Math.ceil(spanU / cell));
     const rows = Math.max(28, Math.ceil(spanV / cell));
-    const stockTop = 1.5;
+    const stockTop = app.cncPassMode === 'finish' ? 0.2 : 1.5;
     const zBottom = -partThick;
 
     const H = new Float32Array(cols * rows);
@@ -1715,6 +1973,7 @@ function buildSimModel() {
         cols: cols, rows: rows, cell: cell,
         u0: u0, v0: v0,
         partX0: partX0, partX1: partX1, partY0: partY0, partY1: partY1,
+        zeroX: bz.zx, zeroY: bz.zy, zeroLabel: bz.zLabel,
         stockTop: stockTop, zBottom: zBottom, zMin: zBottom,
         hasWall: hasWall, wallEp: wallEp, wallTop: wallTop, wallHoleR: 0,
         H: H, initH: initH, machined: mach,
@@ -2466,13 +2725,14 @@ function renderSim3D(model) {
         });
     });
 
-    // 8. Eixos da origem G54 (X vermelho, Y verde, Z azul)
-    const o0 = proj(0, 0, 0.5);
-    const oxAxis = proj(22, 0, 0.5);
-    const oyAxis = proj(0, 22, 0.5);
-    const ozAxis = proj(0, 0, 22);
+    // 8. Eixos da origem G54 (X vermelho, Y verde, Z azul) na posição do Ponto Zero escolhido!
+    const zx0 = model.zeroX || 0, zy0 = model.zeroY || 0;
+    const o0 = proj(zx0, zy0, 0.5);
+    const oxAxis = proj(zx0 + 24, zy0, 0.5);
+    const oyAxis = proj(zx0, zy0 + 24, 0.5);
+    const ozAxis = proj(zx0, zy0, 22);
     const drawAxis = (pEnd, col, lbl) => {
-        ctx.strokeStyle = col; ctx.lineWidth = 2;
+        ctx.strokeStyle = col; ctx.lineWidth = 2.2;
         ctx.beginPath(); ctx.moveTo(o0[0], o0[1]); ctx.lineTo(pEnd[0], pEnd[1]); ctx.stroke();
         ctx.fillStyle = col; ctx.font = 'bold 10px JetBrains Mono, monospace';
         ctx.fillText(lbl, pEnd[0] + 3, pEnd[1] - 2);
@@ -2480,6 +2740,11 @@ function renderSim3D(model) {
     drawAxis(oxAxis, '#FF6B6B', 'X');
     drawAxis(oyAxis, '#5FD98A', 'Y');
     drawAxis(ozAxis, '#6FD3E0', 'Z');
+    // Símbolo de Zero-Peça G54
+    ctx.fillStyle = '#F5C542';
+    ctx.beginPath(); ctx.arc(o0[0], o0[1], 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.font = 'bold 9.5px JetBrains Mono, monospace';
+    ctx.fillText('G54', o0[0] - 24, o0[1] + 12);
 
     // 9. Percurso 3D suave sobreposto
     if (app.simShowPath && upto > 0) {
@@ -2872,7 +3137,20 @@ function renderSimTop(model) {
         ctx.setLineDash([]);
     }
 
-    // 7. Ferramenta atual
+    // 7. Símbolo do Ponto Zero G54 na Vista Superior
+    const zPt = toPx(model.zeroX || 0, model.zeroY || 0);
+    ctx.strokeStyle = '#F5C542';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(zPt[0], zPt[1], 5.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(zPt[0] - 8, zPt[1]); ctx.lineTo(zPt[0] + 8, zPt[1]);
+    ctx.moveTo(zPt[0], zPt[1] - 8); ctx.lineTo(zPt[0], zPt[1] + 8);
+    ctx.stroke();
+    ctx.fillStyle = '#F5C542';
+    ctx.font = 'bold 9px JetBrains Mono, monospace';
+    ctx.fillText('G54', zPt[0] + 7, zPt[1] - 6);
+
+    // 8. Ferramenta atual
     if (app.simShowTool && model.segs.length > 0) {
         const cur = upto > 0 ? model.segs[upto - 1] : model.segs[0];
         const tx = upto > 0 ? cur.x2 : cur.x1;
@@ -3135,8 +3413,8 @@ function renderSimulator() {
     }
 
     const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    const cx = cur ? cur.x2 : (model.segs[0] ? model.segs[0].x1 : 0);
-    const cy = cur ? cur.y2 : (model.segs[0] ? model.segs[0].y1 : 0);
+    const cx = (cur ? cur.x2 : (model.segs[0] ? model.segs[0].x1 : 0)) - (model.zeroX || 0);
+    const cy = (cur ? cur.y2 : (model.segs[0] ? model.segs[0].y1 : 0)) - (model.zeroY || 0);
     const cz = cur ? cur.z2 : (model.segs[0] ? model.segs[0].z1 : 50);
     setTxt('simDroX', fmtDroCoord(cx));
     setTxt('simDroY', fmtDroCoord(cy));
@@ -3309,6 +3587,38 @@ function setupSimOrbitAndControls() {
             }
         });
     }
+
+    // Seletores de estratégia CNC e Ponto Zero (G54, Furação G81/G82/G83, Desbaste/Acabamento, Cavidade pelo Centro)
+    const bindSelect = (id, prop, toastPrefix) => {
+        const sel = document.getElementById(id);
+        if (sel && !sel._bound) {
+            sel._bound = true;
+            sel.addEventListener('change', e => {
+                app[prop] = e.target.value;
+                renderCode();
+                const label = e.target.options[e.target.selectedIndex].text;
+                showToast(toastPrefix + ': ' + label);
+            });
+        }
+    };
+    bindSelect('simZeroSelect', 'cncZero', '📍 Zero G54 alterado');
+    bindSelect('simDrillSelect', 'cncDrill', '🔩 Ciclo de furação');
+    bindSelect('simPassSelect', 'cncPassMode', '🛠️ Modo de usinagem');
+    bindSelect('simPocketSelect', 'cncPocketMode', '🌀 Estratégia de cavidade');
+
+    bindClick('simAddCenterPocket', () => {
+        app.cncExtraPocket = !app.cncExtraPocket;
+        const b = $('#simAddCenterPocket');
+        if (b) {
+            b.classList.toggle('active', app.cncExtraPocket);
+            b.setAttribute('aria-pressed', app.cncExtraPocket ? 'true' : 'false');
+            b.textContent = app.cncExtraPocket ? '✅ Cavidade pelo Centro Ativa' : '➕ Cavidade pelo Centro';
+        }
+        renderCode();
+        showToast(app.cncExtraPocket
+            ? '🌀 Cavidade pelo Centro adicionada ao programa e simulador!'
+            : '↺ Cavidade extra removida');
+    });
 
     const opsBar = $('#simOpsBar');
     if (opsBar && !opsBar._bound) {
@@ -4150,7 +4460,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.2.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.3.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

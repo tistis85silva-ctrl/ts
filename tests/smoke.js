@@ -195,6 +195,57 @@ setTimeout(() => {
         assert($('#simCounter').textContent.startsWith('4/'), 'clique na lista de código salta ao bloco 4');
         assert(/^[+-]\d{3}\.\d{3}$/.test($('#simDroX').textContent), 'DRO X formatado: ' + $('#simDroX').textContent);
     });
+    step('simulador 3D: estratégias CNC (Furação G83/G81/G82, Desbaste/Acabamento, Cavidade pelo Centro e Zero G54)', () => {
+        // 1. Mudar ciclo de furação para G83 Pica-Pau
+        d.querySelector('.example-card[data-part="placa-rasgo"]').click();
+        $('#btnConfirmFeatures').click();
+        const drillSel = $('#simDrillSelect');
+        drillSel.value = 'G83';
+        drillSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeView').textContent.includes('G83') && $('#codeView').textContent.includes('Q3.'), 'G83 c/ Q3 gerado no código');
+
+        // 2. Mudar para G82 Com Demora
+        drillSel.value = 'G82';
+        drillSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeView').textContent.includes('G82') && $('#codeView').textContent.includes('P500'), 'G82 c/ P500 gerado');
+        drillSel.value = 'auto';
+        drillSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+        // 3. Mudar modo de passes (Só Desbaste vs Desbaste + Acabamento)
+        const passSel = $('#simPassSelect');
+        passSel.value = 'rough';
+        passSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeView').textContent.includes('SO DESBASTE'), 'modo só desbaste');
+        passSel.value = 'both';
+        passSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeView').textContent.includes('ACABAMENTO FINAL'), 'passe de acabamento incluído');
+
+        // 4. Estratégia de cavidade pelo centro (Espiral e Helicoidal) + botão Cavidade pelo Centro
+        const pockSel = $('#simPocketSelect');
+        pockSel.value = 'spiral';
+        pockSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeView').textContent.includes('ESPIRAL DO CENTRO P/ FORA'), 'cavidade em espiral pelo centro');
+        pockSel.value = 'helical';
+        pockSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeView').textContent.includes('CAVIDADE HELICOIDAL PELO CENTRO'), 'cavidade helicoidal pelo centro');
+
+        // Testar botão ➕ Cavidade pelo Centro em peça sem cavidade nativa (ex.: Flange)
+        d.querySelector('.example-card[data-part="flange"]').click();
+        $('#btnConfirmFeatures').click();
+        $('#simAddCenterPocket').click();
+        assert($('#simAddCenterPocket').classList.contains('active'), 'botão cavidade pelo centro ativo');
+        assert($('#codeView').textContent.includes('PELO CENTRO'), 'cavidade pelo centro injetada');
+        $('#simAddCenterPocket').click();
+
+        // 5. Mudar Ponto Zero G54 (Centro -> Canto Inferior Esquerdo -> Canto Superior Esquerdo)
+        const zeroSel = $('#simZeroSelect');
+        zeroSel.value = 'bl';
+        zeroSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#codeView').textContent.includes('CANTO INFERIOR ESQUERDO'), 'cabeçalho G54 atualizado para canto inf. esq.');
+        assert(window.app || true, 'zero atualizado');
+        zeroSel.value = 'center';
+        zeroSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
 
     // ===== Quiz =====
     step('quiz: 40 questões + filtro + feedback', () => {

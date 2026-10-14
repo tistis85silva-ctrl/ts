@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.2.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.3.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,14 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.3.0
+- **Central de Funções de Usinagem & Ponto Zero (`G54`) no Simulador e Gerador CNC**:
+  - **📍 Escolha do Ponto Zero (`G54`)**: alterne entre *Centro da Peça (`X0 Y0`)*, *Canto Inferior Esquerdo (`X+ Y+`)*, *Canto Superior Esquerdo (Encosto da Morsa Fixa)* e *Canto Superior Direito* — recalcula todas as coordenadas do Código ISO, do DRO e move o símbolo `G54` nas vistas 3D e Superior!
+  - **🔩 Escolha de Ciclo de Furação**: alterne entre `G83` (Pica-pau com quebra-cavaco `Q` animado em mergulhos), `G81` (Simples direto) e `G82` (Com demora `P` no fundo)
+  - **🛠️ Modo Desbaste vs. Acabamento**: escolha entre *Desbaste + Acabamento* (inclui passe final de precisão), *Só Desbaste* (deixa sobremetal de `0,3 mm`) ou *Só Acabamento*
+  - **🌀 Estratégia de Cavidade pelo Centro**: escolha entre *Espiral pelo Centro (do centro p/ fora)*, *Helicoidal pelo Centro (`G02+Z`)* ou *Zig-Zag*, além do botão **`➕ Cavidade pelo Centro`** para abrir uma cavidade central em qualquer peça
+
 
 ### v6.2.0
 - **Interface Workstation em Tela Única (Cockpit Sem Rolar)**:

@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v6.2.0 · CAD + CNC Assistant</div>
+            <div class="version">v6.3.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -535,6 +535,44 @@
                     </div>
                 </div>
 
+                <div class="sim-strategy-bar" id="simStrategyBar" role="group" aria-label="Funções de usinagem e ponto zero">
+                    <label class="sim-strat-item" for="simZeroSelect" title="Escolher onde fica a origem G54 (Zero-Peça)">
+                        <span>📍 Zero G54:</span>
+                        <select id="simZeroSelect" class="sim-speed-select">
+                            <option value="center" selected>🎯 Centro da Peça (X0 Y0)</option>
+                            <option value="bl">📐 Canto Inf. Esq. (X+ Y+)</option>
+                            <option value="tl">🗜️ Canto Sup. Esq. (Morsa Fixa)</option>
+                            <option value="tr">📐 Canto Sup. Dir.</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simDrillSelect" title="Escolher ciclo fixo de furação (G81, G82 ou G83 pica-pau)">
+                        <span>🔩 Furação:</span>
+                        <select id="simDrillSelect" class="sim-speed-select">
+                            <option value="auto" selected>Padrão da peça</option>
+                            <option value="G83">G83 Pica-Pau (Quebra-cavaco Q)</option>
+                            <option value="G81">G81 Simples (Direto)</option>
+                            <option value="G82">G82 Com Demora (Fundo liso P)</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simPassSelect" title="Escolher entre Desbaste + Acabamento, Só Desbaste (com sobremetal) ou Só Acabamento">
+                        <span>🛠️ Usinagem:</span>
+                        <select id="simPassSelect" class="sim-speed-select">
+                            <option value="both" selected>🔨+💎 Desbaste + Acabamento</option>
+                            <option value="rough">🔨 Só Desbaste (deixa sobremetal)</option>
+                            <option value="finish">💎 Só Acabamento (passe final)</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simPocketSelect" title="Escolher estratégia de abertura de cavidade/rasgo">
+                        <span>🌀 Cavidade:</span>
+                        <select id="simPocketSelect" class="sim-speed-select">
+                            <option value="spiral" selected>🌀 Pelo Centro (Espiral p/ fora)</option>
+                            <option value="zigzag">⚡ Zig-Zag (Varredura linear)</option>
+                            <option value="helical">⭕ Helicoidal pelo Centro (G02+Z)</option>
+                        </select>
+                    </label>
+                    <button type="button" class="chip sim-toggle-btn" id="simAddCenterPocket" aria-pressed="false" title="Adicionar ou remover uma usinagem de Cavidade pelo Centro na peça atual">➕ Cavidade pelo Centro</button>
+                </div>
+
                 <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
             </div>
 
@@ -638,7 +676,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.2.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v6.3.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->
