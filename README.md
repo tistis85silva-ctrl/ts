@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.0.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.1.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,13 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.1.0
+- **Renderizador 3D Sólido Suave (Smooth CSG) — fim do serrilhado quadrado**:
+  - Substitui a grade de blocos quadrados (voxels) na visualização por **sólidos 3D contínuos e curvas vetoriais suaves** (64 segmentos por cilindro/furo, sombreamento Phong por normal, cantos arredondados nos rasgos/cavidades e corte técnico vetorial A-A na vista frontal)
+  - Furo central helicoidal do Flange limpa o miolo completo (sem ilha central residual)
+  - Enquadramento 3D recalibrado com margem automática e canvas 3D preenchendo 100% do painel esquerdo (sem faixa escura vazia embaixo)
+
 
 ### v6.0.0
 - **Simulador 3D de Remoção de Material v2**:

@@ -31,11 +31,12 @@ function makeDom(seed) {
             w.HTMLCanvasElement.prototype.getContext = function () {
                 return {
                     fillStyle: '', strokeStyle: '', lineWidth: 1, font: '',
-                    fillRect() {}, strokeRect() {}, clearRect() {},
+                    fillRect() {}, strokeRect() {}, clearRect() {}, rect() {},
                     beginPath() {}, closePath() {}, moveTo() {}, lineTo() {},
                     arc() {}, ellipse() {}, fill() {}, stroke() {},
                     setLineDash() {}, fillText() {},
-                    createRadialGradient() { return { addColorStop() {} }; }
+                    createRadialGradient() { return { addColorStop() {} }; },
+                    createLinearGradient() { return { addColorStop() {} }; }
                 };
             };
             if (seed) seed(w);
@@ -159,6 +160,21 @@ setTimeout(() => {
             assert(cut > 20, 'pouca remoção em ' + pid + ': ' + cut);
             window.renderSimulator();
         });
+        d.querySelector('.example-card[data-part="suporte-l"]').click();
+        $('#btnConfirmFeatures').click();
+    });
+    step('simulador 3D: CSG suave (sem serrilhado quadrado no Flange, furos circulares e sem ilha central)', () => {
+        d.querySelector('.example-card[data-part="flange"]').click();
+        $('#btnConfirmFeatures').click();
+        const m = window.buildSimModel();
+        window.applyRemoval(m, 0, m.segs.length);
+        const csg = window.extractSmoothCSG(m, m.segs.length);
+        assert(csg.contourDone, 'contorno circular do flange concluído');
+        assert(csg.centerBore && csg.centerBore.r >= 19, 'furo central liso Ø40 extraído');
+        assert(csg.holes.length === 6, '6 furos polares circulares extraídos: ' + csg.holes.length);
+        // garante que o centro (0,0) no heightmap do flange também foi vazado (machined=4), sem ilha central
+        const cIdx = Math.floor(m.rows / 2) * m.cols + Math.floor(m.cols / 2);
+        assert(m.machined[cIdx] === 4, 'centro do flange vazado sem ilha central');
         d.querySelector('.example-card[data-part="suporte-l"]').click();
         $('#btnConfirmFeatures').click();
     });
