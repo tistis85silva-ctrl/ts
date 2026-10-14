@@ -439,13 +439,16 @@ const suporteL = {
             'N60 G00 Z0.5',
             'N70 G01 Z0. F120.',
             'N80 G01 X' + gf(x + 30) + ' F450.',
-            'N90 Y-' + gf(y + 30) + '.',
-            'N100 X-' + gf(x + 30) + '.');
+            'N90 Y-' + gf(Math.round(y * 0.35)) + '.',
+            'N100 X-' + gf(x + 30) + '.',
+            'N105 Y' + gf(Math.round(y * 0.35)) + '.',
+            'N108 X' + gf(x + 30) + '.');
         if (hasWall) {
-            L.push('N110 Y' + gf(y + 30) + '.',
-                'N120 X' + gf(x + 30) + '.');
+            L.push('N110 Y' + gf(y + 10) + '.',
+                'N120 X-' + gf(x + 30) + '.');
         } else {
-            L.push('N110 Y' + gf(y + 30) + '.');
+            L.push('N110 Y' + gf(y + 10) + '.',
+                'N120 X-' + gf(x + 30) + '.');
         }
         L.push('N130 G00 Z50.',
             '',
@@ -849,13 +852,16 @@ const placaRasgo = {
             'N10 G21 G90 G17 G40 G49 G80 G94',
             'N20 T01 M06',
             'N30 S3000 M03',
-            'N40 G00 G54 X-' + gf(x + 30) + ' Y-' + gf(y + 30) + '.',
+            'N40 G00 G54 X-' + gf(x + 30) + ' Y-' + gf(y - 10) + '.',
             'N50 G43 Z50. H01 M08',
+            '',
+            '(=== FACEAMENTO DA PLACA ===)',
             'N60 G01 Z0. F120.',
             'N70 G01 X' + gf(x + 30) + ' F480.',
-            'N80 Y' + gf(y + 30) + '.',
+            'N80 Y0.',
             'N90 X-' + gf(x + 30) + '.',
-            'N100 Y-' + gf(y + 30) + '.',
+            'N100 Y' + gf(y - 10) + '.',
+            'N105 X' + gf(x + 30) + '.',
             'N110 G00 Z50.',
             '',
             '(=== CONTORNO ' + gf(w) + ' X ' + gf(dd) + ' ===)',
@@ -1232,12 +1238,16 @@ const flange = {
             'N10 G21 G90 G17 G40 G49 G80 G94',
             'N20 T01 M06',
             'N30 S2800 M03',
-            'N40 G00 G54 X-' + gf(R + 30) + ' Y-' + gf(R + 30) + '.',
+            'N40 G00 G54 X-' + gf(R + 30) + ' Y-' + gf(R - 10) + '.',
             'N50 G43 Z50. H01 M08',
+            '',
+            '(=== FACEAMENTO DO DISCO ===)',
             'N60 G01 Z0. F120.',
             'N70 G01 X' + gf(R + 30) + ' F450.',
-            'N80 Y' + gf(R + 30) + '.',
+            'N80 Y0.',
             'N90 X-' + gf(R + 30) + '.',
+            'N95 Y' + gf(R - 10) + '.',
+            'N98 X' + gf(R + 30) + '.',
             'N100 G00 Z50.',
             '',
             '(=== CONTORNO CIRCULAR D' + gf(D) + ' - INTERPOLACAO G02 ===)',
@@ -1603,12 +1613,16 @@ const caixaCavidade = {
             'N10 G21 G90 G17 G40 G49 G80 G94',
             'N20 T01 M06',
             'N30 S2800 M03',
-            'N40 G00 G54 X-' + gf(x + 30) + ' Y-' + gf(y + 30) + '.',
+            'N40 G00 G54 X-' + gf(x + 30) + ' Y-' + gf(y - 10) + '.',
             'N50 G43 Z50. H01 M08',
+            '',
+            '(=== FACEAMENTO DO BLOCO ===)',
             'N60 G01 Z0. F120.',
             'N70 G01 X' + gf(x + 30) + ' F450.',
-            'N80 Y' + gf(y + 30) + '.',
+            'N80 Y0.',
             'N90 X-' + gf(x + 30) + '.',
+            'N95 Y' + gf(y - 10) + '.',
+            'N98 X' + gf(x + 30) + '.',
             'N100 G00 Z50.',
             '',
             '(=== CONTORNO EXTERNO ===)',
@@ -1630,30 +1644,23 @@ const caixaCavidade = {
                 '(=== DESBASTE DA CAVIDADE ' + gf(cl) + ' X ' + gf(cp) + ' X ' + gf(cd) + ' ===)',
                 '(VARREDURA EM ZIG-ZAG, SULCOS DE ' + gf(step) + 'MM, PROFUNDIDADE ' + gf(Math.min(4, cd / 2)) + 'MM/PASSADA)');
             let ln = 230, z = 0;
+            const zStep = Math.max(4, Math.ceil(cd / 3));
             while (z < cd - 0.01) {
-                z = Math.min(z + Math.min(4, cd / 2), cd);
+                z = Math.min(z + zStep, cd);
                 L.push('N' + ln + ' G00 X-' + gf(cxl) + ' Y-' + gf(cyp));
                 ln += 10;
                 L.push('N' + ln + ' G01 Z-' + gf(z) + ' F90.');
                 ln += 10;
-                let yy = -cyp, going = true;
-                while (yy < cyp - 0.01) {
-                    const target = going ? cyp : Math.max(yy + step > cyp ? cyp : yy + step, -cyp);
-                    if (going) {
-                        L.push('N' + ln + ' G01 Y' + gf(cyp) + ' F240.');
-                        yy = cyp;
-                    } else {
-                        const ny = Math.min(yy + step, cyp);
-                        L.push('N' + ln + ' G01 Y' + gf(ny) + ' F240.');
-                        yy = ny;
-                    }
-                    going = !going;
-                    if (yy < cyp - 0.01) {
-                        const nx = going ? cxl : -cxl;
-                        L.push('N' + ln + ' G01 X' + gf(nx));
-                        ln += 10;
-                    }
+                let yy = -cyp, dirX = 1;
+                while (true) {
+                    const nx = dirX > 0 ? cxl : -cxl;
+                    L.push('N' + ln + ' G01 X' + gf(nx) + ' F240.');
                     ln += 10;
+                    if (yy >= cyp - 0.01) break;
+                    yy = Math.min(yy + step, cyp);
+                    L.push('N' + ln + ' G01 Y' + gf(yy) + ' F240.');
+                    ln += 10;
+                    dirX = -dirX;
                 }
             }
             L.push('N' + ln + ' G00 Z2.');
@@ -2332,7 +2339,7 @@ const cunha = {
     },
     gcode(d, st) {
         const L = [], k = (d.hMax - d.hMin) / d.comp;
-        const passo = 3; // mm por degrau de desbaste
+        const passo = Math.max(5, Math.ceil((d.hMax - d.hMin) / 6)); // mm por degrau de desbaste
         L.push('%',
             'O0006 (CUNHA INCLINADA - FRESAMENTO DE RAMPA)',
             '(PECA: RAMPA ' + fmt(d.comp) + ' X ' + fmt(d.larg) + ' H' + fmt(d.hMax) + '/' + fmt(d.hMin) + ')',
@@ -2343,6 +2350,7 @@ const cunha = {
             '(T03 - BROCA D' + fmt(d.diamFuro) + ' - FUROS (PROF. VARIAVEL))',
             '(G54 - ORIGEM NA CANTO ESQ. INFERIOR DA RAMPA, TOPO H' + fmt(d.hMax) + ' = Z0)',
             'N10 G21 G90 G17 G40 G49 G80 G94',
+            'N15 T02 M06 S3200 M03',
             '',
             '(=== DESBASTE DA RAMPA EM DEGRAUS ===)',
             '(CADA PASSE DEIXA 0.3MM DE SOBREMATERIAL)',
@@ -2350,25 +2358,31 @@ const cunha = {
         let ln = 20, depth = 0;
         while (depth < d.hMax - d.hMin - 0.5) {
             depth = Math.min(depth + passo, d.hMax - d.hMin);
-            const xEnd = depth / k + 2; // onde a rampa está neste nível (+avanço)
-            L.push('N' + ln + ' G00 X-5. Y-' + fmt(d.larg / 2 + 8),
-                'N' + (ln + 10) + ' G01 Z-' + fmt(depth + 0.3) + ' F100.',
-                'N' + (ln + 20) + ' G01 X' + fmt(Math.min(xEnd, d.comp + 2)) + ' F260.  (DEGRAU DA RAMPA)');
-            ln += 30;
+            const xStart = Math.max(0, depth / k); // início do degrau na rampa
+            L.push('N' + ln + ' G00 X' + fmt(xStart) + ' Y4.',
+                'N' + (ln + 10) + ' G01 Z-' + fmt(Math.max(depth - 0.3, 0.5)) + ' F100.',
+                'N' + (ln + 20) + ' G01 X' + fmt(d.comp + 2) + ' F260.  (DEGRAU DA RAMPA)',
+                'N' + (ln + 30) + ' G01 Y' + fmt(d.larg / 2) + '.',
+                'N' + (ln + 40) + ' G01 X' + fmt(xStart) + '.',
+                'N' + (ln + 50) + ' G01 Y' + fmt(d.larg - 4) + '.',
+                'N' + (ln + 60) + ' G01 X' + fmt(d.comp + 2) + '.');
+            ln += 70;
         }
         L.push('N' + ln + ' G00 Z2.',
             '',
             '(=== ACABAMENTO DA RAMPA ===)',
             '(PASSADA DIAGONAL: X E Z MOVEM JUNTOS - INTERPOLACAO LINEAR 2 EIXOS)');
         ln += 10;
-        // 2 passadas de acabamento (bordas da largura)
-        [-1, 1].forEach(side => {
-            const y = side * (d.larg / 2 - 4);
-            L.push('N' + ln + ' G00 X-5. Y' + fmt(y),
-                'N' + (ln + 10) + ' G01 Z' + fmt(-0) + ' F90.',
-                'N' + (ln + 20) + ' G01 X' + fmt(d.comp + 2) + ' Z-' + fmt(d.hMax - d.hMin) + ' F220.  (DESCIDA NA RAMPA)');
-            ln += 30;
-        });
+        // passadas de acabamento cobrindo a largura da rampa
+        const nFinish = 5;
+        for (let fi = 0; fi < nFinish; fi++) {
+            const y = 4 + (d.larg - 8) * (fi / (nFinish - 1));
+            L.push('N' + ln + ' G00 X0. Y' + fmt(y),
+                'N' + (ln + 10) + ' G01 Z0. F90.',
+                'N' + (ln + 20) + ' G01 X' + fmt(d.comp) + ' Z-' + fmt(d.hMax - d.hMin) + ' F220.  (DESCIDA NA RAMPA)',
+                'N' + (ln + 30) + ' G00 Z2.');
+            ln += 40;
+        }
         L.push('N' + ln + ' G00 Z2.  (POSICIONA PARA OS FUROS)');
         ln += 10;
         if (st.furos.included) {
@@ -2740,12 +2754,14 @@ const gabaritoFuracao = {
             '',
             '(=== FACEAMENTO ===)',
             'N20 T01 M06 S2800 M03',
-            'N30 G00 G54 X-' + fmt(d.larg / 2 + 30) + ' Y-' + fmt(y + 30),
+            'N30 G00 G54 X-' + fmt(d.larg / 2 + 30) + ' Y-' + fmt(y - 10),
             'N40 G43 Z50. H01 M08',
             'N50 G01 Z0. F120.',
             'N60 G01 X' + fmt(d.larg / 2 + 30) + ' F450.',
-            'N70 Y' + fmt(y + 30),
-            'N80 X-' + fmt(d.larg / 2 + 30),
+            'N65 Y0.',
+            'N70 X-' + fmt(d.larg / 2 + 30),
+            'N75 Y' + fmt(y - 10),
+            'N80 X' + fmt(d.larg / 2 + 30),
             'N90 G00 Z50.',
             '',
             '(=== PILOTAGEM COM CENTRO DE FURAR ===)',

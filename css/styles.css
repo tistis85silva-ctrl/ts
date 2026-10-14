@@ -4139,7 +4139,243 @@ body.print-certificado #certPaper {
     gap: 8px;
 }
 
+/* ===== v6.0 — CONTROLES AVANÇADOS, DRO CNC E LISTA SINCRONIZADA ===== */
+.sim-transport {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.sim-speed-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sim-speed-select {
+    font: inherit;
+    font-size: 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 4px 8px;
+    cursor: pointer;
+}
+.sim-view-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.sim-ops-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.sim-op-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    padding: 5px 10px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.sim-op-chip:hover {
+    border-color: var(--cyan);
+    color: var(--text);
+}
+.sim-op-chip.active {
+    background: rgba(111, 211, 224, 0.16);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    font-weight: 600;
+}
+.sim-toggles {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.sim-toggle-btn {
+    padding: 5px 11px;
+    font-size: 11px;
+}
+
+/* ===== PAINEL DIGITAL CNC (DRO) ===== */
+.sim-dro-panel {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    background: #0A1018;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+.sim-dro-axes {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.dro-axis {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    background: #0F1824;
+    border: 1px solid #1E2D40;
+    border-radius: 6px;
+    padding: 5px 10px;
+    min-width: 118px;
+}
+.dro-k {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+}
+.dro-k.axis-x { color: #FF6B6B; }
+.dro-k.axis-y { color: #5FD98A; }
+.dro-k.axis-z { color: #6FD3E0; }
+.dro-v {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    color: #E7ECF2;
+    letter-spacing: 0.5px;
+    margin-left: auto;
+}
+.dro-u {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+}
+.sim-dro-modals {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.dro-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    color: var(--text-muted);
+    padding: 4px 9px;
+    border-radius: 6px;
+}
+.dro-chip-tool {
+    color: var(--cyan);
+    border-color: rgba(111, 211, 224, 0.4);
+}
+.dro-chip-ok {
+    color: var(--ok);
+    border-color: rgba(95, 217, 138, 0.4);
+}
+.sim-dro-stats {
+    min-width: 165px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.dro-rem-head {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+.dro-rem-bar {
+    height: 6px;
+    background: #182330;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.dro-rem-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--cyan));
+    transition: width 0.15s ease;
+}
+.lg.deep {
+    width: 14px;
+    height: 10px;
+    background: #2C677A;
+    border-radius: 2px;
+}
+#sim3d {
+    cursor: grab;
+    touch-action: none;
+}
+#sim3d:active {
+    cursor: grabbing;
+}
+
+/* ===== LISTA DE BLOCOS SINCRONIZADA ===== */
+.sim-code-list {
+    background: #0C131C;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-sm);
+    max-height: 148px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+.sim-code-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-bottom: 1px solid rgba(38, 49, 61, 0.5);
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 100%;
+    background: none;
+    border-left: 3px solid transparent;
+    border-top: none;
+    border-right: none;
+    text-align: left;
+    font: inherit;
+}
+.sim-code-item:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+.sim-code-item.active {
+    background: rgba(255, 122, 61, 0.15);
+    border-left-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+}
+.sim-code-item.done {
+    color: var(--text-dim);
+}
+.sci-idx {
+    color: var(--cyan);
+    min-width: 34px;
+    font-size: 10px;
+}
+.sci-op {
+    margin-left: auto;
+    font-size: 9.5px;
+    color: var(--text-dim);
+    background: var(--surface);
+    padding: 1px 6px;
+    border-radius: 8px;
+}
+
 @media (max-width: 900px) {
+    .sim-dro-panel {
+        grid-template-columns: 1fr;
+    }
     .sim-views {
         grid-template-columns: 1fr;
     }

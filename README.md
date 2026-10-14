@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v5.9.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.0.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,16 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.0.0
+- **Simulador 3D de Remoção de Material v2**:
+  - Câmera 3D interativa (arrastar para girar 360° + zoom com roda do mouse ou botões)
+  - Modo **🔪 Meio-Corte A-A** em 3D para inspecionar furos cegos, contrafuros, cavidades e roscas internas por dentro
+  - Ferramenta 3D animada (fresa/broca + cone BT40 no fresamento; suporte + pastilha diamantada no torno) + brilho/cavacos no contato e eixos G54
+  - Torno CNC 3D com **placa de 3 castanhas (chuck)** e barra cilíndrica em revolução (degraus, rasgos, furo central G74, mandrilamento e rosca G76)
+  - Ciclos modais `G81/G82/G83` com retração automática ao plano `R`, interpolação helicoidal 3D (`G02` com `Z`) e repetição de perfil `G70 P..Q`
+  - **Painel Digital CNC (DRO)** com coordenadas `X/Y/Z`, estado modal `G/T/S/F/M`, `% de área usinada`, tempo estimado de ciclo, atalhos clicáveis por operação e lista de blocos G-code sincronizada
+
 
 ### v5.9.0
 - **Simulador 3D com remoção de material (3 vistas)**: vista 3D isométrica,

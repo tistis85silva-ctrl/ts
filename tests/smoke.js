@@ -28,6 +28,16 @@ function makeDom(seed) {
             w.print = () => { w.__printed = true; };
             if (!w.URL.createObjectURL) w.URL.createObjectURL = () => 'blob:fake';
             if (!w.URL.revokeObjectURL) w.URL.revokeObjectURL = () => {};
+            w.HTMLCanvasElement.prototype.getContext = function () {
+                return {
+                    fillStyle: '', strokeStyle: '', lineWidth: 1, font: '',
+                    fillRect() {}, strokeRect() {}, clearRect() {},
+                    beginPath() {}, closePath() {}, moveTo() {}, lineTo() {},
+                    arc() {}, ellipse() {}, fill() {}, stroke() {},
+                    setLineDash() {}, fillText() {},
+                    createRadialGradient() { return { addColorStop() {} }; }
+                };
+            };
             if (seed) seed(w);
         }
     });
@@ -135,8 +145,39 @@ setTimeout(() => {
         let cut = 0;
         for (let i = 0; i < m.machined.length; i++) cut += m.machined[i];
         assert(cut > 20, 'torno sem remoção: ' + cut);
+    });
+    step('simulador 3D: todas as 10 peças constroem bruto e usinam nas 3 vistas', () => {
+        const partIds = ['suporte-l', 'placa-rasgo', 'flange', 'caixa-cavidade', 'cunha', 'gabarito-furacao', 'eixo-escalonado', 'polia-v', 'bucha-rosca', 'eixo-rosqueado'];
+        partIds.forEach(pid => {
+            d.querySelector('.example-card[data-part="' + pid + '"]').click();
+            $('#btnConfirmFeatures').click();
+            const m = window.buildSimModel();
+            assert(m && m.segs.length > 5, 'modelo inválido em ' + pid);
+            window.applyRemoval(m, 0, m.segs.length);
+            let cut = 0;
+            for (let i = 0; i < m.machined.length; i++) if (m.machined[i] > 0) cut++;
+            assert(cut > 20, 'pouca remoção em ' + pid + ': ' + cut);
+            window.renderSimulator();
+        });
         d.querySelector('.example-card[data-part="suporte-l"]').click();
         $('#btnConfirmFeatures').click();
+    });
+    step('simulador 3D: controles (⏮ Bruto, 🔪 Meio-Corte, DRO, chips de operação e lista de código)', () => {
+        $('#simFirst').click();
+        assert($('#simCounter').textContent.startsWith('0/'), 'botão Bruto deve ir ao bloco 0: ' + $('#simCounter').textContent);
+        assert($('#simRemPct').textContent.startsWith('0%'), 'em 0 deve estar 0% usinado: ' + $('#simRemPct').textContent);
+        $('#simNext').click();
+        assert($('#simCounter').textContent.startsWith('1/'), 'botão +1: ' + $('#simCounter').textContent);
+        $('#simLast').click();
+        assert(!$('#simRemPct').textContent.startsWith('0%'), 'no fim deve ter área usinada: ' + $('#simRemPct').textContent);
+        $('#simSectionCut').click();
+        assert($('#simSectionCut').classList.contains('active'), 'meio-corte ativo');
+        $('#simSectionCut').click();
+        assert($$('#simOpsBar .sim-op-chip').length >= 3, 'chips de operação');
+        assert($$('#simCodeList .sim-code-item').length >= 10, 'lista de blocos sincronizada');
+        $$('#simCodeList .sim-code-item')[3].click();
+        assert($('#simCounter').textContent.startsWith('4/'), 'clique na lista de código salta ao bloco 4');
+        assert(/^[+-]\d{3}\.\d{3}$/.test($('#simDroX').textContent), 'DRO X formatado: ' + $('#simDroX').textContent);
     });
 
     // ===== Quiz =====

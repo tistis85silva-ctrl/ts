@@ -10,7 +10,7 @@
 $ErrorActionPreference = 'Stop'
 
 $AppName  = 'COTA - Formacao CNC'
-$Version  = '5.9.0'
+$Version  = '6.0.0'
 $Src      = $PSScriptRoot
 $InstallDir = Join-Path $env:LOCALAPPDATA 'COTA'
 

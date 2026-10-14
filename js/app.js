@@ -1359,68 +1359,219 @@ function handleUploadFile(file) {
 }
 
 // ============================================================
-// SIMULADOR 3D DE REMOÇÃO DE MATERIAL — Passo 5
+// SIMULADOR 3D DE REMOÇÃO DE MATERIAL — Passo 5 (v6.0)
 // ============================================================
 
-// Interpreta o código ISO: movimentos + ferramenta ativa (diâmetro nos comentários)
+// Estado visual padrão da câmera e camadas do simulador
+function ensureSimViewState() {
+    if (!app.simCam) {
+        app.simCam = { yaw: -0.68, pitch: 0.58, zoom: 1.0 };
+    }
+    if (app.simShowPath === undefined) app.simShowPath = true;
+    if (app.simShowTool === undefined) app.simShowTool = true;
+    if (app.simSectionCut === undefined) app.simSectionCut = false;
+    if (!app.simSpeed) app.simSpeed = 1;
+}
+
+// Interpreta o código ISO completo: movimentos, ciclos modais (G81/G82/G83/G71/G70/G74/G76),
+// ferramentas (diâmetro, nome, tipo), operações, rotação S, avanço F e tempo estimado
 function parseToolpath(code) {
     const text = String(code);
-    // diâmetros das ferramentas: "(T02 - FRESA D12 - ...)"
     const toolDiam = {};
+    const toolAltDiam = {};
+    const toolName = {};
     let m;
-    const reT = /\(T(\d+)\s*-\s*[^)]*?D(\d+)/g;
-    while ((m = reT.exec(text)) !== null) {
-        toolDiam[parseInt(m[1], 10)] = parseFloat(m[2]);
+    const reLineT = /\(T0?(\d+)\s*-\s*([^)]+)\)/g;
+    while ((m = reLineT.exec(text)) !== null) {
+        const tid = parseInt(m[1], 10);
+        const desc = m[2].trim();
+        toolName[tid] = desc.split('-')[0].trim();
+        const dMatches = [];
+        let dm;
+        const reD = /[DØ](\d+\.?\d*)/g;
+        while ((dm = reD.exec(desc)) !== null) dMatches.push(parseFloat(dm[1]));
+        if (dMatches.length >= 1) toolDiam[tid] = dMatches[0];
+        if (dMatches.length >= 2) toolAltDiam[tid] = dMatches[1];
+        if (!toolDiam[tid]) {
+            const cM = desc.match(/C(\d+\.?\d*)/);
+            if (cM) toolDiam[tid] = Math.max(parseFloat(cM[1]) * 2.5, 4);
+            const mmM = desc.match(/(\d+\.?\d*)MM/);
+            if (mmM) toolDiam[tid] = parseFloat(mmM[1]);
+        }
     }
+
     const segs = [];
-    let x = 0, y = 0, z = 0;
+    const ops = [];
+    let currentOp = 'Posicionamento inicial';
+    let x = 0, y = 0, z = 10;
     let motion = 'rapid';
+    let gModal = 'G00';
+    let canned = null; // null | 'G81' | 'G82' | 'G83'
+    let cannedZ = -10, cannedR = 2;
     let tool = 1;
-    text.split('\n').forEach((raw, idx) => {
+    let spindle = 1500, feed = 200, coolant = 'M09';
+    let useAltDiam = false;
+    let cumTime = 0; // segundos
+
+    // mapa de blocos N para suportar G70 P..Q no torno
+    const nBlocks = {};
+    const rawLines = text.split('\n');
+    rawLines.forEach((raw, idx) => {
+        const nM = raw.match(/^\s*N(\d+)\s+(.*)$/);
+        if (nM) nBlocks[parseInt(nM[1], 10)] = { raw: raw, idx: idx };
+    });
+
+    const pushSeg = (x1, y1, z1, x2, y2, z2, type, extra) => {
+        if (x1 === x2 && y1 === y2 && z1 === z2 && !(extra && extra.fullCircle)) return;
+        const dist = (extra && extra.arcLen) || Math.hypot(x2 - x1, y2 - y1, z2 - z1);
+        const spd = type === 'rapid' ? 5000 : Math.max(feed > 5 ? feed : spindle * Math.max(feed, 0.12), 60);
+        const dt = Math.max(dist / (spd / 60), 0.05);
+        cumTime += dt;
+        const dActive = (useAltDiam && toolAltDiam[tool]) ? toolAltDiam[tool] : (toolDiam[tool] || 10);
+        const rTool = dActive / 2;
+        segs.push(Object.assign({
+            x1: x1, y1: y1, z1: z1, x2: x2, y2: y2, z2: z2,
+            type: type, tool: tool, rTool: rTool,
+            toolDesc: toolName[tool] || ('T0' + tool),
+            gModal: gModal, spindle: spindle, feed: feed, coolant: coolant,
+            opName: currentOp, time: cumTime, dt: dt
+        }, extra || {}));
+    };
+
+    const processLine = (raw, idx, overrideOp) => {
+        const opSection = raw.match(/\((?:===\s*)?([^)=]{4,}?)(?:\s*===)\)/);
+        if (opSection) {
+            currentOp = opSection[1].trim();
+            ops.push({ name: currentOp, startIdx: segs.length });
+        }
+        if (/CONTRAFURO/i.test(raw) && toolAltDiam[tool]) {
+            useAltDiam = true;
+        }
         const line = String(raw).split('(')[0];
-        if (!line.trim()) return;
+        if (!line.trim() || line.trim().indexOf('#') === 0 || line.trim() === '%') return;
+
+        // coleta todos os códigos G na linha (ex.: G21 G90 G17 G40 G80)
+        const gList = [];
+        line.replace(/G(\d+)/g, (mm, gv) => { gList.push(parseInt(gv, 10)); return mm; });
+        const mList = [];
+        line.replace(/M(\d+)/g, (mm, mv) => { mList.push(parseInt(mv, 10)); return mm; });
+
         const words = {};
         line.replace(/([A-Z])\s*(-?\d+\.?\d*)/g, (mm, c, v) => {
             words[c] = parseFloat(v);
             return mm;
         });
+
         // troca de ferramenta (T02 M06 | T0101 no torno)
-        const tM = line.match(/T0?(\d)\d*\s?M0?0?6?/);
-        if (tM) tool = parseInt(tM[1], 10);
-        if (words.G !== undefined) {
-            const g = words.G;
-            if (g === 0 || g === 80) motion = 'rapid';
-            else if (g === 1) motion = 'feed';
-            else if (g === 2) motion = 'arc-cw';
-            else if (g === 3) motion = 'arc-ccw';
+        const tM = line.match(/T0?(\d)\d*/);
+        if (tM) {
+            const nt = parseInt(tM[1], 10);
+            if (nt >= 1 && nt <= 9) {
+                tool = nt;
+                useAltDiam = false;
+            }
         }
-        const isCanned = /G8[123]/.test(line);
+        if (words.S !== undefined) spindle = words.S;
+        if (words.F !== undefined) feed = words.F;
+        if (mList.indexOf(8) >= 0) coolant = 'M08';
+        if (mList.indexOf(9) >= 0) coolant = 'M09';
+
+        // atualiza modalidade G
+        gList.forEach(g => {
+            if (g === 80) { canned = null; motion = 'rapid'; gModal = 'G80'; }
+            else if (g === 0) { canned = null; motion = 'rapid'; gModal = 'G00'; }
+            else if (g === 1) { canned = null; motion = 'feed'; gModal = 'G01'; }
+            else if (g === 2) { canned = null; motion = 'arc-cw'; gModal = 'G02'; }
+            else if (g === 3) { canned = null; motion = 'arc-ccw'; gModal = 'G03'; }
+            else if (g === 81 || g === 82 || g === 83) {
+                canned = 'G' + g;
+                gModal = canned;
+                if (words.Z !== undefined) cannedZ = words.Z;
+                if (words.R !== undefined) cannedR = words.R;
+            } else if (g === 71 || g === 70 || g === 74 || g === 76) {
+                gModal = 'G' + g;
+            }
+        });
+
         const hasXY = words.X !== undefined || words.Y !== undefined;
+        const hasZ = words.Z !== undefined;
+        const hasIJ = words.I !== undefined || words.J !== undefined;
         const nx = words.X !== undefined ? words.X : x;
         const ny = words.Y !== undefined ? words.Y : y;
         const nz = words.Z !== undefined ? words.Z : z;
-        const rTool = (toolDiam[tool] || 10) / 2;
-
-        const push = (x1, y1, z1, x2, y2, z2, type) => {
-            if (x1 === x2 && y1 === y2 && z1 === z2) return;
-            segs.push({
-                x1: x1, y1: y1, z1: z1, x2: x2, y2: y2, z2: z2,
-                type: type, i: words.I, j: words.J, tool: tool, rTool: rTool,
-                text: String(raw).trim(), line: idx + 1
-            });
+        const baseExtra = {
+            i: words.I, j: words.J,
+            text: (overrideOp ? ('[' + overrideOp + '] ') : '') + String(raw).trim(),
+            line: idx + 1
         };
 
-        if (isCanned && hasXY && words.Z !== undefined) {
-            push(x, y, z, nx, ny, z, 'rapid');
-            push(nx, ny, z, nx, ny, nz, 'feed');
-        } else if (motion.indexOf('arc') === 0) {
-            push(x, y, z, nx, ny, nz, motion);
-        } else {
-            push(x, y, z, nx, ny, nz, motion);
+        // G70 P..Q no torno: repete os blocos do perfil P..Q como passe de acabamento
+        if (gList.indexOf(70) >= 0 && words.P !== undefined && words.Q !== undefined) {
+            const pStart = Math.round(words.P), qEnd = Math.round(words.Q);
+            Object.keys(nBlocks).map(Number).sort((a, b) => a - b).forEach(nNum => {
+                if (nNum >= pStart && nNum <= qEnd) {
+                    processLine(nBlocks[nNum].raw, nBlocks[nNum].idx, 'G70 Acabamento');
+                }
+            });
+            return;
         }
-        x = nx; y = ny; z = nz;
-    });
-    return { segs: segs };
+
+        // G74 no torno: furação axial no centro X=0
+        if (gList.indexOf(74) >= 0 && hasZ) {
+            pushSeg(x, y, z, 0, 0, nz, 'feed', Object.assign({}, baseExtra, { opKind: 'AxialDrill' }));
+            pushSeg(0, 0, nz, 0, 0, 2, 'rapid', Object.assign({}, baseExtra, { opKind: 'Retract' }));
+            x = 0; y = 0; z = 2;
+            return;
+        }
+
+        // G76 no torno: ciclo de rosca (segundo bloco G76 tem X e Z)
+        if (gList.indexOf(76) >= 0 && hasZ && words.X !== undefined) {
+            const pitch = words.F || 1.5;
+            const internal = words.X > x;
+            pushSeg(words.X, 0, z, words.X, 0, nz, 'feed', Object.assign({}, baseExtra, {
+                opKind: internal ? 'ThreadInt' : 'ThreadExt',
+                pitch: pitch, threadDiam: words.X
+            }));
+            pushSeg(words.X, 0, nz, x, 0, 3, 'rapid', baseExtra);
+            z = 3;
+            return;
+        }
+
+        // Ciclo fixo modal de furação (G81/G82/G83)
+        if (canned && (hasXY || hasZ)) {
+            if (words.Z !== undefined) cannedZ = words.Z;
+            if (words.R !== undefined) cannedR = words.R;
+            // 1. posiciona rápido no plano R
+            pushSeg(x, y, z, nx, ny, cannedR, 'rapid', baseExtra);
+            // 2. mergulha furando até cannedZ
+            pushSeg(nx, ny, cannedR, nx, ny, cannedZ, 'feed', Object.assign({}, baseExtra, { opKind: 'Drill' }));
+            // 3. recolhe rápido ao plano R
+            pushSeg(nx, ny, cannedZ, nx, ny, cannedR, 'rapid', Object.assign({}, baseExtra, { opKind: 'Retract' }));
+            x = nx; y = ny; z = cannedR;
+            return;
+        }
+
+        // Interpolação circular (G02/G03), inclusive volta completa (x1==x2 && y1==y2 com I/J)
+        if (motion.indexOf('arc') === 0 && (hasXY || hasZ || hasIJ)) {
+            const rArc = Math.hypot(words.I || 0, words.J || 0);
+            const fullCircle = Math.hypot(nx - x, ny - y) < 0.01 && rArc > 0.1;
+            const arcLen = fullCircle ? (2 * Math.PI * rArc) : Math.max(Math.hypot(nx - x, ny - y, nz - z), rArc);
+            pushSeg(x, y, z, nx, ny, nz, motion, Object.assign({}, baseExtra, {
+                fullCircle: fullCircle, arcLen: arcLen
+            }));
+            x = nx; y = ny; z = nz;
+            return;
+        }
+
+        // Movimento linear / rápido padrão
+        if (hasXY || hasZ) {
+            pushSeg(x, y, z, nx, ny, nz, motion, baseExtra);
+            x = nx; y = ny; z = nz;
+        }
+    };
+
+    rawLines.forEach((raw, idx) => processLine(raw, idx, null));
+    return { segs: segs, ops: ops, toolDiam: toolDiam, toolName: toolName };
 }
 
 function sampleArc(seg) {
@@ -1431,14 +1582,12 @@ function sampleArc(seg) {
     const a1 = Math.atan2(seg.y2 - cy, seg.x2 - cx);
     let da = a1 - a0;
     if (seg.type === 'arc-cw') {
-        while (da > 0) da -= 2 * Math.PI;
-        if (Math.abs(da) < 1e-6) da = -2 * Math.PI;
+        while (da > -1e-6) da -= 2 * Math.PI;
     } else {
-        while (da < 0) da += 2 * Math.PI;
-        if (Math.abs(da) < 1e-6) da = 2 * Math.PI;
+        while (da < 1e-6) da += 2 * Math.PI;
     }
     const pts = [];
-    const steps = Math.max(10, Math.ceil(Math.abs(da) / (Math.PI / 18)));
+    const steps = Math.max(16, Math.ceil(Math.abs(da) / (Math.PI / 24)));
     for (let k = 0; k <= steps; k++) {
         const a = a0 + da * k / steps;
         pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
@@ -1446,13 +1595,19 @@ function sampleArc(seg) {
     return pts;
 }
 
-// Amostra pontos ao longo de um segmento (linha ou arco)
+// Amostra pontos 3D ao longo de um segmento (incluindo interpolação helicoidal em Z!)
 function sampleSeg(seg, step) {
     if (seg.type.indexOf('arc') === 0) {
-        return sampleArc(seg).map(p => ({ x: p[0], y: p[1], z: seg.z2 }));
+        const arcPts = sampleArc(seg);
+        const n = Math.max(arcPts.length - 1, 1);
+        return arcPts.map((p, k) => ({
+            x: p[0],
+            y: p[1],
+            z: seg.z1 + (seg.z2 - seg.z1) * (k / n)
+        }));
     }
-    const dist = Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1);
-    const n = Math.max(1, Math.ceil(dist / step));
+    const dist = Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1, seg.z2 - seg.z1);
+    const n = Math.max(1, Math.ceil(dist / Math.max(step, 0.25)));
     const pts = [];
     for (let k = 0; k <= n; k++) {
         const t = k / n;
@@ -1465,105 +1620,293 @@ function sampleSeg(seg, step) {
     return pts;
 }
 
-// Constrói o modelo do bruto (heightmap) e os segmentos do programa
+// Constrói o modelo 3D do material bruto (heightmap no fresamento | cilindro em revolução no torno)
 function buildSimModel() {
     const part = currentPart();
-    let segs = [];
+    const fState = getFeatureState();
+    const d = getDims();
+    let parsed = { segs: [], ops: [] };
     try {
-        segs = parseToolpath(part.gcode(getDims(), getFeatureState())).segs;
-    } catch (e) { segs = []; }
+        parsed = parseToolpath(part.gcode(d, fState));
+    } catch (e) { parsed = { segs: [], ops: [] }; }
+    const segs = parsed.segs;
     if (!segs.length) return null;
 
     const turning = !!part.isTurning;
-    // limites do percurso
-    let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity, zMin = 0, zMax = 0;
-    segs.forEach(s => {
-        const u1 = turning ? s.z1 : s.x1, u2 = turning ? s.z2 : s.x2;
-        const v1 = turning ? s.x1 : s.y1, v2 = turning ? s.x2 : s.y2;
-        uMin = Math.min(uMin, u1, u2); uMax = Math.max(uMax, u1, u2);
-        vMin = Math.min(vMin, v1, v2); vMax = Math.max(vMax, v1, v2);
-        zMin = Math.min(zMin, s.z1, s.z2); zMax = Math.max(zMax, s.z1, s.z2);
-    });
-
-    const margin = Math.max((uMax - uMin) * 0.06, 3);
-    const stockTop = turning ? (Math.max(vMax, zMax) / 2 + 2) : 2; // torno: raio bruto = maior X/2 + sobra
 
     if (turning) {
-        // torno: i = posição axial (Z), j = lateral; altura = raio
-        const cell = Math.max((uMax - uMin + 2 * margin) / 160, 0.6);
-        const cols = Math.max(20, Math.ceil((uMax - uMin + 2 * margin) / cell));
-        const rows = Math.max(16, Math.ceil((stockTop * 2) / cell));
+        // Limites reais da barra no torno (Z vai de -L até 0 na ponta direita; X é diâmetro)
+        let zMin = -30, maxDiam = 40;
+        segs.forEach(s => {
+            if (s.type !== 'rapid') {
+                zMin = Math.min(zMin, s.z1, s.z2);
+                maxDiam = Math.max(maxDiam, s.x1, s.x2);
+            }
+        });
+        if (d.D) maxDiam = Math.max(maxDiam, d.D);
+        if (d.d1) maxDiam = Math.max(maxDiam, d.d1, d.d2 || 0, d.d3 || 0);
+        if (d.dCab) maxDiam = Math.max(maxDiam, d.dCab, d.dCorpo || 0);
+
+        const partLen = Math.max(Math.abs(zMin), d.L || d.e || ((d.c1 || 0) + (d.c2 || 0) + (d.c3 || 0)) || ((d.cCab || 0) + (d.cCorpo || 0)) || 60);
+        zMin = -partLen;
+        const rStock = Math.round(maxDiam / 2 + 2.5); // raio bruto com sobremetal
+        const cols = 150;
+        const rows = 44;
+        const cell = partLen / cols;
         const H = new Float32Array(cols * rows);
         const mach = new Uint8Array(cols * rows);
-        const r0 = Math.max(vMax / 2, zMax / 2, 1) + 2;
-        for (let i = 0; i < cols * rows; i++) H[i] = r0;
+        const R_ext = new Float32Array(cols);
+        const R_int = new Float32Array(cols);
+        const machExt = new Uint8Array(cols);
+        const machInt = new Uint8Array(cols);
+        const threadPitch = new Float32Array(cols);
+
+        for (let i = 0; i < cols; i++) R_ext[i] = rStock;
+        for (let i = 0; i < cols * rows; i++) H[i] = rStock;
+
         return {
-            kind: 'turning', cols: cols, rows: rows, cell: cell,
-            u0: uMin - margin, v0: -r0, H: H, machined: mach,
-            stockTop: r0, zMin: zMin, segs: segs, applied: 0
+            kind: 'turning', partId: part.id,
+            cols: cols, rows: rows, cell: cell,
+            u0: zMin, v0: -rStock,
+            partLen: partLen, stockTop: rStock, zMin: zMin,
+            H: H, machined: mach,
+            R_ext: R_ext, R_int: R_int, machExt: machExt, machInt: machInt, threadPitch: threadPitch,
+            segs: segs, ops: parsed.ops, applied: 0
         };
     }
 
-    // fresamento: i = X, j = Y; altura = Z (topo do bruto = 2mm acima de Z0)
-    const cell = Math.max((Math.max(uMax - uMin, vMax - vMin) + 2 * margin) / 110, 0.8);
-    const cols = Math.max(20, Math.ceil((uMax - uMin + 2 * margin) / cell));
-    const rows = Math.max(20, Math.ceil((vMax - vMin + 2 * margin) / cell));
+    // FRESAMENTO: determina dimensões reais da peça e do bloco bruto (+sobremetal de 3 mm por lado e +1,5 mm no topo)
+    let partX0 = -70, partX1 = 70, partY0 = -50, partY1 = 50, partThick = 20;
+    if (part.id === 'cunha') {
+        partX0 = 0; partX1 = d.comp || 120;
+        partY0 = 0; partY1 = d.larg || 80;
+        partThick = d.hMax || 40;
+    } else if (part.id === 'flange') {
+        const R = (d.diametro || 120) / 2;
+        partX0 = -R; partX1 = R; partY0 = -R; partY1 = R;
+        partThick = d.espessura || 18;
+    } else {
+        const W = d.largura || d.larg || 140;
+        const Dp = d.comprimento || d.profundidade || d.comp || 100;
+        partX0 = -W / 2; partX1 = W / 2;
+        partY0 = -Dp / 2; partY1 = Dp / 2;
+        partThick = d.espessura || d.altura || d.esp || 20;
+    }
+
+    const stockMargin = 3.5;
+    const u0 = partX0 - stockMargin, u1 = partX1 + stockMargin;
+    const v0 = partY0 - stockMargin, v1 = partY1 + stockMargin;
+    const spanU = u1 - u0, spanV = v1 - v0;
+    const cell = Math.max(Math.max(spanU, spanV) / 92, 0.9);
+    const cols = Math.max(28, Math.ceil(spanU / cell));
+    const rows = Math.max(28, Math.ceil(spanV / cell));
+    const stockTop = 1.5; // +1,5 mm de casca bruta oxidada acima de Z=0
+    const zBottom = -partThick;
+
     const H = new Float32Array(cols * rows);
+    const initH = new Float32Array(cols * rows);
     const mach = new Uint8Array(cols * rows);
-    for (let i = 0; i < cols * rows; i++) H[i] = stockTop;
+
+    // No Suporte em L, a parede traseira (Y >= partY1 - espessuraParede) sobe acima da base
+    const hasWall = part.id === 'suporte-l' && fState.wall && fState.wall.included;
+    const wallEp = hasWall ? (d.espessuraParede || 18) : 0;
+    const wallTop = hasWall ? Math.min(d.altura || 60, partThick * 2.0) : stockTop;
+
+    for (let j = 0; j < rows; j++) {
+        const wy = v0 + (j + 0.5) * cell;
+        for (let i = 0; i < cols; i++) {
+            const wx = u0 + (i + 0.5) * cell;
+            let h0 = stockTop;
+            if (hasWall && wy >= partY1 - wallEp && wy <= partY1 && wx >= partX0 && wx <= partX1) {
+                h0 = wallTop;
+            }
+            const idx = j * cols + i;
+            H[idx] = h0;
+            initH[idx] = h0;
+        }
+    }
+
     return {
-        kind: 'milling', cols: cols, rows: rows, cell: cell,
-        u0: uMin - margin, v0: vMin - margin, H: H, machined: mach,
-        stockTop: stockTop, zMin: Math.min(zMin - 1, -3), segs: segs, applied: 0
+        kind: 'milling', partId: part.id,
+        cols: cols, rows: rows, cell: cell,
+        u0: u0, v0: v0,
+        partX0: partX0, partX1: partX1, partY0: partY0, partY1: partY1,
+        stockTop: stockTop, zBottom: zBottom, zMin: zBottom,
+        hasWall: hasWall, wallEp: wallEp, wallTop: wallTop, wallHoleR: 0,
+        H: H, initH: initH, machined: mach,
+        segs: segs, ops: parsed.ops, applied: 0
     };
+}
+
+function resetSimModel(model) {
+    if (!model) return;
+    if (model.kind === 'turning') {
+        model.R_ext.fill(model.stockTop);
+        model.R_int.fill(0);
+        model.machExt.fill(0);
+        model.machInt.fill(0);
+        model.threadPitch.fill(0);
+        model.H.fill(model.stockTop);
+        model.machined.fill(0);
+    } else {
+        model.H.set(model.initH);
+        model.machined.fill(0);
+        model.wallHoleR = 0;
+    }
+    model.applied = 0;
 }
 
 // Aplica a remoção de material dos segmentos [de..ate[
 function applyRemoval(model, de, ate) {
     if (!model) return;
     const { cols, rows, cell, H, machined, kind } = model;
+
     for (let s = de; s < ate; s++) {
         const seg = model.segs[s];
         if (!seg || seg.type === 'rapid') continue;
-        const step = Math.max(cell * 0.6, 0.4);
-        const pts = sampleSeg(seg, step);
-        const rTool = Math.max(seg.rTool || 5, 0.5);
-        pts.forEach(p => {
-            if (kind === 'turning') {
-                // torno: corta raio na posição axial
-                const rCut = Math.max(p.x / 2, 0.2);
-                const i0 = Math.round((p.y - model.u0) / cell);
-                const j0 = Math.round((p.x / 2 - model.v0) / cell);
-                const wi = Math.max(1, Math.round(2.2 / cell));
-                for (let i = Math.max(0, i0 - wi); i <= Math.min(cols - 1, i0 + wi); i++) {
-                    for (let j = 0; j < rows; j++) {
-                        const idx = j * cols + i;
-                        if (H[idx] > rCut) {
-                            H[idx] = rCut;
-                            machined[idx] = 1;
-                        }
+
+        if (kind === 'turning') {
+            // TORNEAMENTO: Z é o eixo axial (seg.z1..seg.z2), X é o diâmetro (seg.x1..seg.x2)
+            const zA = Math.min(seg.z1, seg.z2), zB = Math.max(seg.z1, seg.z2);
+            const iA = Math.max(0, Math.floor((zA - model.u0) / cell));
+            const iB = Math.min(cols - 1, Math.ceil((zB - model.u0) / cell));
+
+            if (seg.opKind === 'AxialDrill') {
+                // Furação central G74
+                const rDrill = Math.max(seg.rTool || 8, 2);
+                for (let i = iA; i <= iB; i++) {
+                    if (model.R_int[i] < rDrill) {
+                        model.R_int[i] = rDrill;
+                        model.machInt[i] = 1;
                     }
                 }
-                void j0;
+            } else if (seg.opKind === 'ThreadInt') {
+                const rThread = Math.max((seg.threadDiam || 20) / 2, 2);
+                for (let i = iA; i <= iB; i++) {
+                    model.R_int[i] = Math.max(model.R_int[i], rThread - 0.5);
+                    model.machInt[i] = 3;
+                    model.threadPitch[i] = seg.pitch || 1.5;
+                }
+            } else if (seg.opKind === 'ThreadExt') {
+                const rThread = Math.max((seg.threadDiam || 18.4) / 2, 2);
+                for (let i = iA; i <= iB; i++) {
+                    model.R_ext[i] = Math.min(model.R_ext[i], rThread + 0.4);
+                    model.machExt[i] = 3;
+                    model.threadPitch[i] = seg.pitch || 1.5;
+                }
+            } else if (/MANDRIL/i.test(seg.opName) || /MANDRIL/i.test(seg.text)) {
+                const rBore = Math.max(Math.max(seg.x1, seg.x2) / 2, 2);
+                for (let i = iA; i <= iB; i++) {
+                    if (model.R_int[i] < rBore) {
+                        model.R_int[i] = rBore;
+                        model.machInt[i] = 2;
+                    }
+                }
             } else {
-                // fresamento: remove tudo acima da Z da ferramenta no raio de corte
-                const ci = Math.round((p.x - model.u0) / cell);
-                const cj = Math.round((p.y - model.v0) / cell);
-                const rc = Math.ceil(rTool / cell);
-                for (let j = Math.max(0, cj - rc); j <= Math.min(rows - 1, cj + rc); j++) {
-                    for (let i = Math.max(0, ci - rc); i <= Math.min(cols - 1, ci + rc); i++) {
-                        const dx = (i - ci) * cell, dy = (j - cj) * cell;
-                        if (dx * dx + dy * dy <= rTool * rTool) {
-                            const idx = j * cols + i;
-                            if (H[idx] > p.z) {
-                                H[idx] = p.z;
-                                machined[idx] = 1;
-                            }
+                // Desbaste / acabamento externo / ranhura / chanfro
+                const dz = seg.z2 - seg.z1;
+                const isGroove = /RASGO|RANHUR|CORTE RADIAL/i.test(seg.opName + ' ' + seg.text);
+                const wIdx = isGroove ? Math.max(1, Math.round(1.6 / cell)) : 0;
+                for (let i = Math.max(0, iA - wIdx); i <= Math.min(cols - 1, iB + wIdx); i++) {
+                    const zSlice = model.u0 + (i + 0.5) * cell;
+                    const t = Math.abs(dz) > 0.05 ? Math.min(Math.max((zSlice - seg.z1) / dz, 0), 1) : 1;
+                    const dAt = seg.x1 + (seg.x2 - seg.x1) * t;
+                    const rCut = Math.max(dAt / 2, 0.5);
+                    if (rCut < model.R_ext[i] + 0.05) {
+                        model.R_ext[i] = Math.min(model.R_ext[i], rCut);
+                        model.machExt[i] = (isGroove || Math.abs(seg.x2 - seg.x1) > 0.2) ? 2 : 1;
+                    }
+                }
+            }
+            // Sincroniza H e machined para compatibilidade com métricas e testes
+            for (let i = 0; i < cols; i++) {
+                const rE = model.R_ext[i];
+                const mFlag = (model.machExt[i] || model.machInt[i]) ? 1 : 0;
+                for (let j = 0; j < rows; j++) {
+                    const idx = j * cols + i;
+                    H[idx] = rE;
+                    if (mFlag) machined[idx] = 1;
+                }
+            }
+            continue;
+        }
+
+        // FRESAMENTO
+        // Caso especial: furo horizontal na parede traseira do Suporte em L
+        if (model.hasWall && /FURO PAREDE/i.test(seg.opName)) {
+            model.wallHoleR = Math.max(seg.rTool || 10, 4);
+            continue;
+        }
+
+        const isFace = /FACEAMENTO/i.test(seg.opName) || seg.tool === 1;
+        const isChamfer = /CHANFRO/i.test(seg.opName) || /CHANFRO/i.test(seg.toolDesc);
+        const isContour = /CONTORNO/i.test(seg.opName);
+        const rTool = Math.max(seg.rTool || 6, 1.5);
+        const step = Math.max(cell * 0.55, 0.45);
+        const pts = sampleSeg(seg, step);
+
+        pts.forEach(p => {
+            if (p.z > model.stockTop + 0.2) return; // acima do bruto (no ar)
+            const ci = Math.round((p.x - model.u0) / cell);
+            const cj = Math.round((p.y - model.v0) / cell);
+            const rc = Math.ceil(rTool / cell);
+
+            for (let j = Math.max(0, cj - rc); j <= Math.min(rows - 1, cj + rc); j++) {
+                const wy = model.v0 + (j + 0.5) * cell;
+                for (let i = Math.max(0, ci - rc); i <= Math.min(cols - 1, ci + rc); i++) {
+                    const wx = model.u0 + (i + 0.5) * cell;
+                    const dx = (i - ci) * cell, dy = (j - cj) * cell;
+                    if (dx * dx + dy * dy > rTool * rTool) continue;
+                    const idx = j * cols + i;
+
+                    // No Suporte em L, preserva a parede traseira durante o faceamento da base
+                    if (model.hasWall && isFace && wy >= model.partY1 - model.wallEp &&
+                        wx >= model.partX0 && wx <= model.partX1) {
+                        if (machined[idx] === 0) machined[idx] = 1;
+                        continue;
+                    }
+
+                    // Durante contorno externo, o centro da fresa na prática corre deslocado por rTool fora da borda
+                    if (isContour) {
+                        const insidePart = model.partId === 'flange'
+                            ? (Math.hypot(wx, wy) <= model.partX1 - 0.8)
+                            : (wx >= model.partX0 + 0.8 && wx <= model.partX1 - 0.8 &&
+                               wy >= model.partY0 + 0.8 && wy <= model.partY1 - 0.8);
+                        if (insidePart) continue;
+                    }
+
+                    const zTarget = Math.max(p.z, model.zBottom);
+                    if (H[idx] > zTarget - 0.02) {
+                        H[idx] = zTarget;
+                        if (zTarget <= model.zBottom + 0.25 && !isContour) {
+                            machined[idx] = 4; // furo vazado passante
+                        } else if (isChamfer) {
+                            machined[idx] = 3; // chanfro biselado
+                        } else if (zTarget < -0.25) {
+                            machined[idx] = 2; // cavidade / rebaixo / contorno
+                        } else {
+                            machined[idx] = Math.max(machined[idx], 1); // faceado Z=0
                         }
                     }
                 }
             }
         });
+
+        // Se o contorno circular completo do Flange terminou até a base, destaca o disco removendo o retalho externo
+        if (isContour && model.partId === 'flange' && seg.fullCircle && seg.z2 <= model.zBottom + 1) {
+            const R = model.partX1;
+            for (let j = 0; j < rows; j++) {
+                const wy = model.v0 + (j + 0.5) * cell;
+                for (let i = 0; i < cols; i++) {
+                    const wx = model.u0 + (i + 0.5) * cell;
+                    if (Math.hypot(wx, wy) > R + 0.4) {
+                        const idx = j * cols + i;
+                        H[idx] = model.zBottom;
+                        machined[idx] = 4;
+                    }
+                }
+            }
+        }
     }
     model.applied = ate;
 }
@@ -1572,20 +1915,37 @@ function simMachinedCount() {
     const m = app.simModel;
     if (!m) return 0;
     let n = 0;
-    for (let i = 0; i < m.machined.length; i++) n += m.machined[i];
+    for (let i = 0; i < m.machined.length; i++) if (m.machined[i] > 0) n++;
     return n;
 }
 
-// ----- renderização em canvas (3 vistas) -----
+// ----- Paleta industrial das 3 vistas -----
 const SIM_COLORS = {
-    bg: '#0E1621',
-    rawTop: '#6E6250',
-    rawWall: '#4C4335',
-    cutTop: '#79C0CC',
-    cutWall: '#3E7180',
-    pathRapid: '#5A6F85',
+    bg: '#0B121B',
+    bgTop: '#132030',
+    grid: 'rgba(111, 211, 224, 0.07)',
+    rawTop: '#8A7559',
+    rawSideX: '#685740',
+    rawSideY: '#504230',
+    facedTop: '#8BD4E2',
+    facedSideX: '#5CA5B5',
+    facedSideY: '#448291',
+    cutTop: '#4CA6B8',
+    cutSideX: '#377E8F',
+    cutSideY: '#285F6E',
+    chamferTop: '#FFB067',
+    sectionFill: '#3B6E7C',
+    sectionStroke: '#FF9F5A',
+    viseBody: '#253342',
+    viseJaw: '#374B61',
+    pathRapid: 'rgba(143, 160, 179, 0.65)',
     pathFeed: '#FF7A3D',
-    tool: '#6FD3E0'
+    pathDone: 'rgba(255, 122, 61, 0.85)',
+    pathFuture: 'rgba(111, 211, 224, 0.16)',
+    toolBody: '#D4E4EE',
+    toolFlute: '#6FD3E0',
+    toolHolder: '#2D3B4A',
+    insertGold: '#F5C542'
 };
 
 function simCtx(id) {
@@ -1595,169 +1955,737 @@ function simCtx(id) {
         const ctx = c.getContext('2d');
         return ctx ? { canvas: c, ctx: ctx } : null;
     } catch (e) {
-        return null; // ambientes sem canvas (testes) — renderização é opcional
+        return null;
     }
 }
 
+// Cor do topo de uma célula conforme estado (bruto, faceado, cavidade por profundidade, chanfro)
+function cellTopColor(model, idx, h) {
+    const st = model.machined[idx];
+    if (st === 0) return SIM_COLORS.rawTop;
+    if (st === 3) return SIM_COLORS.chamferTop;
+    if (st === 1 && h >= -0.3) return SIM_COLORS.facedTop;
+    const depthFrac = Math.min(Math.max(Math.abs(h) / Math.max(Math.abs(model.zBottom), 1), 0), 1);
+    const r = Math.round(115 - depthFrac * 55);
+    const g = Math.round(198 - depthFrac * 68);
+    const b = Math.round(214 - depthFrac * 62);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function cellSideColor(model, idx, h, isXWall, isSection) {
+    if (isSection) return SIM_COLORS.sectionFill;
+    const st = model.machined[idx];
+    if (st === 0) return isXWall ? SIM_COLORS.rawSideX : SIM_COLORS.rawSideY;
+    return isXWall ? SIM_COLORS.cutSideX : SIM_COLORS.cutSideY;
+}
+
+// ============================================================
+// VISTA 1: 3D ISOMÉTRICA INTERATIVA (Fresamento + Torno)
+// ============================================================
 function renderSim3D(model) {
     const pair = simCtx('sim3d');
     if (!pair || !pair.ctx || !model) return;
+    ensureSimViewState();
     const ctx = pair.ctx, W = pair.canvas.width, Hc = pair.canvas.height;
-    const { cols, rows, cell, H, machined, kind } = model;
-    ctx.fillStyle = SIM_COLORS.bg;
+
+    // Fundo de estúdio CAD com gradiente radial
+    const bgGrad = ctx.createRadialGradient(W * 0.5, Hc * 0.45, 20, W * 0.5, Hc * 0.5, W * 0.65);
+    bgGrad.addColorStop(0, SIM_COLORS.bgTop);
+    bgGrad.addColorStop(1, SIM_COLORS.bg);
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, Hc);
 
-    const s = Math.min(W / ((cols + rows) * cell * 0.9), Hc / ((cols + rows) * cell * 0.55 + model.stockTop * 1.6));
-    const ox = W / 2, oy = Hc * 0.72;
-    const px = (wx, wy) => ox + (wx - wy) * 0.866 * s;
-    const py = (wx, wy, wz) => oy + (wx + wy) * 0.5 * s - wz * s;
+    if (model.kind === 'turning') {
+        renderSim3DTurning(ctx, W, Hc, model);
+        return;
+    }
 
-    const quad = (a, b, c2, d2, fill) => {
+    const { cols, rows, cell, H, machined } = model;
+    const cam = app.simCam;
+    const cosY = Math.cos(cam.yaw), sinY = Math.sin(cam.yaw);
+    const sinP = Math.sin(cam.pitch), cosP = Math.cos(cam.pitch);
+
+    const spanX = cols * cell, spanY = rows * cell, spanZ = (model.hasWall ? model.wallTop : model.stockTop) - model.zBottom;
+    const baseScale = Math.min(W / (Math.hypot(spanX, spanY) * 1.18), Hc / (Math.hypot(spanX, spanY) * 0.68 + spanZ * 1.35));
+    const s = baseScale * cam.zoom;
+    const cxWorld = model.u0 + spanX / 2;
+    const cyWorld = model.v0 + spanY / 2;
+    const czWorld = (model.stockTop + model.zBottom) / 2;
+    const ox = W * 0.5, oy = Hc * 0.60;
+
+    const proj = (wx, wy, wz) => {
+        const dx = wx - cxWorld, dy = wy - cyWorld, dz = wz - czWorld;
+        const rx = dx * cosY - dy * sinY;
+        const ry = dx * sinY + dy * cosY;
+        return [
+            ox + rx * s,
+            oy + ry * sinP * s - dz * cosP * s
+        ];
+    };
+
+    // Grade sutil da mesa da máquina sob a peça
+    ctx.strokeStyle = SIM_COLORS.grid;
+    ctx.lineWidth = 1;
+    const gStep = Math.max(20, Math.round(spanX / 6 / 10) * 10);
+    for (let gx = -3; gx <= 3; gx++) {
+        const p1 = proj(cxWorld + gx * gStep, cyWorld - spanY * 0.75, model.zBottom - 6);
+        const p2 = proj(cxWorld + gx * gStep, cyWorld + spanY * 0.75, model.zBottom - 6);
+        ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+    }
+    for (let gy = -3; gy <= 3; gy++) {
+        const p1 = proj(cxWorld - spanX * 0.75, cyWorld + gy * gStep, model.zBottom - 6);
+        const p2 = proj(cxWorld + spanX * 0.75, cyWorld + gy * gStep, model.zBottom - 6);
+        ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+    }
+
+    const quad = (a, b, c2, d2, fill, stroke) => {
         ctx.fillStyle = fill;
         ctx.beginPath();
         ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c2[0], c2[1]); ctx.lineTo(d2[0], d2[1]);
         ctx.closePath();
         ctx.fill();
+        if (stroke) {
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+        }
     };
 
-    for (let sum = 0; sum < cols + rows; sum++) {
-        for (let i = Math.max(0, sum - rows + 1); i <= Math.min(cols - 1, sum); i++) {
-            const j = sum - i;
-            const idx = j * cols + i;
-            if (kind === 'turning') {
-                const r = H[idx];
-                const wyMax = model.v0 + j * cell + cell / 2;
-                if (Math.abs(wyMax) > r + cell) continue; // fora da silhueta
-            }
-            const h = H[idx];
-            const wx = model.u0 + i * cell, wy = model.v0 + j * cell;
-            const hR = (i < cols - 1) ? H[idx + 1] : h;
-            const hF = (j < rows - 1) ? H[idx + cols] : h;
-            const top = machined[idx] ? SIM_COLORS.cutTop : SIM_COLORS.rawTop;
-            const wall = machined[idx] ? SIM_COLORS.cutWall : SIM_COLORS.rawWall;
+    // Base da morsa sob o bloco
+    const vz0 = model.zBottom - 6, vz1 = model.zBottom;
+    quad(proj(model.u0 + 6, model.v0 - 4, vz0), proj(model.u0 + spanX - 6, model.v0 - 4, vz0),
+         proj(model.u0 + spanX - 6, model.v0 - 4, vz1), proj(model.u0 + 6, model.v0 - 4, vz1), SIM_COLORS.viseJaw);
 
-            // topo
-            quad(
-                [px(wx, wy), py(wx, wy, h)],
-                [px(wx + cell, wy), py(wx + cell, wy, h)],
-                [px(wx + cell, wy + cell), py(wx + cell, wy + cell, h)],
-                [px(wx, wy + cell), py(wx, wy + cell, h)],
-                top
-            );
-            // parede direita (vizinho mais baixo)
-            if (hR < h) {
+    // Ordenação pintor (back-to-front) conforme a direção da câmera
+    const iDir = sinY >= 0 ? 1 : -1;
+    const jDir = cosY >= 0 ? 1 : -1;
+    const iStart = iDir > 0 ? 0 : cols - 1;
+    const jStart = jDir > 0 ? 0 : rows - 1;
+    const cutRowLimit = app.simSectionCut ? Math.floor(rows * 0.48) : -1;
+
+    for (let jj = 0; jj < rows; jj++) {
+        const j = jStart + jj * jDir;
+        if (app.simSectionCut && j < cutRowLimit) continue; // meio-corte A-A remove metade frontal
+        const wy = model.v0 + j * cell;
+        for (let ii = 0; ii < cols; ii++) {
+            const i = iStart + ii * iDir;
+            const idx = j * cols + i;
+            if (machined[idx] === 4) continue; // vazado (furo passante ou retalho externo)
+
+            const wx = model.u0 + i * cell;
+            // Furo horizontal na parede do Suporte em L
+            if (model.hasWall && model.wallHoleR > 0 && wy >= model.partY1 - model.wallEp - cell) {
+                if (Math.abs(wx) < model.wallHoleR * 0.85) continue;
+            }
+
+            const h = H[idx];
+            if (h <= model.zBottom + 0.05) continue;
+
+            const p00t = proj(wx, wy, h);
+            const p10t = proj(wx + cell, wy, h);
+            const p11t = proj(wx + cell, wy + cell, h);
+            const p01t = proj(wx, wy + cell, h);
+
+            // Topo da célula
+            quad(p00t, p10t, p11t, p01t, cellTopColor(model, idx, h));
+
+            // Face na direção X visível pela câmera
+            const ni = i + iDir;
+            let hNx = model.zBottom;
+            if (ni >= 0 && ni < cols && !(app.simSectionCut && j < cutRowLimit)) {
+                const nIdx = j * cols + ni;
+                if (machined[nIdx] !== 4) hNx = H[nIdx];
+            }
+            if (h > hNx + 0.05) {
+                const xEdge = iDir > 0 ? wx + cell : wx;
                 quad(
-                    [px(wx + cell, wy), py(wx + cell, wy, h)],
-                    [px(wx + cell, wy + cell), py(wx + cell, wy + cell, h)],
-                    [px(wx + cell, wy + cell), py(wx + cell, wy + cell, hR)],
-                    [px(wx + cell, wy), py(wx + cell, wy, hR)],
-                    wall
+                    proj(xEdge, wy, h), proj(xEdge, wy + cell, h),
+                    proj(xEdge, wy + cell, hNx), proj(xEdge, wy, hNx),
+                    cellSideColor(model, idx, h, true, false)
                 );
             }
-            // parede frontal
-            if (hF < h) {
+
+            // Face na direção Y visível pela câmera (ou plano do Meio-Corte A-A!)
+            const nj = j + jDir;
+            const isSectionPlane = app.simSectionCut && ((jDir < 0 && j === cutRowLimit) || (jDir > 0 && nj < cutRowLimit));
+            let hNy = model.zBottom;
+            if (!isSectionPlane && nj >= 0 && nj < rows && !(app.simSectionCut && nj < cutRowLimit)) {
+                const nIdx = nj * cols + i;
+                if (machined[nIdx] !== 4) hNy = H[nIdx];
+            }
+            if (h > hNy + 0.05) {
+                const yEdge = jDir > 0 ? wy + cell : wy;
                 quad(
-                    [px(wx, wy + cell), py(wx, wy + cell, h)],
-                    [px(wx + cell, wy + cell), py(wx + cell, wy + cell, h)],
-                    [px(wx + cell, wy + cell), py(wx + cell, wy + cell, hF)],
-                    [px(wx, wy + cell), py(wx, wy + cell, hF)],
-                    wall
+                    proj(wx, yEdge, h), proj(wx + cell, yEdge, h),
+                    proj(wx + cell, yEdge, hNy), proj(wx, yEdge, hNy),
+                    cellSideColor(model, idx, h, false, isSectionPlane),
+                    isSectionPlane && (i % 3 === 0) ? SIM_COLORS.sectionStroke : null
                 );
             }
         }
     }
+
+    // Eixos da origem G54 (X vermelho, Y verde, Z azul)
+    const o0 = proj(0, 0, model.stockTop + 0.5);
+    const oxAxis = proj(22, 0, model.stockTop + 0.5);
+    const oyAxis = proj(0, 22, model.stockTop + 0.5);
+    const ozAxis = proj(0, 0, model.stockTop + 22);
+    const drawAxis = (pEnd, col, lbl) => {
+        ctx.strokeStyle = col; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(o0[0], o0[1]); ctx.lineTo(pEnd[0], pEnd[1]); ctx.stroke();
+        ctx.fillStyle = col; ctx.font = 'bold 10px JetBrains Mono, monospace';
+        ctx.fillText(lbl, pEnd[0] + 3, pEnd[1] - 2);
+    };
+    drawAxis(oxAxis, '#FF6B6B', 'X');
+    drawAxis(oyAxis, '#5FD98A', 'Y');
+    drawAxis(ozAxis, '#6FD3E0', 'Z');
+
+    // Percurso 3D sobreposto
+    const upto = Math.min(app.simIndex == null ? model.segs.length : app.simIndex, model.segs.length);
+    if (app.simShowPath && upto > 0) {
+        for (let si = 0; si < upto; si++) {
+            const seg = model.segs[si];
+            const isRecent = si >= upto - 8;
+            ctx.strokeStyle = seg.type === 'rapid'
+                ? 'rgba(143, 160, 179, 0.35)'
+                : (isRecent ? '#FF9F5A' : 'rgba(255, 122, 61, 0.55)');
+            ctx.lineWidth = isRecent && seg.type !== 'rapid' ? 2.0 : 1.1;
+            if (seg.type === 'rapid') ctx.setLineDash([4, 4]);
+            else ctx.setLineDash([]);
+            ctx.beginPath();
+            const pts = seg.type.indexOf('arc') === 0 ? sampleSeg(seg, 3) : [
+                { x: seg.x1, y: seg.y1, z: Math.min(seg.z1, 18) },
+                { x: seg.x2, y: seg.y2, z: Math.min(seg.z2, 18) }
+            ];
+            pts.forEach((p, k) => {
+                const sp = proj(p.x, p.y, Math.min(p.z, 18));
+                if (k === 0) ctx.moveTo(sp[0], sp[1]);
+                else ctx.lineTo(sp[0], sp[1]);
+            });
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+    }
+
+    // Ferramenta 3D (fresa/broca + porta-ferramentas BT40 + efeito de corte)
+    if (app.simShowTool && model.segs.length > 0) {
+        const cur = upto > 0 ? model.segs[upto - 1] : model.segs[0];
+        const tx = upto > 0 ? cur.x2 : cur.x1;
+        const ty = upto > 0 ? cur.y2 : cur.y1;
+        const tz = Math.min(upto > 0 ? cur.z2 : cur.z1, 22);
+        const rT = Math.max(cur.rTool || 6, 3);
+        const tip = proj(tx, ty, tz);
+        const shankTop = proj(tx, ty, tz + 28);
+        const holderTop = proj(tx, ty, tz + 48);
+        const radPx = Math.max(rT * s * 0.72, 4);
+
+        // Halo / cavacos quando está em corte
+        if (upto > 0 && cur.type !== 'rapid' && tz <= model.stockTop + 0.5) {
+            const glow = ctx.createRadialGradient(tip[0], tip[1], 1, tip[0], tip[1], radPx * 2.2);
+            glow.addColorStop(0, 'rgba(255, 160, 70, 0.85)');
+            glow.addColorStop(1, 'rgba(255, 122, 61, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(tip[0], tip[1], radPx * 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Corpo da fresa/broca
+        ctx.fillStyle = SIM_COLORS.toolBody;
+        ctx.strokeStyle = SIM_COLORS.toolFlute;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(tip[0] - radPx, tip[1]);
+        ctx.lineTo(shankTop[0] - radPx, shankTop[1]);
+        ctx.lineTo(shankTop[0] + radPx, shankTop[1]);
+        ctx.lineTo(tip[0] + radPx, tip[1]);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Cone porta-ferramenta BT40
+        const hRad = Math.max(radPx * 1.55, 9);
+        ctx.fillStyle = SIM_COLORS.toolHolder;
+        ctx.strokeStyle = '#6FD3E0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(shankTop[0] - hRad, shankTop[1]);
+        ctx.lineTo(holderTop[0] - hRad * 1.2, holderTop[1]);
+        ctx.lineTo(holderTop[0] + hRad * 1.2, holderTop[1]);
+        ctx.lineTo(shankTop[0] + hRad, shankTop[1]);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Ponta / centro da ferramenta
+        ctx.fillStyle = SIM_COLORS.toolFlute;
+        ctx.beginPath();
+        ctx.arc(tip[0], tip[1], Math.min(radPx, 6), 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Legenda sobreposta no canto da vista 3D
+    ctx.fillStyle = 'rgba(231, 236, 242, 0.85)';
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.fillText(
+        (app.simSectionCut ? '🔪 MEIO-CORTE A-A ATIVO · ' : '') +
+        'BLOCO BRUTO → USINADO (arraste para girar)',
+        14, 22
+    );
 }
 
+// Renderização 3D específica para Torneamento (cilindro em revolução + placa de 3 castanhas)
+function renderSim3DTurning(ctx, W, Hc, model) {
+    ensureSimViewState();
+    const { cols, cell, R_ext, R_int, machExt, machInt, threadPitch } = model;
+    const cam = app.simCam;
+    const s = Math.min((W - 140) / (model.partLen * 1.15), (Hc - 100) / (model.stockTop * 2.5)) * cam.zoom;
+    const tilt = 0.34 * Math.cos(cam.yaw + 0.68); // inclinação isométrica dos anéis
+    const pitchY = 0.16 * Math.sin(cam.pitch - 0.58);
+    const ox = W * 0.25, oy = Hc * 0.52;
+
+    const ringPt = (zVal, r, ang) => {
+        const dz = zVal - model.u0; // 0 na placa (esquerda) -> partLen na ponta (direita)
+        const cx = ox + dz * s;
+        const cy = oy + dz * pitchY * s;
+        return [
+            cx + Math.cos(ang) * r * tilt * s,
+            cy - Math.sin(ang) * r * s
+        ];
+    };
+
+    // 1. Placa de 3 castanhas (Chuck) à esquerda
+    const rChuck = model.stockTop * 1.32;
+    for (let c = -28; c <= 0; c += 4) {
+        const cx = ox + c * s * 0.8;
+        ctx.fillStyle = c === 0 ? '#2D3C4E' : '#1F2A38';
+        ctx.strokeStyle = '#3E526A';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(cx, oy, Math.max(Math.abs(rChuck * tilt * s), 8), rChuck * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+    // 3 castanhas
+    [0.4, 2.5, 4.6].forEach(ang => {
+        const p1 = ringPt(model.u0, model.stockTop * 0.98, ang);
+        const p2 = ringPt(model.u0 - 10, rChuck * 0.95, ang);
+        ctx.strokeStyle = '#6FD3E0';
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+    });
+
+    // 2. Fatias axiais do cilindro (da esquerda na placa até a ponta direita Z=0)
+    const hasCutaway = app.simSectionCut || model.R_int[Math.floor(cols / 2)] > 0.5;
+    const aSteps = 24;
+    for (let i = 0; i < cols; i += 2) {
+        const iNext = Math.min(i + 2, cols - 1);
+        const z1 = model.u0 + i * cell, z2 = model.u0 + (iNext + 1) * cell;
+        let rE = R_ext[i];
+        const rI = R_int[i];
+        const mE = machExt[i];
+        if (mE === 3 && threadPitch[i] > 0) {
+            rE -= (i % 4 < 2) ? 0.8 : 0; // dentes visíveis da rosca externa
+        }
+
+        for (let k = 0; k < aSteps; k++) {
+            const a0 = (k / aSteps) * Math.PI * 2;
+            const a1 = ((k + 1) / aSteps) * Math.PI * 2;
+            const aMid = (a0 + a1) / 2;
+            // Se Meio-Corte ativo (ou peça com furo interno), abre janela frontal (-45° a +55°)
+            if (hasCutaway && aMid > -0.65 && aMid < 0.85) continue;
+            // Desenha apenas o hemisfério visível
+            if (Math.cos(aMid - 0.35) < -0.25 && !hasCutaway) continue;
+
+            const light = 0.55 + 0.42 * Math.sin(aMid + 0.5);
+            let col;
+            if (mE === 0) {
+                col = 'rgb(' + Math.round(138 * light) + ',' + Math.round(115 * light) + ',' + Math.round(86 * light) + ')';
+            } else if (mE === 3) {
+                col = 'rgb(' + Math.round(235 * light) + ',' + Math.round(180 * light) + ',' + Math.round(95 * light) + ')';
+            } else {
+                col = 'rgb(' + Math.round(115 * light) + ',' + Math.round(196 * light) + ',' + Math.round(214 * light) + ')';
+            }
+            const pA = ringPt(z1, rE, a0), pB = ringPt(z2, rE, a0);
+            const pC = ringPt(z2, rE, a1), pD = ringPt(z1, rE, a1);
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.moveTo(pA[0], pA[1]); ctx.lineTo(pB[0], pB[1]);
+            ctx.lineTo(pC[0], pC[1]); ctx.lineTo(pD[0], pD[1]);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Parede interna (furo / mandrilamento / rosca interna) visível pela janela de corte
+        if (hasCutaway && rI > 0.5) {
+            let rIn = rI;
+            if (machInt[i] === 3 && (i % 4 < 2)) rIn += 0.65;
+            const p1 = ringPt(z1, rIn, 0.85), p2 = ringPt(z2, rIn, 0.85);
+            const p3 = ringPt(z2, rIn, -0.65), p4 = ringPt(z1, rIn, -0.65);
+            ctx.fillStyle = machInt[i] === 3 ? '#B88946' : '#295766';
+            ctx.beginPath();
+            ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]);
+            ctx.lineTo(p3[0], p3[1]); ctx.lineTo(p4[0], p4[1]);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // 3. Ferramenta de torneamento (suporte + pastilha diamantada dourada)
+    const upto = Math.min(app.simIndex == null ? model.segs.length : app.simIndex, model.segs.length);
+    if (app.simShowTool && model.segs.length > 0) {
+        const cur = upto > 0 ? model.segs[upto - 1] : model.segs[0];
+        const tz = Math.min(Math.max(upto > 0 ? cur.z2 : cur.z1, model.u0), 6);
+        const tr = Math.min(Math.max((upto > 0 ? cur.x2 : cur.x1) / 2, 0), model.stockTop + 6);
+        const tip = ringPt(tz, tr, Math.PI / 2);
+
+        if (upto > 0 && cur.type !== 'rapid') {
+            ctx.fillStyle = 'rgba(255, 165, 70, 0.75)';
+            ctx.beginPath(); ctx.arc(tip[0], tip[1], 9, 0, Math.PI * 2); ctx.fill();
+        }
+        // Pastilha diamantada
+        ctx.fillStyle = SIM_COLORS.insertGold;
+        ctx.strokeStyle = '#1A1408';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(tip[0], tip[1]);
+        ctx.lineTo(tip[0] - 8, tip[1] - 12);
+        ctx.lineTo(tip[0] + 8, tip[1] - 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Suporte porta-ferramenta
+        ctx.fillStyle = SIM_COLORS.toolHolder;
+        ctx.fillRect(tip[0] - 6, tip[1] - 42, 14, 30);
+    }
+
+    ctx.fillStyle = 'rgba(231, 236, 242, 0.85)';
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.fillText('TORNO CNC 3D · PLACA DE 3 CASTANHAS + BARRA EM REVOLUÇÃO', 14, 22);
+}
+
+// ============================================================
+// VISTA 2: SUPERIOR / PLANTA (X×Y no Fresamento | Z×ØX no Torno)
+// ============================================================
 function renderSimTop(model) {
     const pair = simCtx('simTop');
     if (!pair || !pair.ctx || !model) return;
+    ensureSimViewState();
     const ctx = pair.ctx, W = pair.canvas.width, Hc = pair.canvas.height;
     const { cols, rows, cell, H, machined, kind } = model;
     ctx.fillStyle = SIM_COLORS.bg;
     ctx.fillRect(0, 0, W, Hc);
-    const s = Math.min((W - 30) / (cols * cell), (Hc - 30) / (rows * cell));
-    const ox = 15, oy = 15;
+
+    const topTitle = $('#simTopTitle');
+    if (topTitle) {
+        topTitle.innerHTML = kind === 'turning'
+            ? '⬛ Vista longitudinal (Z × ØX) <span class="sim-hint">perfil + furo em corte</span>'
+            : '⬛ Vista superior (X × Y) <span class="sim-hint">planta + percurso</span>';
+    }
+
+    if (kind === 'turning') {
+        const s = Math.min((W - 56) / model.partLen, (Hc - 48) / (model.stockTop * 2.2));
+        const ox = 36, cy = Hc / 2;
+
+        // Contorno tracejado da barra bruta original
+        ctx.strokeStyle = 'rgba(138, 117, 89, 0.55)';
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(ox, cy - model.stockTop * s, model.partLen * s, model.stockTop * 2 * s);
+        ctx.setLineDash([]);
+
+        // Fatias do perfil torneado (simétrico superior e inferior)
+        for (let i = 0; i < cols; i++) {
+            const xPx = ox + i * cell * s;
+            const wPx = Math.ceil(cell * s) + 1;
+            const rE = model.R_ext[i], rI = model.R_int[i];
+            ctx.fillStyle = model.machExt[i] === 0 ? SIM_COLORS.rawTop
+                : (model.machExt[i] === 3 ? SIM_COLORS.chamferTop : SIM_COLORS.cutTop);
+            ctx.fillRect(xPx, cy - rE * s, wPx, (rE - rI) * s);
+            ctx.fillRect(xPx, cy + rI * s, wPx, (rE - rI) * s);
+            if (rI > 0.3) {
+                ctx.fillStyle = '#121D2B';
+                ctx.fillRect(xPx, cy - rI * s, wPx, rI * 2 * s);
+            }
+        }
+        // Linha de centro
+        ctx.strokeStyle = 'rgba(255, 122, 61, 0.65)';
+        ctx.setLineDash([8, 4]);
+        ctx.beginPath(); ctx.moveTo(12, cy); ctx.lineTo(W - 12, cy); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Percurso do torno
+        const upto = Math.min(app.simIndex == null ? model.segs.length : app.simIndex, model.segs.length);
+        if (app.simShowPath) {
+            model.segs.forEach((seg, si) => {
+                if (si >= upto) return;
+                ctx.strokeStyle = seg.type === 'rapid' ? SIM_COLORS.pathRapid : SIM_COLORS.pathFeed;
+                ctx.lineWidth = seg.type === 'rapid' ? 0.9 : 1.5;
+                const x1 = ox + (seg.z1 - model.u0) * s, y1 = cy - (seg.x1 / 2) * s;
+                const x2 = ox + (seg.z2 - model.u0) * s, y2 = cy - (seg.x2 / 2) * s;
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            });
+        }
+        return;
+    }
+
+    // FRESAMENTO: Planta X × Y
+    const s = Math.min((W - 36) / (cols * cell), (Hc - 36) / (rows * cell));
+    const ox = (W - cols * cell * s) / 2;
+    const oy = (Hc - rows * cell * s) / 2;
 
     for (let j = 0; j < rows; j++) {
         for (let i = 0; i < cols; i++) {
             const idx = j * cols + i;
-            if (kind === 'turning') {
-                const wy = model.v0 + j * cell;
-                if (Math.abs(wy) > H[idx] + cell) continue;
+            if (machined[idx] === 4) {
+                ctx.fillStyle = '#090F17';
+            } else {
+                ctx.fillStyle = cellTopColor(model, idx, H[idx]);
             }
-            ctx.fillStyle = machined[idx] ? SIM_COLORS.cutTop : SIM_COLORS.rawTop;
-            ctx.fillRect(ox + i * cell * s, oy + (rows - 1 - j) * cell * s, Math.ceil(cell * s) + 1, Math.ceil(cell * s) + 1);
+            ctx.fillRect(
+                ox + i * cell * s,
+                oy + (rows - 1 - j) * cell * s,
+                Math.ceil(cell * s) + 1,
+                Math.ceil(cell * s) + 1
+            );
         }
     }
-    // percurso por cima
-    const toPx = (u, v) => [ox + ((kind === 'turning' ? u - model.u0 : u - model.u0)) * s,
-        oy + (rows * cell - ((kind === 'turning' ? v - model.v0 : v - model.v0))) * s];
-    model.segs.forEach((seg, si) => {
-        if (seg.type === 'rapid') return;
-        ctx.strokeStyle = si <= model.applied ? SIM_COLORS.pathFeed : 'rgba(255,122,61,0.22)';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        const a = toPx(kind === 'turning' ? seg.y1 : seg.x1, kind === 'turning' ? seg.x1 : seg.y1);
-        const b = toPx(kind === 'turning' ? seg.y2 : seg.x2, kind === 'turning' ? seg.x2 : seg.y2);
-        ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
-    });
-    // ferramenta atual
-    const cur = model.segs[Math.max(Math.min(model.applied, model.segs.length) - 1, 0)];
-    if (cur) {
-        const t = toPx(kind === 'turning' ? cur.y2 : cur.x2, kind === 'turning' ? cur.x2 : cur.y2);
-        ctx.fillStyle = SIM_COLORS.tool;
-        ctx.beginPath();
-        ctx.arc(t[0], t[1], 5, 0, Math.PI * 2);
-        ctx.fill();
+
+    // Contorno nominal da peça
+    const toPx = (wx, wy) => [
+        ox + (wx - model.u0) * s,
+        oy + (rows * cell - (wy - model.v0)) * s
+    ];
+    ctx.strokeStyle = 'rgba(231, 236, 242, 0.35)';
+    ctx.lineWidth = 1;
+    if (model.partId === 'flange') {
+        const c0 = toPx(0, 0);
+        ctx.beginPath(); ctx.arc(c0[0], c0[1], model.partX1 * s, 0, Math.PI * 2); ctx.stroke();
+    } else {
+        const pTL = toPx(model.partX0, model.partY1);
+        ctx.strokeRect(pTL[0], pTL[1], (model.partX1 - model.partX0) * s, (model.partY1 - model.partY0) * s);
+    }
+
+    // Percurso G00/G01/G02 em planta
+    const upto = Math.min(app.simIndex == null ? model.segs.length : app.simIndex, model.segs.length);
+    if (app.simShowPath) {
+        model.segs.forEach((seg, si) => {
+            const done = si < upto;
+            if (!done && seg.type === 'rapid') return;
+            ctx.strokeStyle = done
+                ? (seg.type === 'rapid' ? SIM_COLORS.pathRapid : SIM_COLORS.pathDone)
+                : SIM_COLORS.pathFuture;
+            ctx.lineWidth = done && seg.type !== 'rapid' ? 1.5 : 0.9;
+            if (seg.type === 'rapid') ctx.setLineDash([3, 3]);
+            else ctx.setLineDash([]);
+            ctx.beginPath();
+            const pts = seg.type.indexOf('arc') === 0 ? sampleSeg(seg, 3) : [
+                { x: seg.x1, y: seg.y1 }, { x: seg.x2, y: seg.y2 }
+            ];
+            pts.forEach((p, k) => {
+                const xy = toPx(p.x, p.y);
+                if (k === 0) ctx.moveTo(xy[0], xy[1]);
+                else ctx.lineTo(xy[0], xy[1]);
+            });
+            ctx.stroke();
+        });
+        ctx.setLineDash([]);
+    }
+
+    // Círculo em escala real do diâmetro da ferramenta atual
+    if (app.simShowTool && model.segs.length > 0) {
+        const cur = upto > 0 ? model.segs[upto - 1] : model.segs[0];
+        const tx = upto > 0 ? cur.x2 : cur.x1;
+        const ty = upto > 0 ? cur.y2 : cur.y1;
+        const t = toPx(tx, ty);
+        const rPx = Math.max((cur.rTool || 5) * s, 4);
+        ctx.fillStyle = 'rgba(111, 211, 224, 0.25)';
+        ctx.strokeStyle = SIM_COLORS.toolFlute;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(t[0], t[1], rPx, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(t[0], t[1], 2.2, 0, Math.PI * 2); ctx.fill();
     }
 }
 
+// ============================================================
+// VISTA 3: FRONTAL EM CORTE (X×Z no Fresamento | Seção ØX no Torno)
+// ============================================================
 function renderSimFront(model) {
     const pair = simCtx('simFront');
     if (!pair || !pair.ctx || !model) return;
+    ensureSimViewState();
     const ctx = pair.ctx, W = pair.canvas.width, Hc = pair.canvas.height;
     const { cols, rows, cell, H, machined, kind } = model;
     ctx.fillStyle = SIM_COLORS.bg;
     ctx.fillRect(0, 0, W, Hc);
-    const s = Math.min((W - 30) / (cols * cell), (Hc - 40) / (model.stockTop + Math.abs(model.zMin) + 4));
-    const ox = 15, baseY = Hc - 18;
+
+    const frontTitle = $('#simFrontTitle');
+    if (frontTitle) {
+        frontTitle.innerHTML = kind === 'turning'
+            ? '🏔️ Vista frontal de face (ØX × Y) <span class="sim-hint">seção transversal</span>'
+            : '🏔️ Vista frontal em corte (X × Z) <span class="sim-hint">profundidades e furos</span>';
+    }
+
+    const upto = Math.min(app.simIndex == null ? model.segs.length : app.simIndex, model.segs.length);
+    const cur = model.segs.length > 0 ? (upto > 0 ? model.segs[upto - 1] : model.segs[0]) : null;
+
+    if (kind === 'turning') {
+        // Seção transversal circular olhando para a face da peça no torno
+        const cx = W / 2, cy = Hc / 2;
+        const s = Math.min(W, Hc) * 0.38 / Math.max(model.stockTop, 1);
+        const zCur = cur ? (upto > 0 ? cur.z2 : cur.z1) : -model.partLen / 2;
+        const idxSlice = Math.min(Math.max(Math.round((zCur - model.u0) / cell), 0), cols - 1);
+
+        // Círculo tracejado do bruto
+        ctx.strokeStyle = SIM_COLORS.rawTop;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.arc(cx, cy, model.stockTop * s, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Corpo na seção atual
+        const rE = model.R_ext[idxSlice], rI = model.R_int[idxSlice];
+        ctx.fillStyle = model.machExt[idxSlice] ? SIM_COLORS.cutTop : SIM_COLORS.rawTop;
+        ctx.beginPath(); ctx.arc(cx, cy, rE * s, 0, Math.PI * 2); ctx.fill();
+        if (rI > 0.2) {
+            ctx.fillStyle = SIM_COLORS.bg;
+            ctx.beginPath(); ctx.arc(cx, cy, rI * s, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(231, 236, 242, 0.85)';
+        ctx.font = '10px JetBrains Mono, monospace';
+        ctx.fillText('Øext: ' + fmt(rE * 2) + ' mm' + (rI > 0.2 ? (' · Øint: ' + fmt(rI * 2) + ' mm') : ''), 12, Hc - 12);
+        return;
+    }
+
+    // FRESAMENTO: Corte vertical X × Z mostrando a espessura real do bloco e a profundidade dos furos/cavidades
+    const zTopMax = model.hasWall ? model.wallTop : model.stockTop;
+    const totalZ = zTopMax - model.zBottom;
+    const sX = (W - 54) / (cols * cell);
+    const sZ = (Hc - 56) / Math.max(totalZ + 6, 12);
+    const ox = 38;
+    const zToY = zVal => 28 + (zTopMax - zVal) * sZ;
+    const yBottomPx = zToY(model.zBottom);
+
+    // Escolhe a linha Y de corte: linha Y da ferramenta ativa (ou centro Y da peça) para revelar furos e cavidades!
+    const yCutWorld = (cur && upto > 0 && cur.type !== 'rapid') ? cur.y2 : ((model.partY0 + model.partY1) / 2);
+    const jCut = Math.min(Math.max(Math.round((yCutWorld - model.v0) / cell), 0), rows - 1);
 
     for (let i = 0; i < cols; i++) {
-        let hMax = -Infinity, cut = false;
-        for (let j = 0; j < rows; j++) {
-            const idx = j * cols + i;
-            if (kind === 'turning') {
-                const wy = model.v0 + j * cell;
-                if (Math.abs(wy) > H[idx] + cell) continue;
-            }
-            if (H[idx] > hMax) hMax = H[idx];
-            if (machined[idx]) cut = true;
+        const xPx = ox + i * cell * sX;
+        const wPx = Math.ceil(cell * sX) + 1;
+
+        // Perfil de fundo (silhueta mais alta de trás) em tom suave
+        let hBack = model.zBottom;
+        for (let j = jCut; j < rows; j++) {
+            const bIdx = j * cols + i;
+            if (machined[bIdx] !== 4 && H[bIdx] > hBack) hBack = H[bIdx];
         }
-        if (hMax === -Infinity) continue;
-        const x = ox + i * cell * s;
-        const top = baseY - hMax * s;
-        ctx.fillStyle = cut ? SIM_COLORS.cutTop : SIM_COLORS.rawTop;
-        ctx.fillRect(x, top, Math.ceil(cell * s) + 1, baseY - top);
-        if (cut) {
-            ctx.fillStyle = 'rgba(121, 192, 204, 0.25)';
-            ctx.fillRect(x, top, Math.ceil(cell * s) + 1, baseY - top);
+        if (hBack > model.zBottom) {
+            const yBack = zToY(hBack);
+            ctx.fillStyle = 'rgba(76, 67, 53, 0.38)';
+            ctx.fillRect(xPx, yBack, wPx, yBottomPx - yBack);
+        }
+
+        // Perfil na seção de corte Y atual (mostra cavidades, rasgos, rampas, contrafuros e furos!)
+        // Busca na vizinhança de jCut o menor Z usinado para destacar os furos na seção frontal
+        let hSec = H[jCut * cols + i];
+        let stSec = machined[jCut * cols + i];
+        for (let dj = -3; dj <= 3; dj++) {
+            const jj = Math.min(Math.max(jCut + dj, 0), rows - 1);
+            const idx2 = jj * cols + i;
+            if (H[idx2] < hSec) {
+                hSec = H[idx2];
+                stSec = machined[idx2];
+            }
+        }
+        if (stSec !== 4 && hSec > model.zBottom + 0.05) {
+            const yTop = zToY(hSec);
+            ctx.fillStyle = stSec === 0 ? SIM_COLORS.rawTop : SIM_COLORS.cutTop;
+            ctx.fillRect(xPx, yTop, wPx, yBottomPx - yTop);
         }
     }
-    // linha de referência Z0
-    ctx.strokeStyle = 'rgba(143, 160, 179, 0.5)';
+
+    // Linhas de referência Z0 (face usinada) e Fundo da peça
+    const yZ0 = zToY(0);
+    ctx.strokeStyle = 'rgba(111, 211, 224, 0.55)';
     ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(ox, baseY);
-    ctx.lineTo(W - 10, baseY);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox - 6, yZ0); ctx.lineTo(W - 10, yZ0); ctx.stroke();
+    ctx.strokeStyle = 'rgba(143, 160, 179, 0.4)';
+    ctx.beginPath(); ctx.moveTo(ox - 6, yBottomPx); ctx.lineTo(W - 10, yBottomPx); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(143, 160, 179, 0.9)';
+
+    ctx.fillStyle = 'rgba(231, 236, 242, 0.8)';
     ctx.font = '10px JetBrains Mono, monospace';
-    ctx.fillText(kind === 'turning' ? 'Z (comprimento) →' : 'X →', W - 88, baseY + 14);
-    ctx.fillText(kind === 'turning' ? 'raio' : 'Z (profundidade)', 6, 16);
+    ctx.fillText('Z0', 8, yZ0 + 3);
+    ctx.fillText(fmt(model.zBottom), 4, yBottomPx + 3);
+
+    // Silhueta da ferramenta na vista frontal (X × Z)
+    if (app.simShowTool && cur) {
+        const tx = upto > 0 ? cur.x2 : cur.x1;
+        const tz = Math.min(upto > 0 ? cur.z2 : cur.z1, zTopMax + 8);
+        const xToolPx = ox + (tx - model.u0) * sX;
+        const yToolPx = zToY(tz);
+        const rPx = Math.max((cur.rTool || 5) * sX, 4);
+        ctx.fillStyle = 'rgba(111, 211, 224, 0.35)';
+        ctx.strokeStyle = SIM_COLORS.toolFlute;
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(xToolPx - rPx, Math.max(4, yToolPx - 28), rPx * 2, Math.min(28, yToolPx - 4));
+        ctx.strokeRect(xToolPx - rPx, Math.max(4, yToolPx - 28), rPx * 2, Math.min(28, yToolPx - 4));
+    }
+}
+
+function fmtDroCoord(n) {
+    const val = isFinite(n) ? n : 0;
+    const sign = val >= 0 ? '+' : '-';
+    const abs = Math.abs(val).toFixed(3);
+    const parts = abs.split('.');
+    while (parts[0].length < 3) parts[0] = '0' + parts[0];
+    return sign + parts[0] + '.' + parts[1];
+}
+
+function fmtTimeMMSS(sec) {
+    const s = Math.max(0, Math.round(sec || 0));
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return (m < 10 ? '0' + m : m) + ':' + (rem < 10 ? '0' + rem : rem);
+}
+
+// Renderiza os chips de operações e a lista clicável de blocos
+function renderSimCodeAndOps(model, upto) {
+    const opsBar = $('#simOpsBar');
+    if (opsBar && model) {
+        const curOp = (upto > 0 && model.segs[upto - 1]) ? model.segs[upto - 1].opName : '__bruto__';
+        let chipsHtml = '<button type="button" class="sim-op-chip' + (upto === 0 ? ' active' : '') +
+            '" data-sim-idx="0">🧱 0. Bruto intacto</button>';
+        (model.ops || []).forEach((op, i) => {
+            const nextStart = (model.ops[i + 1] && model.ops[i + 1].startIdx) || model.segs.length;
+            const active = upto > 0 && curOp === op.name;
+            chipsHtml += '<button type="button" class="sim-op-chip' + (active ? ' active' : '') +
+                '" data-sim-idx="' + nextStart + '">' + (i + 1) + '. ' + op.name + '</button>';
+        });
+        opsBar.innerHTML = chipsHtml;
+    }
+
+    const codeList = $('#simCodeList');
+    if (codeList && model) {
+        if (codeList._renderedPart !== model.partId + ':' + model.segs.length) {
+            codeList.innerHTML = model.segs.map((s, idx) =>
+                '<button type="button" class="sim-code-item" data-sim-idx="' + (idx + 1) + '">' +
+                '<span class="sci-idx">#' + (idx + 1) + '</span>' +
+                '<span class="sci-txt">' + escapeHtml(s.text) + '</span>' +
+                '<span class="sci-op">' + escapeHtml(s.opName) + '</span>' +
+                '</button>'
+            ).join('');
+            codeList._renderedPart = model.partId + ':' + model.segs.length;
+        }
+        $$('.sim-code-item', codeList).forEach((el, idx) => {
+            const stepNum = idx + 1;
+            el.classList.toggle('active', stepNum === upto);
+            el.classList.toggle('done', stepNum < upto);
+        });
+    }
 }
 
 function renderSimulator() {
+    ensureSimViewState();
     const side = $('#simInfo');
     const counter = $('#simCounter');
     const slider = $('#simSlider');
@@ -1768,15 +2696,15 @@ function renderSimulator() {
         if (slider) { slider.max = 0; slider.disabled = true; }
         return;
     }
+
     const upto = Math.min(app.simIndex == null ? model.segs.length : app.simIndex, model.segs.length);
-    if (upto > model.applied) applyRemoval(model, model.applied, upto);
-    else if (upto < model.applied) {
-        // rebobina: reprocessa do zero
-        model.H.fill(model.stockTop);
-        model.machined.fill(0);
-        model.applied = 0;
+    if (upto > model.applied) {
+        applyRemoval(model, model.applied, upto);
+    } else if (upto < model.applied) {
+        resetSimModel(model);
         applyRemoval(model, 0, upto);
     }
+
     renderSim3D(model);
     renderSimTop(model);
     renderSimFront(model);
@@ -1787,18 +2715,51 @@ function renderSimulator() {
         slider.value = upto;
     }
     if (counter) counter.textContent = upto + '/' + model.segs.length + ' blocos';
+
+    const cur = upto > 0 ? model.segs[upto - 1] : null;
     if (side) {
-        const cur = model.segs[Math.max(upto - 1, 0)];
-        side.textContent = cur && cur.text ? ('Bloco ' + cur.line + ': ' + cur.text +
-            '\nFerramenta Ø' + ((cur.rTool || 5) * 2) + ' mm') : '—';
+        if (upto === 0) {
+            side.textContent = 'Bloco 0: Peça 100% em MATERIAL BRUTO (antes do início do ciclo)\nClique em ▶ Reproduzir ou avance o controle deslizante.';
+        } else if (cur && cur.text) {
+            side.textContent = 'Bloco ' + cur.line + ' [' + cur.opName + ']: ' + cur.text +
+                '\nFerramenta T0' + cur.tool + ' (' + cur.toolDesc + ' · Ø' + ((cur.rTool || 5) * 2) + ' mm)';
+        } else {
+            side.textContent = '—';
+        }
     }
+
+    // Atualiza DRO digital e telemetria
+    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const cx = cur ? cur.x2 : (model.segs[0] ? model.segs[0].x1 : 0);
+    const cy = cur ? cur.y2 : (model.segs[0] ? model.segs[0].y1 : 0);
+    const cz = cur ? cur.z2 : (model.segs[0] ? model.segs[0].z1 : 50);
+    setTxt('simDroX', fmtDroCoord(cx));
+    setTxt('simDroY', fmtDroCoord(cy));
+    setTxt('simDroZ', fmtDroCoord(cz));
+    setTxt('simModalG', cur ? (cur.gModal + (cur.type === 'rapid' ? ' Rápido' : ' Corte')) : 'G00 Pronto');
+    setTxt('simModalT', cur ? ('T0' + cur.tool + ' · Ø' + fmt((cur.rTool || 5) * 2) + ' mm') : 'T01 · —');
+    setTxt('simModalSF', cur ? ('S' + cur.spindle + ' RPM · F' + cur.feed + ' · ' + cur.coolant) : 'S0 RPM · F0');
+
+    const totalCells = model.machined.length || 1;
+    const cutCells = simMachinedCount();
+    const pctRem = Math.min(100, Math.round((cutCells / totalCells) * 100));
+    setTxt('simRemPct', pctRem + '% da área usinada');
+    const fillEl = $('#simRemFill');
+    if (fillEl) fillEl.style.width = pctRem + '%';
+
+    const curTime = cur ? cur.time : 0;
+    const totTime = model.segs.length ? model.segs[model.segs.length - 1].time : 0;
+    setTxt('simCycleTime', '⏱ ' + fmtTimeMMSS(curTime) + ' / ' + fmtTimeMMSS(totTime));
+
     const matEl = $('#simMaterial');
     if (matEl) {
         matEl.textContent = model.kind === 'turning'
-            ? 'Bruto: barra Ø' + fmt(Math.round(model.stockTop * 2)) + ' mm'
+            ? 'Bruto: barra Ø' + fmt(Math.round(model.stockTop * 2)) + ' × ' + fmt(Math.round(model.partLen)) + ' mm (' + pctRem + '% usinado)'
             : 'Bruto: bloco ' + fmt(Math.round(model.cols * model.cell)) + ' × ' +
-              fmt(Math.round(model.rows * model.cell)) + ' × ' + fmt(Math.round(model.stockTop - model.zMin)) + ' mm';
+              fmt(Math.round(model.rows * model.cell)) + ' × ' + fmt(Math.round(model.stockTop - model.zBottom)) + ' mm (' + pctRem + '% usinado)';
     }
+
+    renderSimCodeAndOps(model, upto);
 }
 
 function simStep(delta) {
@@ -1806,6 +2767,13 @@ function simStep(delta) {
     if (!n) return;
     if (app.simIndex == null) app.simIndex = delta > 0 ? 1 : n - 1;
     else app.simIndex = Math.min(Math.max(app.simIndex + delta, 0), n);
+    renderSimulator();
+}
+
+function simJumpTo(idx) {
+    const n = (app.simModel && app.simModel.segs || []).length;
+    if (!n) return;
+    app.simIndex = Math.min(Math.max(idx, 0), n);
     renderSimulator();
 }
 
@@ -1827,15 +2795,136 @@ function simTogglePlay() {
     }
     const n = (app.simModel && app.simModel.segs || []).length;
     if (!n) return;
-    if (app.simIndex == null || app.simIndex >= n) app.simIndex = 1;
+    if (app.simIndex == null || app.simIndex >= n) app.simIndex = 0;
+    const speed = parseFloat(($('#simSpeed') && $('#simSpeed').value) || app.simSpeed || 1) || 1;
+    const interval = Math.max(25, Math.round(130 / speed));
     app.simTimer = setInterval(() => {
         if (app.simIndex >= n) {
             simTogglePlay();
             return;
         }
         simStep(1);
-    }, 140);
+    }, interval);
     if (btn) btn.textContent = '⏸ Pausar';
+}
+
+function setupSimOrbitAndControls() {
+    ensureSimViewState();
+    const c3d = $('#sim3d');
+    if (c3d && !c3d._orbitBound) {
+        c3d._orbitBound = true;
+        let dragging = false, sx = 0, sy = 0;
+        c3d.addEventListener('pointerdown', e => {
+            dragging = true;
+            sx = e.clientX; sy = e.clientY;
+            if (c3d.setPointerCapture) {
+                try { c3d.setPointerCapture(e.pointerId); } catch (err) {}
+            }
+        });
+        c3d.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            const dx = e.clientX - sx, dy = e.clientY - sy;
+            sx = e.clientX; sy = e.clientY;
+            app.simCam.yaw += dx * 0.012;
+            app.simCam.pitch = Math.min(Math.max(app.simCam.pitch + dy * 0.01, 0.22), 1.32);
+            renderSimulator();
+        });
+        const stopDrag = () => { dragging = false; };
+        c3d.addEventListener('pointerup', stopDrag);
+        c3d.addEventListener('pointercancel', stopDrag);
+        c3d.addEventListener('wheel', e => {
+            e.preventDefault();
+            const factor = e.deltaY < 0 ? 1.1 : 0.91;
+            app.simCam.zoom = Math.min(Math.max(app.simCam.zoom * factor, 0.55), 2.4);
+            renderSimulator();
+        }, { passive: false });
+    }
+
+    const bindClick = (id, fn) => {
+        const el = document.getElementById(id);
+        if (el && !el._bound) { el._bound = true; el.addEventListener('click', fn); }
+    };
+    bindClick('simFirst', () => { if (app.simTimer) simTogglePlay(); simJumpTo(0); });
+    bindClick('simPrev', () => { if (app.simTimer) simTogglePlay(); simStep(-1); });
+    bindClick('simNext', () => { if (app.simTimer) simTogglePlay(); simStep(1); });
+    bindClick('simLast', () => {
+        if (app.simTimer) simTogglePlay();
+        const n = (app.simModel && app.simModel.segs || []).length;
+        simJumpTo(n);
+    });
+    bindClick('simSectionCut', () => {
+        app.simSectionCut = !app.simSectionCut;
+        const b = $('#simSectionCut');
+        if (b) {
+            b.classList.toggle('active', app.simSectionCut);
+            b.setAttribute('aria-pressed', app.simSectionCut ? 'true' : 'false');
+        }
+        renderSimulator();
+    });
+    bindClick('simTogglePath', () => {
+        app.simShowPath = !app.simShowPath;
+        const b = $('#simTogglePath');
+        if (b) {
+            b.classList.toggle('active', app.simShowPath);
+            b.setAttribute('aria-pressed', app.simShowPath ? 'true' : 'false');
+        }
+        renderSimulator();
+    });
+    bindClick('simToggleTool', () => {
+        app.simShowTool = !app.simShowTool;
+        const b = $('#simToggleTool');
+        if (b) {
+            b.classList.toggle('active', app.simShowTool);
+            b.setAttribute('aria-pressed', app.simShowTool ? 'true' : 'false');
+        }
+        renderSimulator();
+    });
+    bindClick('simZoomIn', () => {
+        app.simCam.zoom = Math.min(app.simCam.zoom * 1.15, 2.4);
+        renderSimulator();
+    });
+    bindClick('simZoomOut', () => {
+        app.simCam.zoom = Math.max(app.simCam.zoom * 0.87, 0.55);
+        renderSimulator();
+    });
+    bindClick('simResetCam', () => {
+        app.simCam = { yaw: -0.68, pitch: 0.58, zoom: 1.0 };
+        renderSimulator();
+    });
+
+    const speedSel = $('#simSpeed');
+    if (speedSel && !speedSel._bound) {
+        speedSel._bound = true;
+        speedSel.addEventListener('change', e => {
+            app.simSpeed = parseFloat(e.target.value) || 1;
+            if (app.simTimer) {
+                simTogglePlay();
+                simTogglePlay();
+            }
+        });
+    }
+
+    const opsBar = $('#simOpsBar');
+    if (opsBar && !opsBar._bound) {
+        opsBar._bound = true;
+        opsBar.addEventListener('click', e => {
+            const btn = e.target.closest('.sim-op-chip');
+            if (!btn) return;
+            if (app.simTimer) simTogglePlay();
+            simJumpTo(parseInt(btn.dataset.simIdx, 10) || 0);
+        });
+    }
+
+    const codeList = $('#simCodeList');
+    if (codeList && !codeList._bound) {
+        codeList._bound = true;
+        codeList.addEventListener('click', e => {
+            const item = e.target.closest('.sim-code-item');
+            if (!item) return;
+            if (app.simTimer) simTogglePlay();
+            simJumpTo(parseInt(item.dataset.simIdx, 10) || 0);
+        });
+    }
 }
 
 // ============================================================
@@ -2638,6 +3727,7 @@ function init() {
     renderQuiz();
     renderTables();
     updateCalc();
+    setupSimOrbitAndControls();
     renderSimulator();
     refreshSheet();
 
@@ -2654,7 +3744,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v5.9.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.0.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');
