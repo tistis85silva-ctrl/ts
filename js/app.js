@@ -2408,8 +2408,207 @@ function renderProcessBook() {
             '</div>';
     }
 
+    // 6.5. Folha 5: Estudo Profissional de Custos e Orçamentação CNC (Nível Mestre)
+    renderMasterCostStudy(part, d, fState, massRaw, massNet, massChip, opStats, totalCutSec, totalRapidSec, atcSec, totalCycleSec, ap, peckQ);
+
     applyBookPageFilter();
 }
+
+function fmtBRL(v) {
+    const n = isFinite(v) ? v : 0;
+    return 'R$ ' + n.toFixed(2).replace('.', ',');
+}
+
+function renderMasterCostStudy(part, d, fState, massRaw, massNet, massChip, opStats, totalCutSec, totalRapidSec, atcSec, totalCycleSec, ap, peckQ) {
+    const kpiGrid = $('#costKpiGrid');
+    if (!kpiGrid) return;
+
+    const batch = Math.max(1, parseFloat(($('#costBatch') && $('#costBatch').value) || 50));
+    const machRate = Math.max(10, parseFloat(($('#costMachineRate') && $('#costMachineRate').value) || 180));
+    const matPrice = Math.max(0.5, parseFloat(($('#costMatPrice') && $('#costMatPrice').value) || 14.5));
+    const scrapPrice = Math.max(0, parseFloat(($('#costScrapPrice') && $('#costScrapPrice').value) || 2.2));
+    const setupMin = Math.max(1, parseFloat(($('#costSetupMin') && $('#costSetupMin').value) || 35));
+    const progFee = Math.max(0, parseFloat(($('#costProgFee') && $('#costProgFee').value) || 120));
+    const marginPct = Math.max(0, parseFloat(($('#costMarginPct') && $('#costMarginPct').value) || 30));
+
+    // 1. Custos de Matéria-Prima e Recuperação de Cavaco
+    const costMatGross = massRaw * matPrice;
+    const creditScrap = massChip * scrapPrice * 0.90;
+    const costMatNet = Math.max(0.4, costMatGross - creditScrap);
+
+    // 2. Custo de Hora-Máquina (Ciclo + 20s de troca de peça/limpeza de morsa)
+    const loadUnloadSec = 20;
+    const floorToFloorSec = totalCycleSec + loadUnloadSec;
+    const costMachining = (floorToFloorSec / 3600) * machRate;
+
+    // 3. Custo de Desgaste de Ferramentas e Pastilhas (Modelo de Taylor aplicado por operação)
+    let totalToolCost = 0;
+    const severityAp = Math.pow(Math.max(ap, 0.5) / 2.0, 0.35);
+    const toolCostRows = opStats.map(op => {
+        const isFace = /FACEA|PLANA/i.test(op.opName + ' ' + op.toolDesc) || op.tool === 1;
+        const isDrill = /FURO|BROCA|PILOT|CONTRABORE/i.test(op.opName + ' ' + op.toolDesc);
+        const isFinish = /ACABAMENTO|CHANFRO|ROSCA|G70|G76/i.test(op.opName);
+        const edgePrice = isFace ? 42.0 : (isDrill ? 28.0 : (isFinish ? 32.0 : 48.0));
+        const baseLifeMin = isFace ? 45 : (isDrill ? 35 : (isFinish ? 55 : 40));
+        const adjLifeMin = Math.max(10, baseLifeMin / severityAp);
+        const cutMin = Math.max(op.cutSec, 1.5) / 60;
+        const lifePct = Math.min(100, (cutMin / adjLifeMin) * 100);
+        const partsPerEdge = Math.max(1, Math.round(adjLifeMin / cutMin));
+        const costPerPart = edgePrice / partsPerEdge;
+        totalToolCost += costPerPart;
+        return {
+            toolCode: op.toolCode,
+            opName: op.opName,
+            toolDesc: op.toolDesc,
+            edgePrice: edgePrice,
+            lifeMin: Math.round(adjLifeMin),
+            cutSec: op.cutSec,
+            lifePct: lifePct,
+            partsPerEdge: partsPerEdge,
+            costPerPart: costPerPart
+        };
+    });
+
+    // 4. Custo de Setup + Engenharia CAM diluído pelo lote
+    const totalSetupBatch = (setupMin / 60) * machRate + progFee;
+    const costSetupUnit = totalSetupBatch / batch;
+
+    // 5. Custo Industrial Unitário e Preço de Venda Sugerido
+    const unitCost = costMatNet + costMachining + totalToolCost + costSetupUnit;
+    const unitPrice = unitCost * (1 + marginPct / 100);
+    const batchTotal = unitPrice * batch;
+    const partsPerHour = Math.max(1, Math.floor(3600 / floorToFloorSec));
+
+    const badge = $('#bookCostSummary');
+    if (badge) {
+        badge.textContent = 'Custo Fabril: ' + fmtBRL(unitCost) + '/un · Venda: ' + fmtBRL(unitPrice) + '/un · Lote ' + batch + ' un';
+    }
+
+    kpiGrid.innerHTML =
+        '<div class="book-kpi-card">' +
+            '<span class="bk-label">💵 1. Custo Fabril Unitário</span>' +
+            '<b class="bk-val">' + fmtBRL(unitCost) + '</b>' +
+            '<span class="bk-sub">Mat. + Máquina + Ferram. + Setup</span>' +
+        '</div>' +
+        '<div class="book-kpi-card kpi-ok">' +
+            '<span class="bk-label">🏷️ 2. Preço de Venda Sugerido</span>' +
+            '<b class="bk-val">' + fmtBRL(unitPrice) + '</b>' +
+            '<span class="bk-sub">Margem/Imp.: +' + fmt(marginPct) + '% (' + fmtBRL(unitPrice - unitCost) + '/un)</span>' +
+        '</div>' +
+        '<div class="book-kpi-card kpi-accent">' +
+            '<span class="bk-label">📦 3. Orçamento Total do Lote</span>' +
+            '<b class="bk-val">' + fmtBRL(batchTotal) + '</b>' +
+            '<span class="bk-sub">Lote de ' + batch + ' pçs · Produtiv.: ' + partsPerHour + ' pçs/h</span>' +
+        '</div>' +
+        '<div class="book-kpi-card">' +
+            '<span class="bk-label">🏭 4. Máquina + Ferramental</span>' +
+            '<b class="bk-val">' + fmtBRL(costMachining + totalToolCost) + '/un</b>' +
+            '<span class="bk-sub">Máq.: ' + fmtBRL(costMachining) + ' · Ferram.: ' + fmtBRL(totalToolCost) + '</span>' +
+        '</div>' +
+        '<div class="book-kpi-card kpi-accent">' +
+            '<span class="bk-label">⏱️ 5. Setup Diluído no Lote</span>' +
+            '<b class="bk-val">' + fmtBRL(costSetupUnit) + '/un</b>' +
+            '<span class="bk-sub">Setup total ' + fmtBRL(totalSetupBatch) + ' ÷ ' + batch + ' pçs</span>' +
+        '</div>';
+
+    // Tabela Mestre de Custos por Ferramenta + Demonstrativo de Orçamento
+    const tableWrap = $('#costToolsTableWrap');
+    if (tableWrap) {
+        const tRowsHtml = toolCostRows.map(r =>
+            '<tr>' +
+                '<td class="rt-code">' + r.toolCode + '</td>' +
+                '<td><b>' + escapeHtml(r.opName) + '</b><br><span style="font-size:10px;color:var(--text-dim)">' + escapeHtml(r.toolDesc) + '</span></td>' +
+                '<td>' + fmtBRL(r.edgePrice) + '</td>' +
+                '<td>' + r.lifeMin + ' min</td>' +
+                '<td>' + r.cutSec.toFixed(1).replace('.', ',') + ' s</td>' +
+                '<td>' + r.lifePct.toFixed(2).replace('.', ',') + '%</td>' +
+                '<td><b>' + r.partsPerEdge + ' pçs/aresta</b></td>' +
+                '<td class="rt-code">' + fmtBRL(r.costPerPart) + '</td>' +
+            '</tr>'
+        ).join('');
+
+        tableWrap.innerHTML =
+            '<h4 class="book-chart-title">🔧 Estudo de Vida Útil de Aresta (Taylor) e Custo de Ferramental por Operação</h4>' +
+            '<table class="book-table" style="margin-bottom:14px;">' +
+                '<thead><tr>' +
+                    '<th>T</th><th>Operação &amp; Ferramenta</th><th>Custo Aresta/Jogo</th><th>Vida Útil (T)</th>' +
+                    '<th>Corte/Peça</th><th>Desgaste/Peça</th><th>Rendimento</th><th>Custo/Peça</th>' +
+                '</tr></thead>' +
+                '<tbody>' + tRowsHtml +
+                    '<tr class="bt-total">' +
+                        '<td colspan="5">CUSTO TOTAL DE DESGASTE DE FERRAMENTAS POR PEÇA</td>' +
+                        '<td colspan="2">ap = ' + fmt(ap) + ' mm · Q = ' + fmt(peckQ) + ' mm</td>' +
+                        '<td>' + fmtBRL(totalToolCost) + '</td>' +
+                    '</tr>' +
+                '</tbody>' +
+            '</table>' +
+            '<h4 class="book-chart-title">📋 Demonstrativo Mestre de Formação de Preço (Folha de Orçamento)</h4>' +
+            '<table class="book-table">' +
+                '<thead><tr><th>Centro de Custo</th><th>Memória de Cálculo</th><th>Custo Unitário</th><th>Custo no Lote (' + batch + ' un)</th><th>% do Custo</th></tr></thead>' +
+                '<tbody>' +
+                    '<tr><td><b>1. Matéria-Prima Bruta</b></td><td>' + massRaw.toFixed(2).replace('.', ',') + ' kg × ' + fmtBRL(matPrice) + '/kg</td><td>' + fmtBRL(costMatGross) + '</td><td>' + fmtBRL(costMatGross * batch) + '</td><td>' + Math.round((costMatGross / unitCost) * 100) + '%</td></tr>' +
+                    '<tr><td><b>2. (–) Crédito de Cavaco Reciclado</b></td><td>' + massChip.toFixed(2).replace('.', ',') + ' kg × ' + fmtBRL(scrapPrice) + '/kg (90% recup.)</td><td style="color:var(--ok)">– ' + fmtBRL(creditScrap) + '</td><td style="color:var(--ok)">– ' + fmtBRL(creditScrap * batch) + '</td><td>–' + Math.round((creditScrap / unitCost) * 100) + '%</td></tr>' +
+                    '<tr><td><b>3. Hora-Máquina + Operador</b></td><td>' + Math.round(floorToFloorSec) + ' s (' + fmtTimeMMSS(totalCycleSec) + ' ciclo + 20s carga) × ' + fmtBRL(machRate) + '/h</td><td>' + fmtBRL(costMachining) + '</td><td>' + fmtBRL(costMachining * batch) + '</td><td>' + Math.round((costMachining / unitCost) * 100) + '%</td></tr>' +
+                    '<tr><td><b>4. Desgaste de Ferramentas (T01..T0x)</b></td><td>Soma do consumo de arestas nas ' + toolCostRows.length + ' operações</td><td>' + fmtBRL(totalToolCost) + '</td><td>' + fmtBRL(totalToolCost * batch) + '</td><td>' + Math.round((totalToolCost / unitCost) * 100) + '%</td></tr>' +
+                    '<tr><td><b>5. Setup de Máquina + Eng. CAM</b></td><td>(' + setupMin + ' min × ' + fmtBRL(machRate) + '/h + ' + fmtBRL(progFee) + ') ÷ ' + batch + ' un</td><td>' + fmtBRL(costSetupUnit) + '</td><td>' + fmtBRL(totalSetupBatch) + '</td><td>' + Math.round((costSetupUnit / unitCost) * 100) + '%</td></tr>' +
+                    '<tr class="bt-total"><td>CUSTO INDUSTRIAL FABRIL</td><td>Custo direto de fabricação</td><td>' + fmtBRL(unitCost) + '</td><td>' + fmtBRL(unitCost * batch) + '</td><td>100%</td></tr>' +
+                    '<tr class="bt-total"><td>PREÇO DE VENDA SUGERIDO (+' + fmt(marginPct) + '%)</td><td>Com margem operacional e tributos</td><td style="color:var(--ok)">' + fmtBRL(unitPrice) + '</td><td style="color:var(--ok)">' + fmtBRL(batchTotal) + '</td><td>+' + fmt(marginPct) + '%</td></tr>' +
+                '</tbody>' +
+            '</table>';
+    }
+
+    // Gráficos SVG de Engenharia Econômica (Composição do Custo + Curva de Lote/Taylor)
+    const chartsWrap = $('#costChartsWrap');
+    if (chartsWrap) {
+        const items = [
+            { name: 'Matéria-Prima Líquida', val: costMatNet, col: '#38BDF8' },
+            { name: 'Hora-Máquina (Usinagem)', val: costMachining, col: '#FB923C' },
+            { name: 'Ferramentas & Pastilhas', val: totalToolCost, col: '#4ADE80' },
+            { name: 'Setup + CAM (Diluído)', val: costSetupUnit, col: '#C084FC' }
+        ];
+        const maxC = Math.max.apply(null, items.map(it => it.val).concat([0.5]));
+        const barsCostSvg = items.map((it, idx) => {
+            const y = 26 + idx * 36;
+            const wB = Math.max(10, Math.round((it.val / maxC) * 195));
+            const pct = Math.round((it.val / unitCost) * 100);
+            return '<text x="8" y="' + (y + 15) + '" fill="#E7ECF2" font-size="9.5" font-family="JetBrains Mono,monospace">' + it.name + '</text>' +
+                '<rect x="160" y="' + y + '" width="' + wB + '" height="20" rx="4" fill="' + it.col + '"/>' +
+                '<text x="' + (166 + wB) + '" y="' + (y + 14) + '" fill="#9BE0EE" font-size="9.5" font-weight="bold" font-family="JetBrains Mono,monospace">' +
+                fmtBRL(it.val) + ' (' + pct + '%)</text>';
+        }).join('');
+
+        // Curva de Economia de Escala por Lote (1, 10, 50, 100, 500 un)
+        const lotes = [1, 10, 50, 100, 500];
+        const baseDirect = costMatNet + costMachining + totalToolCost;
+        const batchCosts = lotes.map(b => ({ b: b, c: baseDirect + totalSetupBatch / b }));
+        const maxBC = Math.max.apply(null, batchCosts.map(x => x.c).concat([1]));
+        const batchBarsSvg = batchCosts.map((bc, idx) => {
+            const x = 22 + idx * 70;
+            const hB = Math.max(12, Math.round((bc.c / maxBC) * 95));
+            const y = 132 - hB;
+            const isSel = bc.b === batch;
+            return '<rect x="' + x + '" y="' + y + '" width="44" height="' + hB + '" rx="4" fill="' + (isSel ? '#FF7A3D' : '#38BDF8') + '"/>' +
+                '<text x="' + (x + 22) + '" y="' + (y - 5) + '" fill="#E7ECF2" font-size="8.5" font-weight="bold" text-anchor="middle" font-family="JetBrains Mono,monospace">' + fmtBRL(bc.c) + '</text>' +
+                '<text x="' + (x + 22) + '" y="148" fill="' + (isSel ? '#FF9F5A' : '#8FA0B3') + '" font-size="9" text-anchor="middle" font-family="JetBrains Mono,monospace">' + bc.b + ' un</text>';
+        }).join('');
+
+        chartsWrap.innerHTML =
+            '<div class="book-chart-box">' +
+                '<h4 class="book-chart-title">📊 Gráfico Econômico 1 — Composição do Custo Unitário (' + fmtBRL(unitCost) + ')</h4>' +
+                '<svg viewBox="0 0 450 175" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#0B121B;border-radius:6px">' +
+                    barsCostSvg +
+                '</svg>' +
+            '</div>' +
+            '<div class="book-chart-box">' +
+                '<h4 class="book-chart-title">📉 Gráfico Econômico 2 — Diluição do Custo Unitário por Tamanho de Lote</h4>' +
+                '<svg viewBox="0 0 380 165" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#0B121B;border-radius:6px">' +
+                    '<text x="14" y="18" fill="#8FA0B3" font-size="9" font-family="JetBrains Mono,monospace">CUSTO FABRIL/PEÇA CONFORME O TAMANHO DO LOTE</text>' +
+                    batchBarsSvg +
+                '</svg>' +
+            '</div>';
+    }
+}
+
 
 function applyBookPageFilter() {
     ensureSimViewState();
@@ -3040,8 +3239,8 @@ function drawExtrudedSolid3D(ctx, proj, cam, poly2D, zTopFn, zBot, opts) {
             ctx.clip();
         }
 
-        // 1. Fundo abissal da abertura (ou piso da cavidade cega na cor da ferramenta)
-        ctx.fillStyle = opts.through ? SIM_COLORS.holeAbyss : shadeHex(toolHex, 0.32);
+        // 1. Preenche a parede interna visível da cavidade/furo com a cor vibrante da ferramenta que usinou!
+        ctx.fillStyle = shadeHex(toolHex, 0.68);
         ctx.beginPath();
         poly2D.forEach((p, k) => {
             const zt = typeof zTopFn === 'function' ? zTopFn(p[0], p[1]) : zTopFn;
@@ -3052,15 +3251,32 @@ function drawExtrudedSolid3D(ctx, proj, cam, poly2D, zTopFn, zBot, opts) {
         ctx.closePath();
         ctx.fill();
 
-        // 2. Paredes cilíndricas/prismáticas internas (visíveis apenas dentro da boca do furo!)
+        // 2. Paredes internas sombreadas em 3D na cor da ferramenta
         for (let k = 0; k < n; k++) {
             drawWall(poly2D[k], poly2D[(k + 1) % n], true);
+            drawWall(poly2D[k], poly2D[(k + 1) % n], false);
         }
 
-        // 3. Contorno do fundo lá embaixo (zBot) mostrando a saída do furo passante ou piso usinado
-        ctx.fillStyle = opts.through ? '#04080E' : shadeHex(toolHex, 0.42);
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.lineWidth = 1.1;
+        // 3. Anéis intermediários das camadas de remoção (passes ap / mergulhos G83 Q) visíveis dentro do furo!
+        const zTopRef = typeof zTopFn === 'function' ? zTopFn(poly2D[0][0], poly2D[0][1]) : zTopFn;
+        const stepH = Math.max(app.cncPeckQ || 1.5, 1.5);
+        for (let zr = zTopRef - stepH; zr > zBot + 0.4; zr -= stepH) {
+            ctx.strokeStyle = shadeHex(toolHex, 1.15);
+            ctx.lineWidth = 0.9;
+            ctx.beginPath();
+            poly2D.forEach((p, k) => {
+                const sp = proj(p[0], p[1], zr);
+                if (k === 0) ctx.moveTo(sp[0], sp[1]);
+                else ctx.lineTo(sp[0], sp[1]);
+            });
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        // 4. Fundo lá embaixo (zBot): se ainda está furando (!through), mostra o fundo cônico colorido; se vazou (through), mostra a saída escura!
+        ctx.fillStyle = opts.through ? '#060B12' : shadeHex(toolHex, 0.85);
+        ctx.strokeStyle = shadeHex(toolHex, 1.1);
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
         poly2D.forEach((p, k) => {
             const sp = proj(p[0], p[1], zBot);
@@ -3862,33 +4078,55 @@ function renderSimTop(model) {
         ctx.stroke();
     }
 
-    // 4. Furo Central circular perfeito colorido pela ferramenta de interpolação / chanfro
+    // 4. Furo Central circular com parede interna colorida pela ferramenta + anel de chanfro
     if (csg.centerBore && csg.centerBore.z < -0.2) {
         const cb = csg.centerBore;
-        const cbHex = cb.chamfer > 0 ? getToolHex(cb.chamferTool || 4, SIM_COLORS.chamferGold) : getToolHex(cb.tool || 2, '#9BE0EE');
+        const boreHex = getToolHex(cb.tool || 2, '#FB923C');
         const c0 = toPx(cb.cx, cb.cy);
-        ctx.fillStyle = cb.z <= model.zBottom + 0.4 ? SIM_COLORS.holeAbyss : shadeHex(cbHex, 0.35);
-        ctx.strokeStyle = cbHex;
-        ctx.lineWidth = cb.chamfer > 0 ? 2.6 : 1.7;
+        const rOuter = Math.max(cb.r * s, 4);
+        const isThru = cb.z <= model.zBottom + 0.4;
+        // Parede cilíndrica usinada na cor da ferramenta
+        ctx.fillStyle = shadeHex(boreHex, 0.78);
+        ctx.strokeStyle = boreHex;
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
-        ctx.arc(c0[0], c0[1], cb.r * s, 0, Math.PI * 2);
+        ctx.arc(c0[0], c0[1], rOuter, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+        // Abertura de fundo (se passante, centro escuro com borda colorida larga; se em desbaste, anéis concêntricos)
+        ctx.fillStyle = isThru ? SIM_COLORS.holeAbyss : shadeHex(boreHex, 0.45);
+        ctx.beginPath();
+        ctx.arc(c0[0], c0[1], rOuter * (isThru ? 0.68 : 0.55), 0, Math.PI * 2);
+        ctx.fill();
+        if (cb.chamfer > 0) {
+            ctx.strokeStyle = getToolHex(cb.chamferTool || 4, SIM_COLORS.chamferGold);
+            ctx.lineWidth = 2.6;
+            ctx.beginPath();
+            ctx.arc(c0[0], c0[1], rOuter + 1.5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
     }
 
-    // 5. Furos e contrafuros circulares perfeitos coloridos pela broca/fresa
+    // 5. Furos e contrafuros circulares com parede interna colorida pela broca/fresa (mostra a cor da ferramenta!)
     csg.holes.forEach(h => {
         const cH = toPx(h.x, h.y);
         h.steps.forEach(st => {
             const hHex = getToolHex(st.tool || 3, '#4ADE80');
             const isThru = st.z <= model.zBottom + 0.4;
-            ctx.fillStyle = isThru ? SIM_COLORS.holeAbyss : shadeHex(hHex, 0.35);
+            const rPx = Math.max(st.r * s, 3.5);
+            // Parede usinada na cor da ferramenta
+            ctx.fillStyle = shadeHex(hHex, 0.85);
             ctx.strokeStyle = hHex;
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.8;
             ctx.beginPath();
-            ctx.arc(cH[0], cH[1], Math.max(st.r * s, 2.5), 0, Math.PI * 2);
+            ctx.arc(cH[0], cH[1], rPx, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
+            // Centro (vazado escuro no miolo se passante, mantendo o anel colorido da ferramenta bem visível!)
+            ctx.fillStyle = isThru ? SIM_COLORS.holeAbyss : shadeHex(hHex, 0.42);
+            ctx.beginPath();
+            ctx.arc(cH[0], cH[1], rPx * (isThru ? 0.48 : 0.35), 0, Math.PI * 2);
+            ctx.fill();
         });
     });
 
@@ -4053,16 +4291,33 @@ function renderSimFront(model) {
     ctx.fill();
     ctx.stroke();
 
-    // 3. Recortes internos suaves na seção coloridos pela ferramenta que usinou
+    // 3. Recortes internos suaves na seção mostrando a cor da ferramenta + camadas de remoção (ap / Q)!
     const carveRect = (x0, x1, zTop, zBot, toolNum) => {
         const px0 = xToPx(x0), px1 = xToPx(x1);
         const py0 = zToY(zTop), py1 = zToY(zBot);
         const fHex = getToolHex(toolNum || 2, '#6FD3E0');
-        ctx.fillStyle = zBot <= model.zBottom + 0.4 ? SIM_COLORS.holeAbyss : shadeHex(fHex, 0.28);
-        ctx.fillRect(px0, py0, px1 - px0, py1 - py0);
+        const isThru = zBot <= model.zBottom + 0.4;
+        const wR = px1 - px0;
+        // Parede cilíndrica seccionada colorida pela ferramenta
+        ctx.fillStyle = shadeHex(fHex, 0.58);
+        ctx.fillRect(px0, py0, wR, py1 - py0);
+        if (isThru && wR > 8) {
+            ctx.fillStyle = SIM_COLORS.holeAbyss;
+            ctx.fillRect(px0 + wR * 0.22, py0, wR * 0.56, py1 - py0);
+        }
+        // Linhas horizontais de cada camada removida (passe ap ou mergulho Q)
+        const stepMm = Math.max(app.cncPeckQ || 1.5, 1.0);
+        ctx.strokeStyle = shadeHex(fHex, 1.15);
+        ctx.lineWidth = 0.85;
+        ctx.setLineDash([3, 2]);
+        for (let zm = zTop - stepMm; zm > zBot + 0.3; zm -= stepMm) {
+            const ym = zToY(zm);
+            ctx.beginPath(); ctx.moveTo(px0, ym); ctx.lineTo(px1, ym); ctx.stroke();
+        }
+        ctx.setLineDash([]);
         ctx.strokeStyle = fHex;
-        ctx.lineWidth = 1.4;
-        ctx.strokeRect(px0, py0, px1 - px0, py1 - py0);
+        ctx.lineWidth = 1.6;
+        ctx.strokeRect(px0, py0, wR, py1 - py0);
     };
 
     if (csg.pocket && csg.pocket.z < -0.2) {
@@ -4537,6 +4792,12 @@ function setupSimOrbitAndControls() {
         applyBookPageFilter();
         printPlan();
     });
+    const costForm = $('#costForm');
+    if (costForm && !costForm._bound) {
+        costForm._bound = true;
+        costForm.addEventListener('input', () => renderProcessBook());
+        costForm.addEventListener('change', () => renderProcessBook());
+    }
 
     bindClick('simAddCenterPocket', () => {
         app.cncExtraPocket = !app.cncExtraPocket;
@@ -5399,7 +5660,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.6.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.7.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

@@ -317,6 +317,19 @@ setTimeout(() => {
         const arcSegs = window.parseToolpath('G00 X-60. Y0. Z-5.\nG02 X-60. Y0. I60. J0. F250.').segs.filter(s => s.type === 'arc-cw');
         assert(arcSegs.length === 12, 'interpolação G02 subdividida em 12 passos angulares p/ movimento da ferramenta: ' + arcSegs.length);
         assert(Math.abs(arcSegs[2].y2) > 10, 'ferramenta realmente se desloca em X/Y ao longo do círculo durante a interpolação');
+
+        // Verifica o Estudo Profissional de Custos Mestre (Folha 5 do Book Técnico)
+        assert($$('#costKpiGrid .book-kpi-card').length === 5, '5 KPIs de custo mestre renderizados');
+        assert($$('#costToolsTableWrap table').length === 2, '2 tabelas mestres (Vida útil Taylor + Demonstrativo de Orçamento)');
+        assert($$('#costChartsWrap svg').length === 2, '2 gráficos SVG econômicos no estudo de custos');
+        const cost50 = $('#costKpiGrid').textContent;
+        const batchSel = $('#costBatch');
+        batchSel.value = '1';
+        batchSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        const cost1 = $('#costKpiGrid').textContent;
+        assert(cost1 !== cost50, 'mudar o tamanho do lote recalcula o custo unitário ao vivo');
+        batchSel.value = '50';
+        batchSel.dispatchEvent(new window.Event('change', { bubbles: true }));
     });
 
     // ===== Quiz =====

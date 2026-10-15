@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v6.6.0 · CAD + CNC Assistant</div>
+            <div class="version">v6.7.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -434,11 +434,12 @@
 
         <div class="book-toolbar">
             <div class="filter-chips" id="bookTabs" role="tablist" aria-label="Páginas do Book Técnico">
-                <button type="button" class="chip active" data-bpage="all" role="tab" aria-selected="true">📘 Book Completo (4 Folhas)</button>
+                <button type="button" class="chip active" data-bpage="all" role="tab" aria-selected="true">📘 Book Completo (5 Folhas)</button>
                 <button type="button" class="chip" data-bpage="drawing" role="tab" aria-selected="false">📐 1. Desenho &amp; Vistas</button>
                 <button type="button" class="chip" data-bpage="stages" role="tab" aria-selected="false">🧱 2. Do Bruto à Usinagem</button>
                 <button type="button" class="chip" data-bpage="charts" role="tab" aria-selected="false">📊 3. Tempos &amp; Gráficos</button>
                 <button type="button" class="chip" data-bpage="inspection" role="tab" aria-selected="false">🔍 4. Inspeção &amp; Dicas</button>
+                <button type="button" class="chip" data-bpage="cost" role="tab" aria-selected="false">💰 5. Estudo de Custos Mestre</button>
             </div>
             <button type="button" class="btn btn-accent btn-sm" id="btnPrintBook">🖨️ Imprimir Book da Peça</button>
         </div>
@@ -588,6 +589,59 @@
                 <div id="bookInspectionWrap"></div>
                 <div id="bookTipsWrap"></div>
             </div>
+        </div>
+
+        <!-- FOLHA 5 DO BOOK: ESTUDO DE CUSTOS E ORÇAMENTAÇÃO INDUSTRIAL (NÍVEL MESTRE) -->
+        <div class="book-page book-card" id="bookPageCost" data-bpage-section="cost">
+            <div class="book-page-head">
+                <div>
+                    <span class="book-page-num">FOLHA 05 / 05 · ENGENHARIA ECONÔMICA &amp; ORÇAMENTAÇÃO CNC (NÍVEL MESTRE)</span>
+                    <h3 class="book-page-title">💰 Estudo Profissional de Custos: Matéria-Prima, Hora-Máquina, Desgaste de Ferramentas, Lote e Ponto Ótimo de Taylor</h3>
+                </div>
+                <span class="book-page-badge" id="bookCostSummary">—</span>
+            </div>
+
+            <div class="cost-params-bar" id="costForm" role="group" aria-label="Parâmetros econômicos de orçamentação CNC">
+                <label class="sim-strat-item" for="costBatch" title="Quantidade de peças do lote para diluição do setup e programação">
+                    <span>📦 Lote:</span>
+                    <select id="costBatch" class="sim-speed-select">
+                        <option value="1">1 un (Protótipo)</option>
+                        <option value="10">10 un (Lote Piloto)</option>
+                        <option value="50" selected>50 un (Série Média)</option>
+                        <option value="100">100 un (Produção)</option>
+                        <option value="500">500 un (Seriado)</option>
+                        <option value="1000">1000 un (Alto Volume)</option>
+                    </select>
+                </label>
+                <label class="sim-strat-item" for="costMachineRate" title="Custo horário da máquina CNC + operador (R$/h)">
+                    <span>🏭 Hora-Máquina (R$/h):</span>
+                    <input type="number" id="costMachineRate" class="cost-num-input" value="180" min="20" step="10">
+                </label>
+                <label class="sim-strat-item" for="costMatPrice" title="Preço do kg do aço bruto (R$/kg)">
+                    <span>🧱 Aço Bruto (R$/kg):</span>
+                    <input type="number" id="costMatPrice" class="cost-num-input" value="14.5" min="1" step="0.5">
+                </label>
+                <label class="sim-strat-item" for="costScrapPrice" title="Crédito de venda do cavaco para reciclagem (R$/kg)">
+                    <span>♻️ Crédito Cavaco (R$/kg):</span>
+                    <input type="number" id="costScrapPrice" class="cost-num-input" value="2.2" min="0" step="0.2">
+                </label>
+                <label class="sim-strat-item" for="costSetupMin" title="Tempo total de preparação da máquina, fixação e zero-peça G54 (minutos)">
+                    <span>⏱️ Setup (min):</span>
+                    <input type="number" id="costSetupMin" class="cost-num-input" value="35" min="5" step="5">
+                </label>
+                <label class="sim-strat-item" for="costProgFee" title="Custo de engenharia / programação CAM diluído no lote (R$)">
+                    <span>💻 Eng./CAM (R$):</span>
+                    <input type="number" id="costProgFee" class="cost-num-input" value="120" min="0" step="10">
+                </label>
+                <label class="sim-strat-item" for="costMarginPct" title="Margem + impostos sobre o custo industrial (%)">
+                    <span>📈 Margem+Imp. (%):</span>
+                    <input type="number" id="costMarginPct" class="cost-num-input" value="30" min="0" step="5">
+                </label>
+            </div>
+
+            <div class="book-kpi-grid" id="costKpiGrid"></div>
+            <div class="book-table-wrap" id="costToolsTableWrap"></div>
+            <div class="book-charts-grid" id="costChartsWrap"></div>
         </div>
     </section>
 
@@ -838,7 +892,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.6.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v6.7.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

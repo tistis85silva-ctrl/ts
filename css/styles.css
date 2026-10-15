@@ -4799,6 +4799,29 @@ body.print-certificado #certPaper {
     color: var(--text);
 }
 
+/* ===== FOLHA 5: ESTUDO DE CUSTOS MESTRE ===== */
+.cost-params-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px 14px;
+    flex-wrap: wrap;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+}
+.cost-num-input {
+    width: 68px;
+    font: inherit;
+    font-size: 10.5px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 3px 6px;
+}
+
 @media (max-width: 900px) {
     .book-charts-grid,
     .book-insp-grid {

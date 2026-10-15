@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.6.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.7.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,14 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.7.0
+- **🕳️ Furos e Cavidades Coloridos com Camadas de Remoção Visíveis (3D, Planta e Corte)**:
+  - Substitui o preenchimento preto opaco dentro dos furos por **paredes cilíndricas iluminadas na cor exata da ferramenta (`T02`, `T03`, `T04`, `T05`)** + **anéis de profundidade de cada camada removida (`ap` / mergulho `G83 Q`)** nas 3 vistas!
+- **💰 Estudo Profissional de Custos & Orçamentação CNC — Nível Mestre (Folha 5 do Book Técnico)**:
+  - **Cálculo Industrial Completo**: Matéria-Prima Bruta, Abatimento de Cavaco Reciclado (90%), Hora-Máquina + Operador, **Desgaste de Aresta/Ferramenta pelo Modelo de Taylor** (`T01..T05`), Diluição de Setup + Engenharia CAM pelo Tamanho do Lote (`1` a `1000 un`), Custo Fabril Unitário e Preço de Venda Sugerido
+  - **2 Tabelas Mestres + 2 Gráficos SVG Econômicos**: Composição do Custo Unitário e Curva de Economia de Escala por Tamanho de Lote
+
 
 ### v6.6.0
 - **🎨 Cores por Ferramenta + Seletor Personalizável (`T01..T05` + Botão `🌈 Paleta`)**:
