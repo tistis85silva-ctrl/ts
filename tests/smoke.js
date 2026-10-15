@@ -284,6 +284,24 @@ setTimeout(() => {
         assert($('#bookPageCharts').style.display !== 'none', 'aba gráficos visível');
         assert($('#bookPageDrawing').style.display === 'none', 'aba desenho oculta ao filtrar gráficos');
         d.querySelector('#bookTabs .chip[data-bpage="all"]').click();
+
+        // Verifica a nova ordem do layout: Processo -> Programa -> Simulador -> Book Técnico ANTES de Estudo / Quiz / Fichas / Certificado
+        const allSecIds = Array.from(d.querySelectorAll('section[id]')).map(s => s.id);
+        const idxDetect = allSecIds.indexOf('detectSection');
+        const idxCode = allSecIds.indexOf('codeSection');
+        const idxSim = allSecIds.indexOf('simSection');
+        const idxBook = allSecIds.indexOf('drawingSheetSection');
+        const idxCourse = allSecIds.indexOf('courseSection');
+        const idxCert = allSecIds.indexOf('certSection');
+        assert(idxDetect < idxCode && idxCode < idxSim && idxSim < idxBook && idxBook < idxCourse && idxCourse < idxCert,
+            'Ordem operacional antes do estudo inválida: ' + allSecIds.join(' -> '));
+
+        // Testa troca rápida de peça direto na barra do Simulador (#simPartSelect) sem precisar subir a tela
+        const simPartSel = $('#simPartSelect');
+        simPartSel.value = 'flange';
+        simPartSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#partLabel').textContent.includes('FLANGE'), 'troca rápida de peça no simulador atualizou para Flange');
+        assert($('#codePartSelect').value === 'flange', 'seletor do programa sincronizado');
     });
 
     // ===== Quiz =====

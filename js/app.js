@@ -175,6 +175,20 @@ function updateGallerySelection() {
     });
 }
 
+function syncPartSelects() {
+    ['simPartSelect', 'codePartSelect'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        if (!sel.options.length) {
+            sel.innerHTML = Object.keys(PARTS).map(pid => {
+                const p = PARTS[pid];
+                return '<option value="' + pid + '">' + p.icon + ' ' + p.name + ' (' + p.process + ')</option>';
+            }).join('');
+        }
+        sel.value = app.partId;
+    });
+}
+
 function selectPart(partId, opts) {
     opts = opts || {};
     if (!PARTS[partId]) partId = DEFAULT_PART_ID;
@@ -186,6 +200,7 @@ function selectPart(partId, opts) {
     renderFeatures();
     updateGallerySelection();
     renderPartChrome();
+    syncPartSelects();
     if (!opts.silent) saveSession();
 }
 
@@ -4128,6 +4143,24 @@ function setupSimOrbitAndControls() {
     bindSyncedNumericSelect('simPeckQ', 'codePeckQ', 'cncPeckQ', '🔩 Mergulho G83 (Q)');
     bindSyncedNumericSelect('simFinishAllow', 'codeFinishAllow', 'cncFinishAllow', '💎 Sobremetal de acabamento');
 
+    // Seletores rápidos de peça dentro do Programa CNC e do Simulador 3D (para trocar de peça sem subir a tela!)
+    syncPartSelects();
+    ['simPartSelect', 'codePartSelect'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel && !sel._bound) {
+            sel._bound = true;
+            sel.addEventListener('change', e => {
+                const pid = e.target.value;
+                const p = PARTS[pid];
+                if (!p) return;
+                selectPart(pid);
+                revealApp(p.exampleFile, { silent: true });
+                confirmFeatures({ silent: true });
+                showToast('🔧 Peça alterada para ' + p.name + ' (Programa, Simulador e Book atualizados!)');
+            });
+        }
+    });
+
     // Abas do Book Técnico da Peça + botão de impressão do Book
     const bookTabs = $('#bookTabs');
     if (bookTabs && !bookTabs._bound) {
@@ -4541,8 +4574,8 @@ function confirmFeatures(opts) {
     renderSteps();
 
     if (!opts.silent) {
-        setTimeout(() => scrollToSection('softHead'), 150);
-        showToast('✅ Roteiro, folha e código CNC gerados com sucesso!');
+        setTimeout(() => scrollToSection('codeSection'), 120);
+        showToast('✅ Processo aceito — Programa CNC, Simulador 3D e Book Técnico prontos!');
     }
     saveSession();
 }
@@ -4683,7 +4716,14 @@ function setupGeneralEvents() {
     $('#logoHome').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
     $$('[data-scroll-to]').forEach(btn => {
-        btn.addEventListener('click', () => scrollToSection(btn.dataset.scrollTo));
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.scrollTo;
+            if (['detectSection', 'codeSection', 'simSection', 'drawingSheetSection', 'planSection'].indexOf(target) >= 0) {
+                if (!app.revealed) revealApp(currentPart().exampleFile, { silent: true });
+                if (!app.confirmed && target !== 'detectSection') confirmFeatures({ silent: true });
+            }
+            scrollToSection(target);
+        });
     });
     $$('[data-action="demo"]').forEach(btn => {
         btn.addEventListener('click', () => revealApp(PARTS[DEFAULT_PART_ID].exampleFile, { partId: DEFAULT_PART_ID }));
@@ -4999,7 +5039,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.4.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.5.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.4.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.5.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,13 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.5.0
+- **Nova Ordem Lógica do Layout (Fluxo de Processo Primeiro → Estudo e Conclusão Depois)**:
+  - **1º Fluxo Operacional Contínuo no Topo**: Galeria de Peças → **1. Aceitar Processo (Features)** → **2. Programação CNC (ISO + Macro)** → **3. Simulador 3D (Workstation 3 Vistas)** → **4. Book Técnico da Peça (4 Folhas)** → **5. Software & Roteiro CAD** → **Calculadora & Tabelas**
+  - **2º Área de Estudo, Avaliação e Conclusão no Final**: **Roteiro de Aulas (64h)** → **Quiz de Treino** → **Kit de Fichas de Avaliação** → **Certificado de Conclusão**
+  - **Seletor Rápido de Peça (`🔧 Peça`)** dentro do Programa CNC e do Simulador 3D para trocar entre as 10 peças sem precisar subir a tela!
+
 
 ### v6.4.0
 - **📘 Book Técnico Completo de Manufatura da Peça (4 Folhas Integradas)**:

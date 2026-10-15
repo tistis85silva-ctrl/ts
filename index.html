@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v6.4.0 · CAD + CNC Assistant</div>
+            <div class="version">v6.5.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -45,8 +45,13 @@
         </div>
         <div class="header-controls">
             <nav aria-label="Navegação principal">
-                <button type="button" data-scroll-to="hero">Início</button>
-                <button type="button" data-scroll-to="softwareSection">Softwares</button>
+                <button type="button" data-scroll-to="examplesSection">🔧 Peças</button>
+                <button type="button" data-scroll-to="detectSection">1. Processo</button>
+                <button type="button" data-scroll-to="codeSection">2. Programa CNC</button>
+                <button type="button" data-scroll-to="simSection">3. Simulador 3D</button>
+                <button type="button" data-scroll-to="drawingSheetSection">4. Book Técnico</button>
+                <button type="button" data-scroll-to="courseSection">📚 Estudo &amp; Aulas</button>
+                <button type="button" data-scroll-to="certSection">🏆 Conclusão</button>
                 <button type="button" class="nav-badge" data-action="demo">🎯 Exemplo</button>
             </nav>
             <button type="button" class="theme-toggle" id="themeToggle" role="switch" aria-checked="false"
@@ -118,6 +123,7 @@
         </div>
     </section>
 
+
     <!-- ===== EXEMPLOS DE USINAGEM ===== -->
     <section id="examplesSection">
         <div class="section-head">
@@ -133,129 +139,12 @@
         <div class="example-grid" id="exampleGrid"></div>
     </section>
 
-    <!-- ===== TRILHA DE FORMAÇÃO ===== -->
-    <section id="courseSection">
-        <div class="section-head">
-            <div class="section-eyebrow">Formação</div>
-            <h2 class="section-title">📚 Roteiro de Aulas — Trilha Completa</h2>
-            <p class="section-sub">Curso estruturado para operadores e programadores de CNC: objetivos, roteiro de cada aula por fases cronometradas, pontos de atenção e critérios de avaliação. Acompanhe o progresso e imprima o roteiro para a sala de aula.</p>
-        </div>
-        <div class="course-meta" id="courseMeta"></div>
-        <div class="course-progress-wrap">
-            <div class="plan-progress-bar" role="progressbar" aria-label="Progresso da trilha"
-                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="courseProgress">
-                <div class="plan-progress-fill" id="courseFill"></div>
-            </div>
-            <span class="plan-progress-pct" id="coursePct">0%</span>
-        </div>
-        <div class="course-toolbar">
-            <span class="course-done-count" id="courseDoneCount">0/13 aulas concluídas</span>
-            <div class="code-actions">
-                <button type="button" class="btn" id="btnToggleAllAulas">📂 Expandir tudo</button>
-                <button type="button" class="btn btn-accent" id="btnPrintCourse">🖨️ Imprimir roteiro de aulas</button>
-            </div>
-        </div>
-        <div id="courseModules"></div>
-    </section>
-
-    <!-- ===== QUIZ DE TREINO ===== -->
-    <section id="quizSection">
-        <div class="section-head">
-            <div class="section-eyebrow">Treino</div>
-            <h2 class="section-title">📝 Quiz de Treino</h2>
-            <p class="section-sub">As mesmas questões das fichas de avaliação em modo interativo: responda, veja o gabarito na hora e acompanhe sua pontuação antes da avaliação de papel.</p>
-        </div>
-        <div class="quiz-toolbar">
-            <div class="filter-chips" id="quizFilters" role="group" aria-label="Filtrar questões por módulo">
-                <button type="button" class="chip active" data-qfilter="all">Todas</button>
-                <button type="button" class="chip" data-qfilter="m0">M0</button>
-                <button type="button" class="chip" data-qfilter="m1">M1</button>
-                <button type="button" class="chip" data-qfilter="m2">M2</button>
-                <button type="button" class="chip" data-qfilter="m3">M3</button>
-                <button type="button" class="chip" data-qfilter="m4">M4</button>
-                <button type="button" class="chip" data-qfilter="m5">M5</button>
-                <button type="button" class="chip" data-qfilter="final">Prova final</button>
-            </div>
-            <div class="quiz-score-wrap">
-                <span class="quiz-score-label">Pontuação</span>
-                <b class="quiz-score" id="quizScore">0,0 / 0,0 pts</b>
-                <button type="button" class="btn btn-sm" id="quizReset">↺ Reiniciar</button>
-            </div>
-        </div>
-        <div id="quizList"></div>
-    </section>
-
-    <!-- ===== KIT DE FICHAS DE AVALIAÇÃO ===== -->
-    <section id="fichaSection">
-        <div class="section-head">
-            <div class="section-eyebrow">Avaliação</div>
-            <h2 class="section-title">📝 Kit de Fichas de Avaliação</h2>
-            <p class="section-sub">Documentação de avaliação pronta para imprimir: identificação, presença, avaliação por módulo (teórica + prática), prova final, avaliação de eficácia pós-turma e gabarito do instrutor. Preenchimento manual — formato A4 profissional.</p>
-        </div>
-        <div class="ficha-toolbar">
-            <span class="ficha-hint">💡 Dica: imprima o gabarito apenas para o instrutor. As demais fichas são distribuídas aos participantes.</span>
-            <button type="button" class="btn btn-accent" id="btnPrintFichaKit">🖨️ Imprimir kit completo (11 fichas)</button>
-        </div>
-        <div class="ficha-grid" id="fichaGrid"></div>
-        <div class="ficha-preview-wrap" id="fichaPreviewWrap" style="display:none;">
-            <div class="ficha-preview-bar">
-                <strong id="fichaPreviewTitle">Ficha</strong>
-                <div class="code-actions">
-                    <button type="button" class="btn btn-accent" id="btnPrintCurrentFicha">🖨️ Imprimir ficha</button>
-                    <button type="button" class="btn" id="btnCloseFichaPreview">✕ Fechar</button>
-                </div>
-            </div>
-            <div class="ficha-paper" id="fichaPaper"></div>
-        </div>
-        <div class="print-only print-header print-header-ficha">
-            <span class="ph-title">COTA — Kit de Fichas de Avaliação</span>
-            <span class="ph-meta" id="printFichaMeta"></span>
-        </div>
-        <div class="print-only" id="fichaKitPrint"></div>
-    </section>
-
-    <!-- ===== CERTIFICADO ===== -->
-    <section id="certSection">
-        <div class="section-head">
-            <div class="section-eyebrow">Certificação</div>
-            <h2 class="section-title">🏆 Certificado de Conclusão</h2>
-            <p class="section-sub">Preencha os dados do participante, confira a pré-visualização e imprima em A4 paisagem. Numeração de registro automática para controle de validade.</p>
-        </div>
-        <div class="cert-form" id="certForm">
-            <div class="cert-field"><label for="certNome">Nome do participante</label>
-                <input type="text" id="certNome" placeholder="Nome completo do colaborador" maxlength="60"></div>
-            <div class="cert-field"><label for="certNota">Nota final</label>
-                <input type="text" id="certNota" value="8,5" maxlength="5"></div>
-            <div class="cert-field"><label for="certPeriodo">Período do curso</label>
-                <input type="text" id="certPeriodo" placeholder="ex.: 10/2026 a 11/2026" maxlength="30"></div>
-            <div class="cert-field"><label for="certData">Data de conclusão</label>
-                <input type="text" id="certData" maxlength="12"></div>
-            <div class="cert-field"><label for="certInstrutor">Instrutor(a)</label>
-                <input type="text" id="certInstrutor" placeholder="Nome do instrutor" maxlength="40"></div>
-            <div class="cert-field"><label for="certResponsavel">Responsável pelo treinamento</label>
-                <input type="text" id="certResponsavel" placeholder="Nome do responsável" maxlength="40"></div>
-            <div class="cert-field"><label for="certLocal">Local</label>
-                <input type="text" id="certLocal" placeholder="Cidade — UF / empresa" maxlength="40"></div>
-            <div class="cert-field"><label for="certRegistro">Nº de registro</label>
-                <input type="text" id="certRegistro" maxlength="20"></div>
-        </div>
-        <div class="cert-toolbar">
-            <span class="ficha-hint">💡 Recomendado: papel offset 180 g ou cartolina · impressão A4 paisagem · cores.</span>
-            <div class="code-actions">
-                <button type="button" class="btn" id="btnCertReset">↺ Limpar campos</button>
-                <button type="button" class="btn btn-accent" id="btnPrintCert">🖨️ Imprimir certificado</button>
-            </div>
-        </div>
-        <div class="cert-preview-wrap">
-            <div class="cert-paper" id="certPaper"></div>
-        </div>
-    </section>
 
     <!-- ===== DETECT ===== -->
     <section class="detect-wrap" id="detectSection">
         <div class="section-head">
-            <div class="section-eyebrow">Passo 1</div>
-            <h2 class="section-title">Confirme as features detectadas</h2>
+            <div class="section-eyebrow">Passo 1 · Aceitar Processo</div>
+            <h2 class="section-title">✅ Confirme as features e parâmetros do processo</h2>
             <p class="section-sub">O COTA leu as vistas e cotas do desenho e sugeriu estas features. Ajuste os valores ou desmarque o que não se aplica antes de gerar o roteiro.</p>
         </div>
         <div class="detect-banner">
@@ -263,39 +152,257 @@
             <span id="detectNote">Leitura automática a partir do arquivo enviado — confira contra o desenho original antes de prosseguir.</span>
         </div>
         <div class="feature-grid" id="featureGrid"></div>
-        <div class="detect-cta">
-            <button type="button" class="btn btn-accent" id="btnConfirmFeatures">✅ Confirmar e gerar roteiro</button>
+        <div class="detect-cta" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button type="button" class="btn btn-accent" id="btnConfirmFeatures">✅ Aceitar processo e gerar tudo</button>
+            <button type="button" class="btn" data-scroll-to="codeSection">⚙️ Ir p/ Programa CNC ↓</button>
+            <button type="button" class="btn" data-scroll-to="simSection">🎯 Ir p/ Simulador 3D ↓</button>
+            <button type="button" class="btn" data-scroll-to="drawingSheetSection">📘 Ir p/ Book Técnico ↓</button>
         </div>
     </section>
 
-    <!-- ===== SOFTWARE ===== -->
-    <section id="softwareSection">
-        <div class="section-head" id="softHead" style="display:none;">
-            <div class="section-eyebrow">Passo 2</div>
-            <h2 class="section-title">Escolha seu software</h2>
-            <p class="section-sub">O roteiro é o mesmo — mas os comandos e o caminho de menu mudam. O COTA traduz cada etapa para a interface que você já usa.</p>
+
+    <!-- ===== PROGRAMAÇÃO CNC ===== -->
+    <section class="code-wrap" id="codeSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Passo 2 · Código ISO &amp; Macro</div>
+            <h2 class="section-title">⚙️ Programação CNC</h2>
+            <p class="section-sub">O mesmo programa em duas versões: código ISO 6983 pronto para o painel e programa paramétrico com variáveis — mude as dimensões e tudo é recalculado.</p>
         </div>
-        <div class="soft-grid" id="softGrid" style="display:none;">
-            <button type="button" class="soft-card active" data-soft="solidworks" aria-pressed="true">
-                <div class="soft-badge" aria-hidden="true">SW</div>
-                <p class="soft-name">SolidWorks</p>
-                <p class="soft-desc">Feature-based, árvore de projeto (FeatureManager) à esquerda.</p>
-                <div class="soft-check">✓ selecionado para o roteiro</div>
-            </button>
-            <button type="button" class="soft-card" data-soft="fusion" aria-pressed="false">
-                <div class="soft-badge" aria-hidden="true">F360</div>
-                <p class="soft-name">Fusion 360</p>
-                <p class="soft-desc">Timeline na parte inferior, workspace de Design.</p>
-                <div class="soft-check">✓ selecionado para o roteiro</div>
-            </button>
-            <button type="button" class="soft-card" data-soft="inventor" aria-pressed="false">
-                <div class="soft-badge" aria-hidden="true">INV</div>
-                <p class="soft-name">Inventor</p>
-                <p class="soft-desc">Ambiente de Peça (Part), navegador de modelo à esquerda.</p>
-                <div class="soft-check">✓ selecionado para o roteiro</div>
-            </button>
+        <div class="code-meta" id="codeMeta"></div>
+        <div class="code-tabs" role="tablist" aria-label="Versões do programa CNC">
+            <button type="button" class="code-tab active" data-code="iso" role="tab" aria-selected="true">📄 Código ISO (G-code)</button>
+            <button type="button" class="code-tab" data-code="macro" role="tab" aria-selected="false">🧮 Programa paramétrico</button>
+        </div>
+        <div class="code-toolbar">
+            <div class="code-cut-params" role="group" aria-label="Controle de quanto remover de material por vez no programa CNC">
+                <label class="sim-strat-item" for="codePartSelect" title="Trocar de peça direto daqui sem subir a tela">
+                    <span>🔧 Peça:</span>
+                    <select id="codePartSelect" class="sim-speed-select"></select>
+                </label>
+                <label class="sim-strat-item" for="codeStepDown" title="Quanto remover de profundidade/raio por passada no desbaste (contorno, cavidade, rasgo, rampa e G71)">
+                    <span>🔨 Passe Desbaste (ap/U):</span>
+                    <select id="codeStepDown" class="sim-speed-select">
+                        <option value="0.5">0,5 mm / vez</option>
+                        <option value="1">1,0 mm / vez</option>
+                        <option value="1.5">1,5 mm / vez</option>
+                        <option value="2" selected>2,0 mm / vez</option>
+                        <option value="3">3,0 mm / vez</option>
+                        <option value="5">5,0 mm / vez</option>
+                    </select>
+                </label>
+                <label class="sim-strat-item" for="codePeckQ" title="Quanto remover por mergulho na furação pica-pau (G83 / G74)">
+                    <span>🔩 Mergulho Furação G83 (Q):</span>
+                    <select id="codePeckQ" class="sim-speed-select">
+                        <option value="0.5">0,5 mm / vez</option>
+                        <option value="1" selected>1,0 mm / vez</option>
+                        <option value="1.5">1,5 mm / vez</option>
+                        <option value="2">2,0 mm / vez</option>
+                        <option value="3">3,0 mm / vez</option>
+                        <option value="5">5,0 mm / vez</option>
+                    </select>
+                </label>
+                <label class="sim-strat-item" for="codeFinishAllow" title="Sobrematerial deixado no desbaste para o passe de acabamento remover">
+                    <span>💎 Sobremetal Acab.:</span>
+                    <select id="codeFinishAllow" class="sim-speed-select">
+                        <option value="0.1">0,1 mm</option>
+                        <option value="0.2">0,2 mm</option>
+                        <option value="0.3" selected>0,3 mm</option>
+                        <option value="0.5">0,5 mm</option>
+                        <option value="1">1,0 mm</option>
+                    </select>
+                </label>
+            </div>
+            <div class="code-actions">
+                <button type="button" class="btn" id="btnCopyCode">📋 Copiar</button>
+                <button type="button" class="btn btn-accent" id="btnDownloadCode">💾 Baixar .tap</button>
+            </div>
+        </div>
+        <pre class="code-view" id="codeView" tabindex="0"></pre>
+    </section>
+
+
+    <!-- ===== SIMULADOR DE PERCURSO ===== -->
+    <section class="sim-wrap-section" id="simSection">
+        <div class="section-head sim-head-compact">
+            <div>
+                <div class="section-eyebrow">Passo 3 · Workstation CNC em Tela Única</div>
+                <h2 class="section-title">🎯 Simulador 3D de Remoção de Material</h2>
+            </div>
+            <p class="section-sub">Painel integrado em tela única: acompanhe a peça em <b>3D</b>, <b>Planta</b>, <b>Corte Frontal</b> e <b>Código G</b> ao mesmo tempo, sem precisar rolar a página.</p>
+        </div>
+
+        <div class="sim-cockpit">
+            <!-- BARRA SUPERIOR FIXA E COMPACTA (TRANSPORTE + OPÇÕES 3D + DRO + OPERAÇÕES) -->
+            <div class="sim-cockpit-deck">
+                <div class="sim-toolbar">
+                    <div class="sim-transport" role="group" aria-label="Controles de reprodução da simulação">
+                        <button type="button" class="btn btn-sm" id="simFirst" title="Voltar ao bloco 0 (100% material bruto)">⏮ Bruto</button>
+                        <button type="button" class="btn btn-sm" id="simPrev" title="Recuar 1 bloco">⏪ -1</button>
+                        <button type="button" class="btn btn-accent btn-sm" id="simPlay">▶ Reproduzir</button>
+                        <button type="button" class="btn btn-sm" id="simNext" title="Avançar 1 bloco">⏩ +1</button>
+                        <button type="button" class="btn btn-sm" id="simLast" title="Ir para o final da usinagem">⏭ Fim</button>
+                        <button type="button" class="btn btn-sm" id="simReset" title="Reiniciar simulação">↺ Início</button>
+                    </div>
+                    <input type="range" id="simSlider" min="0" max="0" value="0" class="sim-slider" aria-label="Avançar blocos do programa">
+                    <span class="sim-counter" id="simCounter">0/0 blocos</span>
+                    <label class="sim-speed-label" for="simSpeed">Vel.
+                        <select id="simSpeed" class="sim-speed-select" aria-label="Velocidade da simulação">
+                            <option value="0.5">0.5×</option>
+                            <option value="1" selected>1×</option>
+                            <option value="2">2×</option>
+                            <option value="4">4×</option>
+                        </select>
+                    </label>
+                    <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D">
+                        <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A)">🔪 Corte A-A</button>
+                        <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar/ocultar percurso">🧭 Percurso</button>
+                        <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar/ocultar ferramenta 3D">🔧 Ferramenta</button>
+                        <button type="button" class="chip sim-toggle-btn" id="simZoomIn" title="Aproximar vista 3D">➕</button>
+                        <button type="button" class="chip sim-toggle-btn" id="simZoomOut" title="Afastar vista 3D">➖</button>
+                        <button type="button" class="chip sim-toggle-btn" id="simResetCam" title="Restaurar ângulo padrão da vista 3D">🔄 3D</button>
+                    </div>
+                </div>
+
+                <div class="sim-dro-panel" id="simDroPanel" aria-label="Painel digital de coordenadas e telemetria CNC">
+                    <div class="sim-dro-axes">
+                        <div class="dro-axis"><span class="dro-k axis-x">X</span><b class="dro-v" id="simDroX">+000.000</b><span class="dro-u">mm</span></div>
+                        <div class="dro-axis"><span class="dro-k axis-y">Y</span><b class="dro-v" id="simDroY">+000.000</b><span class="dro-u">mm</span></div>
+                        <div class="dro-axis"><span class="dro-k axis-z">Z</span><b class="dro-v" id="simDroZ">+000.000</b><span class="dro-u">mm</span></div>
+                    </div>
+                    <div class="sim-dro-modals">
+                        <span class="dro-chip" id="simModalG">G00 Rápido</span>
+                        <span class="dro-chip dro-chip-tool" id="simModalT">T01 · —</span>
+                        <span class="dro-chip" id="simModalSF">S0 RPM · F0</span>
+                        <span class="dro-chip dro-chip-ok" id="simSafetyBadge">✅ Seguro</span>
+                    </div>
+                    <div class="sim-dro-stats">
+                        <div class="dro-rem-head">
+                            <span id="simRemPct">0% usinado</span>
+                            <span id="simCycleTime">⏱ 00:00</span>
+                        </div>
+                        <div class="dro-rem-bar"><div class="dro-rem-fill" id="simRemFill" style="width:0%"></div></div>
+                    </div>
+                </div>
+
+                <div class="sim-strategy-bar" id="simStrategyBar" role="group" aria-label="Funções de usinagem e ponto zero">
+                    <label class="sim-strat-item" for="simPartSelect" title="Trocar de peça direto no simulador sem subir a tela">
+                        <span>🔧 Peça:</span>
+                        <select id="simPartSelect" class="sim-speed-select"></select>
+                    </label>
+                    <label class="sim-strat-item" for="simZeroSelect" title="Escolher onde fica a origem G54 (Zero-Peça)">
+                        <span>📍 Zero G54:</span>
+                        <select id="simZeroSelect" class="sim-speed-select">
+                            <option value="center" selected>🎯 Centro da Peça (X0 Y0)</option>
+                            <option value="bl">📐 Canto Inf. Esq. (X+ Y+)</option>
+                            <option value="tl">🗜️ Canto Sup. Esq. (Morsa Fixa)</option>
+                            <option value="tr">📐 Canto Sup. Dir.</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simDrillSelect" title="Escolher ciclo fixo de furação (G81, G82 ou G83 pica-pau)">
+                        <span>🔩 Furação:</span>
+                        <select id="simDrillSelect" class="sim-speed-select">
+                            <option value="auto" selected>Padrão da peça</option>
+                            <option value="G83">G83 Pica-Pau (Quebra-cavaco Q)</option>
+                            <option value="G81">G81 Simples (Direto)</option>
+                            <option value="G82">G82 Com Demora (Fundo liso P)</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simPassSelect" title="Escolher entre Desbaste + Acabamento, Só Desbaste (com sobremetal) ou Só Acabamento">
+                        <span>🛠️ Usinagem:</span>
+                        <select id="simPassSelect" class="sim-speed-select">
+                            <option value="both" selected>🔨+💎 Desbaste + Acabamento</option>
+                            <option value="rough">🔨 Só Desbaste (deixa sobremetal)</option>
+                            <option value="finish">💎 Só Acabamento (passe final)</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simPocketSelect" title="Escolher estratégia de abertura de cavidade/rasgo">
+                        <span>🌀 Cavidade:</span>
+                        <select id="simPocketSelect" class="sim-speed-select">
+                            <option value="spiral" selected>🌀 Pelo Centro (Espiral p/ fora)</option>
+                            <option value="zigzag">⚡ Zig-Zag (Varredura linear)</option>
+                            <option value="helical">⭕ Helicoidal pelo Centro (G02+Z)</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simStepDown" title="Quanto remover de material por passada no desbaste (contorno, cavidade, rasgo, rampa e G71 no torno)">
+                        <span>🔨 Remover/passe (ap):</span>
+                        <select id="simStepDown" class="sim-speed-select">
+                            <option value="0.5">0,5 mm / vez</option>
+                            <option value="1">1,0 mm / vez</option>
+                            <option value="1.5">1,5 mm / vez</option>
+                            <option value="2" selected>2,0 mm / vez</option>
+                            <option value="3">3,0 mm / vez</option>
+                            <option value="5">5,0 mm / vez</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simPeckQ" title="Quanto a broca avança por mergulho no ciclo G83 / G74 (ex.: 1 mm por vez)">
+                        <span>🔩 Mergulho G83 (Q):</span>
+                        <select id="simPeckQ" class="sim-speed-select">
+                            <option value="0.5">0,5 mm / vez</option>
+                            <option value="1" selected>1,0 mm / vez</option>
+                            <option value="1.5">1,5 mm / vez</option>
+                            <option value="2">2,0 mm / vez</option>
+                            <option value="3">3,0 mm / vez</option>
+                            <option value="5">5,0 mm / vez</option>
+                        </select>
+                    </label>
+                    <label class="sim-strat-item" for="simFinishAllow" title="Sobrematerial deixado pelo desbaste para o passe de acabamento limpar">
+                        <span>💎 Sobremetal:</span>
+                        <select id="simFinishAllow" class="sim-speed-select">
+                            <option value="0.1">0,1 mm</option>
+                            <option value="0.2">0,2 mm</option>
+                            <option value="0.3" selected>0,3 mm</option>
+                            <option value="0.5">0,5 mm</option>
+                            <option value="1">1,0 mm</option>
+                        </select>
+                    </label>
+                    <button type="button" class="chip sim-toggle-btn" id="simAddCenterPocket" aria-pressed="false" title="Adicionar ou remover uma usinagem de Cavidade pelo Centro na peça atual">➕ Cavidade pelo Centro</button>
+                </div>
+
+                <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
+            </div>
+
+            <!-- GRADE WORKSTATION EM TELA ÚNICA: 3D (ESQ) | SUPERIOR + FRONTAL (CENTRO) | G-CODE (DIR) -->
+            <div class="sim-views">
+                <div class="sim-view sim-view-3d">
+                    <h4 class="sim-view-title">🧊 Vista 3D isométrica <span class="sim-hint">arraste para girar · botões ➕/➖ para zoom</span></h4>
+                    <canvas id="sim3d" width="680" height="420"></canvas>
+                    <div class="sim-material-bar">
+                        <span class="sim-mat-ic" aria-hidden="true">🧱</span>
+                        <span id="simMaterial">Material bruto</span>
+                        <span class="sim-mat-legend">
+                            <span class="lg raw"></span> bruto &nbsp;
+                            <span class="lg machined"></span> usinado &nbsp;
+                            <span class="lg deep"></span> furo/cavidade &nbsp;
+                            <span class="lg feed"></span> corte
+                        </span>
+                    </div>
+                </div>
+
+                <div class="sim-col-2d">
+                    <div class="sim-view">
+                        <h4 class="sim-view-title" id="simTopTitle">⬛ Vista superior (X × Y) <span class="sim-hint">planta</span></h4>
+                        <canvas id="simTop" width="420" height="205"></canvas>
+                    </div>
+                    <div class="sim-view">
+                        <h4 class="sim-view-title" id="simFrontTitle">🏔️ Vista frontal em corte (X × Z) <span class="sim-hint">seção A-A</span></h4>
+                        <canvas id="simFront" width="420" height="205"></canvas>
+                    </div>
+                </div>
+
+                <div class="sim-col-code">
+                    <div class="sim-side-box sim-box-current">
+                        <h4 class="sim-side-title">Bloco em execução</h4>
+                        <pre class="sim-line" id="simInfo">—</pre>
+                    </div>
+                    <div class="sim-side-box sim-box-list">
+                        <h4 class="sim-side-title">Programa CNC <span class="sim-hint">clique para saltar</span></h4>
+                        <div class="sim-code-list" id="simCodeList" role="listbox" aria-label="Blocos do programa CNC"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
+
 
     <!-- ===== FOLHA DE DESENHO ===== -->
     <section class="drawing-sheet-wrap" id="drawingSheetSection">
@@ -316,7 +423,7 @@
             <pre id="printCodeMacro"></pre>
         </div>
         <div class="section-head" style="border-top:1px solid var(--line-soft);">
-            <div class="section-eyebrow">Documentação Técnica &amp; Engenharia de Processo</div>
+            <div class="section-eyebrow">Passo 4 · Documentação Técnica &amp; Engenharia de Processo</div>
             <h2 class="section-title">📘 Book Técnico da Peça — Do Bruto à Usinagem</h2>
             <p class="section-sub">Dossiê completo de fabricação: prancha com vistas cotadas, evolução passo a passo desde o bloco/barra bruta até a peça pronta, tabela de tempos por ferramenta, gráficos de remoção de cavaco e plano de inspeção dimensional.</p>
         </div>
@@ -480,10 +587,41 @@
         </div>
     </section>
 
+
+    <!-- ===== SOFTWARE ===== -->
+    <section id="softwareSection">
+        <div class="section-head" id="softHead" style="display:none;">
+            <div class="section-eyebrow">Passo 5 · CAD 3D</div>
+            <h2 class="section-title">Escolha seu software</h2>
+            <p class="section-sub">O roteiro é o mesmo — mas os comandos e o caminho de menu mudam. O COTA traduz cada etapa para a interface que você já usa.</p>
+        </div>
+        <div class="soft-grid" id="softGrid" style="display:none;">
+            <button type="button" class="soft-card active" data-soft="solidworks" aria-pressed="true">
+                <div class="soft-badge" aria-hidden="true">SW</div>
+                <p class="soft-name">SolidWorks</p>
+                <p class="soft-desc">Feature-based, árvore de projeto (FeatureManager) à esquerda.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </button>
+            <button type="button" class="soft-card" data-soft="fusion" aria-pressed="false">
+                <div class="soft-badge" aria-hidden="true">F360</div>
+                <p class="soft-name">Fusion 360</p>
+                <p class="soft-desc">Timeline na parte inferior, workspace de Design.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </button>
+            <button type="button" class="soft-card" data-soft="inventor" aria-pressed="false">
+                <div class="soft-badge" aria-hidden="true">INV</div>
+                <p class="soft-name">Inventor</p>
+                <p class="soft-desc">Ambiente de Peça (Part), navegador de modelo à esquerda.</p>
+                <div class="soft-check">✓ selecionado para o roteiro</div>
+            </button>
+        </div>
+    </section>
+
+
     <!-- ===== PLAN ===== -->
     <section class="plan-wrap" id="planSection">
         <div class="section-head">
-            <div class="section-eyebrow">Passo 3</div>
+            <div class="section-eyebrow">Passo 5 · Modelagem Passo a Passo</div>
             <h2 class="section-title">📐 Roteiro de modelagem</h2>
             <p class="section-sub">Siga cada etapa com atenção. Marque cada passo conforme for concluído no seu software. A visualização 3D da peça vai se montando junto com você.</p>
         </div>
@@ -505,238 +643,6 @@
         </div>
     </section>
 
-    <!-- ===== PROGRAMAÇÃO CNC ===== -->
-    <section class="code-wrap" id="codeSection">
-        <div class="section-head">
-            <div class="section-eyebrow">Passo 4</div>
-            <h2 class="section-title">⚙️ Programação CNC</h2>
-            <p class="section-sub">O mesmo programa em duas versões: código ISO 6983 pronto para o painel e programa paramétrico com variáveis — mude as dimensões e tudo é recalculado.</p>
-        </div>
-        <div class="code-meta" id="codeMeta"></div>
-        <div class="code-tabs" role="tablist" aria-label="Versões do programa CNC">
-            <button type="button" class="code-tab active" data-code="iso" role="tab" aria-selected="true">📄 Código ISO (G-code)</button>
-            <button type="button" class="code-tab" data-code="macro" role="tab" aria-selected="false">🧮 Programa paramétrico</button>
-        </div>
-        <div class="code-toolbar">
-            <div class="code-cut-params" role="group" aria-label="Controle de quanto remover de material por vez no programa CNC">
-                <label class="sim-strat-item" for="codeStepDown" title="Quanto remover de profundidade/raio por passada no desbaste (contorno, cavidade, rasgo, rampa e G71)">
-                    <span>🔨 Passe Desbaste (ap/U):</span>
-                    <select id="codeStepDown" class="sim-speed-select">
-                        <option value="0.5">0,5 mm / vez</option>
-                        <option value="1">1,0 mm / vez</option>
-                        <option value="1.5">1,5 mm / vez</option>
-                        <option value="2" selected>2,0 mm / vez</option>
-                        <option value="3">3,0 mm / vez</option>
-                        <option value="5">5,0 mm / vez</option>
-                    </select>
-                </label>
-                <label class="sim-strat-item" for="codePeckQ" title="Quanto remover por mergulho na furação pica-pau (G83 / G74)">
-                    <span>🔩 Mergulho Furação G83 (Q):</span>
-                    <select id="codePeckQ" class="sim-speed-select">
-                        <option value="0.5">0,5 mm / vez</option>
-                        <option value="1" selected>1,0 mm / vez</option>
-                        <option value="1.5">1,5 mm / vez</option>
-                        <option value="2">2,0 mm / vez</option>
-                        <option value="3">3,0 mm / vez</option>
-                        <option value="5">5,0 mm / vez</option>
-                    </select>
-                </label>
-                <label class="sim-strat-item" for="codeFinishAllow" title="Sobrematerial deixado no desbaste para o passe de acabamento remover">
-                    <span>💎 Sobremetal Acab.:</span>
-                    <select id="codeFinishAllow" class="sim-speed-select">
-                        <option value="0.1">0,1 mm</option>
-                        <option value="0.2">0,2 mm</option>
-                        <option value="0.3" selected>0,3 mm</option>
-                        <option value="0.5">0,5 mm</option>
-                        <option value="1">1,0 mm</option>
-                    </select>
-                </label>
-            </div>
-            <div class="code-actions">
-                <button type="button" class="btn" id="btnCopyCode">📋 Copiar</button>
-                <button type="button" class="btn btn-accent" id="btnDownloadCode">💾 Baixar .tap</button>
-            </div>
-        </div>
-        <pre class="code-view" id="codeView" tabindex="0"></pre>
-    </section>
-
-    <!-- ===== SIMULADOR DE PERCURSO ===== -->
-    <section class="sim-wrap-section" id="simSection">
-        <div class="section-head sim-head-compact">
-            <div>
-                <div class="section-eyebrow">Passo 5 · Workstation CNC</div>
-                <h2 class="section-title">🎯 Simulador 3D de Remoção de Material</h2>
-            </div>
-            <p class="section-sub">Painel integrado em tela única: acompanhe a peça em <b>3D</b>, <b>Planta</b>, <b>Corte Frontal</b> e <b>Código G</b> ao mesmo tempo, sem precisar rolar a página.</p>
-        </div>
-
-        <div class="sim-cockpit">
-            <!-- BARRA SUPERIOR FIXA E COMPACTA (TRANSPORTE + OPÇÕES 3D + DRO + OPERAÇÕES) -->
-            <div class="sim-cockpit-deck">
-                <div class="sim-toolbar">
-                    <div class="sim-transport" role="group" aria-label="Controles de reprodução da simulação">
-                        <button type="button" class="btn btn-sm" id="simFirst" title="Voltar ao bloco 0 (100% material bruto)">⏮ Bruto</button>
-                        <button type="button" class="btn btn-sm" id="simPrev" title="Recuar 1 bloco">⏪ -1</button>
-                        <button type="button" class="btn btn-accent btn-sm" id="simPlay">▶ Reproduzir</button>
-                        <button type="button" class="btn btn-sm" id="simNext" title="Avançar 1 bloco">⏩ +1</button>
-                        <button type="button" class="btn btn-sm" id="simLast" title="Ir para o final da usinagem">⏭ Fim</button>
-                        <button type="button" class="btn btn-sm" id="simReset" title="Reiniciar simulação">↺ Início</button>
-                    </div>
-                    <input type="range" id="simSlider" min="0" max="0" value="0" class="sim-slider" aria-label="Avançar blocos do programa">
-                    <span class="sim-counter" id="simCounter">0/0 blocos</span>
-                    <label class="sim-speed-label" for="simSpeed">Vel.
-                        <select id="simSpeed" class="sim-speed-select" aria-label="Velocidade da simulação">
-                            <option value="0.5">0.5×</option>
-                            <option value="1" selected>1×</option>
-                            <option value="2">2×</option>
-                            <option value="4">4×</option>
-                        </select>
-                    </label>
-                    <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D">
-                        <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A)">🔪 Corte A-A</button>
-                        <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar/ocultar percurso">🧭 Percurso</button>
-                        <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar/ocultar ferramenta 3D">🔧 Ferramenta</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simZoomIn" title="Aproximar vista 3D">➕</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simZoomOut" title="Afastar vista 3D">➖</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simResetCam" title="Restaurar ângulo padrão da vista 3D">🔄 3D</button>
-                    </div>
-                </div>
-
-                <div class="sim-dro-panel" id="simDroPanel" aria-label="Painel digital de coordenadas e telemetria CNC">
-                    <div class="sim-dro-axes">
-                        <div class="dro-axis"><span class="dro-k axis-x">X</span><b class="dro-v" id="simDroX">+000.000</b><span class="dro-u">mm</span></div>
-                        <div class="dro-axis"><span class="dro-k axis-y">Y</span><b class="dro-v" id="simDroY">+000.000</b><span class="dro-u">mm</span></div>
-                        <div class="dro-axis"><span class="dro-k axis-z">Z</span><b class="dro-v" id="simDroZ">+000.000</b><span class="dro-u">mm</span></div>
-                    </div>
-                    <div class="sim-dro-modals">
-                        <span class="dro-chip" id="simModalG">G00 Rápido</span>
-                        <span class="dro-chip dro-chip-tool" id="simModalT">T01 · —</span>
-                        <span class="dro-chip" id="simModalSF">S0 RPM · F0</span>
-                        <span class="dro-chip dro-chip-ok" id="simSafetyBadge">✅ Seguro</span>
-                    </div>
-                    <div class="sim-dro-stats">
-                        <div class="dro-rem-head">
-                            <span id="simRemPct">0% usinado</span>
-                            <span id="simCycleTime">⏱ 00:00</span>
-                        </div>
-                        <div class="dro-rem-bar"><div class="dro-rem-fill" id="simRemFill" style="width:0%"></div></div>
-                    </div>
-                </div>
-
-                <div class="sim-strategy-bar" id="simStrategyBar" role="group" aria-label="Funções de usinagem e ponto zero">
-                    <label class="sim-strat-item" for="simZeroSelect" title="Escolher onde fica a origem G54 (Zero-Peça)">
-                        <span>📍 Zero G54:</span>
-                        <select id="simZeroSelect" class="sim-speed-select">
-                            <option value="center" selected>🎯 Centro da Peça (X0 Y0)</option>
-                            <option value="bl">📐 Canto Inf. Esq. (X+ Y+)</option>
-                            <option value="tl">🗜️ Canto Sup. Esq. (Morsa Fixa)</option>
-                            <option value="tr">📐 Canto Sup. Dir.</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simDrillSelect" title="Escolher ciclo fixo de furação (G81, G82 ou G83 pica-pau)">
-                        <span>🔩 Furação:</span>
-                        <select id="simDrillSelect" class="sim-speed-select">
-                            <option value="auto" selected>Padrão da peça</option>
-                            <option value="G83">G83 Pica-Pau (Quebra-cavaco Q)</option>
-                            <option value="G81">G81 Simples (Direto)</option>
-                            <option value="G82">G82 Com Demora (Fundo liso P)</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simPassSelect" title="Escolher entre Desbaste + Acabamento, Só Desbaste (com sobremetal) ou Só Acabamento">
-                        <span>🛠️ Usinagem:</span>
-                        <select id="simPassSelect" class="sim-speed-select">
-                            <option value="both" selected>🔨+💎 Desbaste + Acabamento</option>
-                            <option value="rough">🔨 Só Desbaste (deixa sobremetal)</option>
-                            <option value="finish">💎 Só Acabamento (passe final)</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simPocketSelect" title="Escolher estratégia de abertura de cavidade/rasgo">
-                        <span>🌀 Cavidade:</span>
-                        <select id="simPocketSelect" class="sim-speed-select">
-                            <option value="spiral" selected>🌀 Pelo Centro (Espiral p/ fora)</option>
-                            <option value="zigzag">⚡ Zig-Zag (Varredura linear)</option>
-                            <option value="helical">⭕ Helicoidal pelo Centro (G02+Z)</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simStepDown" title="Quanto remover de material por passada no desbaste (contorno, cavidade, rasgo, rampa e G71 no torno)">
-                        <span>🔨 Remover/passe (ap):</span>
-                        <select id="simStepDown" class="sim-speed-select">
-                            <option value="0.5">0,5 mm / vez</option>
-                            <option value="1">1,0 mm / vez</option>
-                            <option value="1.5">1,5 mm / vez</option>
-                            <option value="2" selected>2,0 mm / vez</option>
-                            <option value="3">3,0 mm / vez</option>
-                            <option value="5">5,0 mm / vez</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simPeckQ" title="Quanto a broca avança por mergulho no ciclo G83 / G74 (ex.: 1 mm por vez)">
-                        <span>🔩 Mergulho G83 (Q):</span>
-                        <select id="simPeckQ" class="sim-speed-select">
-                            <option value="0.5">0,5 mm / vez</option>
-                            <option value="1" selected>1,0 mm / vez</option>
-                            <option value="1.5">1,5 mm / vez</option>
-                            <option value="2">2,0 mm / vez</option>
-                            <option value="3">3,0 mm / vez</option>
-                            <option value="5">5,0 mm / vez</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simFinishAllow" title="Sobrematerial deixado pelo desbaste para o passe de acabamento limpar">
-                        <span>💎 Sobremetal:</span>
-                        <select id="simFinishAllow" class="sim-speed-select">
-                            <option value="0.1">0,1 mm</option>
-                            <option value="0.2">0,2 mm</option>
-                            <option value="0.3" selected>0,3 mm</option>
-                            <option value="0.5">0,5 mm</option>
-                            <option value="1">1,0 mm</option>
-                        </select>
-                    </label>
-                    <button type="button" class="chip sim-toggle-btn" id="simAddCenterPocket" aria-pressed="false" title="Adicionar ou remover uma usinagem de Cavidade pelo Centro na peça atual">➕ Cavidade pelo Centro</button>
-                </div>
-
-                <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
-            </div>
-
-            <!-- GRADE WORKSTATION EM TELA ÚNICA: 3D (ESQ) | SUPERIOR + FRONTAL (CENTRO) | G-CODE (DIR) -->
-            <div class="sim-views">
-                <div class="sim-view sim-view-3d">
-                    <h4 class="sim-view-title">🧊 Vista 3D isométrica <span class="sim-hint">arraste para girar · botões ➕/➖ para zoom</span></h4>
-                    <canvas id="sim3d" width="680" height="420"></canvas>
-                    <div class="sim-material-bar">
-                        <span class="sim-mat-ic" aria-hidden="true">🧱</span>
-                        <span id="simMaterial">Material bruto</span>
-                        <span class="sim-mat-legend">
-                            <span class="lg raw"></span> bruto &nbsp;
-                            <span class="lg machined"></span> usinado &nbsp;
-                            <span class="lg deep"></span> furo/cavidade &nbsp;
-                            <span class="lg feed"></span> corte
-                        </span>
-                    </div>
-                </div>
-
-                <div class="sim-col-2d">
-                    <div class="sim-view">
-                        <h4 class="sim-view-title" id="simTopTitle">⬛ Vista superior (X × Y) <span class="sim-hint">planta</span></h4>
-                        <canvas id="simTop" width="420" height="205"></canvas>
-                    </div>
-                    <div class="sim-view">
-                        <h4 class="sim-view-title" id="simFrontTitle">🏔️ Vista frontal em corte (X × Z) <span class="sim-hint">seção A-A</span></h4>
-                        <canvas id="simFront" width="420" height="205"></canvas>
-                    </div>
-                </div>
-
-                <div class="sim-col-code">
-                    <div class="sim-side-box sim-box-current">
-                        <h4 class="sim-side-title">Bloco em execução</h4>
-                        <pre class="sim-line" id="simInfo">—</pre>
-                    </div>
-                    <div class="sim-side-box sim-box-list">
-                        <h4 class="sim-side-title">Programa CNC <span class="sim-hint">clique para saltar</span></h4>
-                        <div class="sim-code-list" id="simCodeList" role="listbox" aria-label="Blocos do programa CNC"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <!-- ===== CALCULADORA DE CORTE ===== -->
     <section id="calcSection">
@@ -780,6 +686,7 @@
         </div>
     </section>
 
+
     <!-- ===== TABELAS DE APOIO ===== -->
     <section id="tablesSection">
         <div class="section-head">
@@ -794,9 +701,140 @@
         <div id="tablesContent"></div>
     </section>
 
+    <!-- ===== DIVISOR: ÁREA DE ESTUDO, AVALIAÇÃO E CONCLUSÃO ===== -->
+    <section id="studyAreaBanner" style="padding-bottom:0;">
+        <div class="section-head" style="border-top:2px solid var(--line);padding-top:28px;">
+            <div class="section-eyebrow">Formação Profissional · Estudo, Avaliação e Certificação</div>
+            <h2 class="section-title">🎓 Área de Estudo, Testes e Conclusão do Curso</h2>
+            <p class="section-sub">Depois de praticar o processo, a programação e o simulador acima, utilize esta área para acompanhar as aulas da trilha de 64h, treinar no quiz, imprimir as fichas de avaliação e emitir o certificado de conclusão.</p>
+        </div>
+    </section>
+
+
+    <!-- ===== TRILHA DE FORMAÇÃO ===== -->
+    <section id="courseSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Formação</div>
+            <h2 class="section-title">📚 Roteiro de Aulas — Trilha Completa</h2>
+            <p class="section-sub">Curso estruturado para operadores e programadores de CNC: objetivos, roteiro de cada aula por fases cronometradas, pontos de atenção e critérios de avaliação. Acompanhe o progresso e imprima o roteiro para a sala de aula.</p>
+        </div>
+        <div class="course-meta" id="courseMeta"></div>
+        <div class="course-progress-wrap">
+            <div class="plan-progress-bar" role="progressbar" aria-label="Progresso da trilha"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="courseProgress">
+                <div class="plan-progress-fill" id="courseFill"></div>
+            </div>
+            <span class="plan-progress-pct" id="coursePct">0%</span>
+        </div>
+        <div class="course-toolbar">
+            <span class="course-done-count" id="courseDoneCount">0/13 aulas concluídas</span>
+            <div class="code-actions">
+                <button type="button" class="btn" id="btnToggleAllAulas">📂 Expandir tudo</button>
+                <button type="button" class="btn btn-accent" id="btnPrintCourse">🖨️ Imprimir roteiro de aulas</button>
+            </div>
+        </div>
+        <div id="courseModules"></div>
+    </section>
+
+
+    <!-- ===== QUIZ DE TREINO ===== -->
+    <section id="quizSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Treino</div>
+            <h2 class="section-title">📝 Quiz de Treino</h2>
+            <p class="section-sub">As mesmas questões das fichas de avaliação em modo interativo: responda, veja o gabarito na hora e acompanhe sua pontuação antes da avaliação de papel.</p>
+        </div>
+        <div class="quiz-toolbar">
+            <div class="filter-chips" id="quizFilters" role="group" aria-label="Filtrar questões por módulo">
+                <button type="button" class="chip active" data-qfilter="all">Todas</button>
+                <button type="button" class="chip" data-qfilter="m0">M0</button>
+                <button type="button" class="chip" data-qfilter="m1">M1</button>
+                <button type="button" class="chip" data-qfilter="m2">M2</button>
+                <button type="button" class="chip" data-qfilter="m3">M3</button>
+                <button type="button" class="chip" data-qfilter="m4">M4</button>
+                <button type="button" class="chip" data-qfilter="m5">M5</button>
+                <button type="button" class="chip" data-qfilter="final">Prova final</button>
+            </div>
+            <div class="quiz-score-wrap">
+                <span class="quiz-score-label">Pontuação</span>
+                <b class="quiz-score" id="quizScore">0,0 / 0,0 pts</b>
+                <button type="button" class="btn btn-sm" id="quizReset">↺ Reiniciar</button>
+            </div>
+        </div>
+        <div id="quizList"></div>
+    </section>
+
+
+    <!-- ===== KIT DE FICHAS DE AVALIAÇÃO ===== -->
+    <section id="fichaSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Avaliação</div>
+            <h2 class="section-title">📝 Kit de Fichas de Avaliação</h2>
+            <p class="section-sub">Documentação de avaliação pronta para imprimir: identificação, presença, avaliação por módulo (teórica + prática), prova final, avaliação de eficácia pós-turma e gabarito do instrutor. Preenchimento manual — formato A4 profissional.</p>
+        </div>
+        <div class="ficha-toolbar">
+            <span class="ficha-hint">💡 Dica: imprima o gabarito apenas para o instrutor. As demais fichas são distribuídas aos participantes.</span>
+            <button type="button" class="btn btn-accent" id="btnPrintFichaKit">🖨️ Imprimir kit completo (11 fichas)</button>
+        </div>
+        <div class="ficha-grid" id="fichaGrid"></div>
+        <div class="ficha-preview-wrap" id="fichaPreviewWrap" style="display:none;">
+            <div class="ficha-preview-bar">
+                <strong id="fichaPreviewTitle">Ficha</strong>
+                <div class="code-actions">
+                    <button type="button" class="btn btn-accent" id="btnPrintCurrentFicha">🖨️ Imprimir ficha</button>
+                    <button type="button" class="btn" id="btnCloseFichaPreview">✕ Fechar</button>
+                </div>
+            </div>
+            <div class="ficha-paper" id="fichaPaper"></div>
+        </div>
+        <div class="print-only print-header print-header-ficha">
+            <span class="ph-title">COTA — Kit de Fichas de Avaliação</span>
+            <span class="ph-meta" id="printFichaMeta"></span>
+        </div>
+        <div class="print-only" id="fichaKitPrint"></div>
+    </section>
+
+
+    <!-- ===== CERTIFICADO ===== -->
+    <section id="certSection">
+        <div class="section-head">
+            <div class="section-eyebrow">Certificação</div>
+            <h2 class="section-title">🏆 Certificado de Conclusão</h2>
+            <p class="section-sub">Preencha os dados do participante, confira a pré-visualização e imprima em A4 paisagem. Numeração de registro automática para controle de validade.</p>
+        </div>
+        <div class="cert-form" id="certForm">
+            <div class="cert-field"><label for="certNome">Nome do participante</label>
+                <input type="text" id="certNome" placeholder="Nome completo do colaborador" maxlength="60"></div>
+            <div class="cert-field"><label for="certNota">Nota final</label>
+                <input type="text" id="certNota" value="8,5" maxlength="5"></div>
+            <div class="cert-field"><label for="certPeriodo">Período do curso</label>
+                <input type="text" id="certPeriodo" placeholder="ex.: 10/2026 a 11/2026" maxlength="30"></div>
+            <div class="cert-field"><label for="certData">Data de conclusão</label>
+                <input type="text" id="certData" maxlength="12"></div>
+            <div class="cert-field"><label for="certInstrutor">Instrutor(a)</label>
+                <input type="text" id="certInstrutor" placeholder="Nome do instrutor" maxlength="40"></div>
+            <div class="cert-field"><label for="certResponsavel">Responsável pelo treinamento</label>
+                <input type="text" id="certResponsavel" placeholder="Nome do responsável" maxlength="40"></div>
+            <div class="cert-field"><label for="certLocal">Local</label>
+                <input type="text" id="certLocal" placeholder="Cidade — UF / empresa" maxlength="40"></div>
+            <div class="cert-field"><label for="certRegistro">Nº de registro</label>
+                <input type="text" id="certRegistro" maxlength="20"></div>
+        </div>
+        <div class="cert-toolbar">
+            <span class="ficha-hint">💡 Recomendado: papel offset 180 g ou cartolina · impressão A4 paisagem · cores.</span>
+            <div class="code-actions">
+                <button type="button" class="btn" id="btnCertReset">↺ Limpar campos</button>
+                <button type="button" class="btn btn-accent" id="btnPrintCert">🖨️ Imprimir certificado</button>
+            </div>
+        </div>
+        <div class="cert-preview-wrap">
+            <div class="cert-paper" id="certPaper"></div>
+        </div>
+    </section>
+
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.4.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v6.5.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->
