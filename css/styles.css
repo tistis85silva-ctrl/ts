@@ -4256,6 +4256,13 @@ body.print-certificado #certPaper {
     color: var(--cyan);
     font-weight: 600;
 }
+.sim-ops-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
 .sim-ops-bar {
     display: flex;
     align-items: center;
@@ -4263,6 +4270,40 @@ body.print-certificado #certPaper {
     overflow-x: auto;
     padding-bottom: 2px;
     white-space: nowrap;
+}
+.sim-tool-colors-bar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+.sim-tc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    color: var(--text-muted);
+    padding: 2px 7px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color var(--transition);
+}
+.sim-tc-chip:hover {
+    border-color: var(--cyan);
+    color: var(--text);
+}
+.sim-tc-input {
+    width: 14px;
+    height: 14px;
+    border: none;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    border-radius: 3px;
 }
 .sim-op-chip {
     font-family: 'JetBrains Mono', monospace;

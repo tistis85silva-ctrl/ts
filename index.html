@@ -30,7 +30,7 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v6.5.0 · CAD + CNC Assistant</div>
+            <div class="version">v6.6.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
@@ -254,6 +254,7 @@
                         </select>
                     </label>
                     <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D">
+                        <button type="button" class="chip sim-toggle-btn active" id="simToggleToolColors" aria-pressed="true" title="Colorir as superfícies usinadas e o percurso com a cor de cada ferramenta (T01..T05)">🎨 Cores p/ Ferramenta</button>
                         <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A)">🔪 Corte A-A</button>
                         <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar/ocultar percurso">🧭 Percurso</button>
                         <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar/ocultar ferramenta 3D">🔧 Ferramenta</button>
@@ -358,7 +359,10 @@
                     <button type="button" class="chip sim-toggle-btn" id="simAddCenterPocket" aria-pressed="false" title="Adicionar ou remover uma usinagem de Cavidade pelo Centro na peça atual">➕ Cavidade pelo Centro</button>
                 </div>
 
-                <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
+                <div class="sim-ops-row">
+                    <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
+                    <div class="sim-tool-colors-bar" id="simToolColorsBar" role="group" aria-label="Escolher cores por ferramenta"></div>
+                </div>
             </div>
 
             <!-- GRADE WORKSTATION EM TELA ÚNICA: 3D (ESQ) | SUPERIOR + FRONTAL (CENTRO) | G-CODE (DIR) -->
@@ -834,7 +838,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.5.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v6.6.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

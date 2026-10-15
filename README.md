@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.5.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.6.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,16 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.6.0
+- **🎨 Cores por Ferramenta + Seletor Personalizável (`T01..T05` + Botão `🌈 Paleta`)**:
+  - Cada ferramenta (`T01 Faceadora`, `T02 Fresa Topo/Interpolação`, `T03 Broca`, `T04 Chanfro/Mandril`, `T05 Contrafuro/Rosca`) colore as superfícies que usinou e o seu percurso nas 3 vistas, com seletores de cor individuais para cada ferramenta
+- **🔄 Movimento Real nas Ferramentas de Interpolação (`G02/G03` Circular e Helicoidal)**:
+  - Subdivide círculos e hélices `G02/G03` em 12 passos angulares por volta com rotação de hélice do spindle — a ferramenta orbita fisicamente ao redor do contorno e do furo helicoidal
+- **🔧 Imagem 3D e 2D Realista das Ferramentas + Furos Rebaixados (`ctx.clip()`)**:
+  - Desenho detalhado de **Cabeçote Faceador com pastilhas douradas TiN girando**, **Fresa de Topo com canais helicoidais torcidos**, **Broca com ponta cônica 118°**, **Fresa de Chanfro 90° em V**, **Pinça ER32 + Cone BT40** e **Porta-Inserto de Torno**
+  - Recorte geométrico (`clip`) na boca dos furos e cavidades em 3D (elimina a ilusão de ótica de os furos parecerem pinos subindo!)
+
 
 ### v6.5.0
 - **Nova Ordem Lógica do Layout (Fluxo de Processo Primeiro → Estudo e Conclusão Depois)**:

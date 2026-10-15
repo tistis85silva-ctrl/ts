@@ -31,6 +31,7 @@ function makeDom(seed) {
             w.HTMLCanvasElement.prototype.getContext = function () {
                 return {
                     fillStyle: '', strokeStyle: '', lineWidth: 1, font: '',
+                    save() {}, restore() {}, clip() {},
                     fillRect() {}, strokeRect() {}, clearRect() {}, rect() {},
                     beginPath() {}, closePath() {}, moveTo() {}, lineTo() {},
                     arc() {}, ellipse() {}, fill() {}, stroke() {},
@@ -302,6 +303,20 @@ setTimeout(() => {
         simPartSel.dispatchEvent(new window.Event('change', { bubbles: true }));
         assert($('#partLabel').textContent.includes('FLANGE'), 'troca rápida de peça no simulador atualizou para Flange');
         assert($('#codePartSelect').value === 'flange', 'seletor do programa sincronizado');
+
+        // Testa cores por ferramenta (#simToggleToolColors, #simToolColorsBar, #simCyclePalette) e movimento de interpolação circular/helicoidal
+        assert($$('#simToolColorsBar .sim-tc-input').length >= 3, 'seletores de cor por ferramenta renderizados');
+        const tc1 = d.querySelector('#simToolColorsBar .sim-tc-input[data-tool="1"]');
+        tc1.value = '#ff0055';
+        tc1.dispatchEvent(new window.Event('input', { bubbles: true }));
+        assert(window.getToolHex(1) === '#ff0055', 'cor personalizada da ferramenta T01 aplicada');
+        $('#simCyclePalette').click();
+        assert(window.getToolHex(1) !== '#ff0055', 'botão Paleta trocou o esquema de cores');
+
+        // Verifica que arcos G02 de volta completa geram múltiplos passos angulares para a ferramenta se movimentar ao longo do círculo
+        const arcSegs = window.parseToolpath('G00 X-60. Y0. Z-5.\nG02 X-60. Y0. I60. J0. F250.').segs.filter(s => s.type === 'arc-cw');
+        assert(arcSegs.length === 12, 'interpolação G02 subdividida em 12 passos angulares p/ movimento da ferramenta: ' + arcSegs.length);
+        assert(Math.abs(arcSegs[2].y2) > 10, 'ferramenta realmente se desloca em X/Y ao longo do círculo durante a interpolação');
     });
 
     // ===== Quiz =====
