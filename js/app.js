@@ -176,7 +176,7 @@ function updateGallerySelection() {
 }
 
 function syncPartSelects() {
-    ['simPartSelect', 'codePartSelect'].forEach(id => {
+    ['headerPartSelect', 'simPartSelect', 'codePartSelect'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         if (!sel.options.length) {
@@ -4441,15 +4441,23 @@ function renderSimCodeAndOps(model, upto) {
     const codeList = $('#simCodeList');
     if (codeList && model) {
         if (codeList._renderedPart !== model.partId + ':' + model.segs.length) {
-            codeList.innerHTML = model.segs.map((s, idx) =>
-                '<button type="button" class="sim-code-item" data-sim-idx="' + (idx + 1) + '">' +
-                '<span class="sci-idx">#' + (idx + 1) + '</span>' +
-                '<span class="sci-txt">' + escapeHtml(s.text) + '</span>' +
-                '<span class="sci-op">' + escapeHtml(s.opName) + '</span>' +
-                '</button>'
-            ).join('');
+            codeList.innerHTML =
+                '<button type="button" class="sim-code-first-row" data-sim-idx="0" title="Clique para voltar ao início do programa (Bloco 0 — 100% Material Bruto)">' +
+                '<span class="sci-idx">#0</span>' +
+                '<span class="sci-txt">⏮ INÍCIO — Voltar ao Material Bruto (0%)</span>' +
+                '<span class="sci-op">↩ Voltar</span>' +
+                '</button>' +
+                model.segs.map((s, idx) =>
+                    '<button type="button" class="sim-code-item" data-sim-idx="' + (idx + 1) + '">' +
+                    '<span class="sci-idx">#' + (idx + 1) + '</span>' +
+                    '<span class="sci-txt">' + escapeHtml(s.text) + '</span>' +
+                    '<span class="sci-op">' + escapeHtml(s.opName) + '</span>' +
+                    '</button>'
+                ).join('');
             codeList._renderedPart = model.partId + ':' + model.segs.length;
         }
+        const firstRow = codeList.querySelector('.sim-code-first-row');
+        if (firstRow) firstRow.classList.toggle('active', upto === 0);
         let activeItem = null;
         $$('.sim-code-item', codeList).forEach((el, idx) => {
             const stepNum = idx + 1;
@@ -4758,9 +4766,9 @@ function setupSimOrbitAndControls() {
     bindSyncedNumericSelect('simPeckQ', 'codePeckQ', 'cncPeckQ', '🔩 Mergulho G83 (Q)');
     bindSyncedNumericSelect('simFinishAllow', 'codeFinishAllow', 'cncFinishAllow', '💎 Sobremetal de acabamento');
 
-    // Seletores rápidos de peça dentro do Programa CNC e do Simulador 3D (para trocar de peça sem subir a tela!)
+    // Seletores rápidos de peça (Primeira linha fixa do Header, Programa CNC e Simulador 3D)
     syncPartSelects();
-    ['simPartSelect', 'codePartSelect'].forEach(id => {
+    ['headerPartSelect', 'simPartSelect', 'codePartSelect'].forEach(id => {
         const sel = document.getElementById(id);
         if (sel && !sel._bound) {
             sel._bound = true;
@@ -4828,7 +4836,7 @@ function setupSimOrbitAndControls() {
     if (codeList && !codeList._bound) {
         codeList._bound = true;
         codeList.addEventListener('click', e => {
-            const item = e.target.closest('.sim-code-item');
+            const item = e.target.closest('.sim-code-item, .sim-code-first-row');
             if (!item) return;
             if (app.simTimer) simTogglePlay();
             simJumpTo(parseInt(item.dataset.simIdx, 10) || 0);
@@ -5333,19 +5341,48 @@ function setupOrbit() {
 // ============================================================
 // NAVEGAÇÃO, TECLADO E EVENTOS GERAIS
 // ============================================================
+function updateActiveHeaderNav(forcedId) {
+    const navBtns = $$('header nav button[data-scroll-to]');
+    if (!navBtns.length) return;
+    let activeId = forcedId || '';
+    if (!activeId) {
+        const y = (window.scrollY || 0) + 120;
+        navBtns.forEach(b => {
+            const sec = document.getElementById(b.dataset.scrollTo);
+            if (sec && sec.offsetParent !== null && sec.offsetTop <= y) {
+                activeId = b.dataset.scrollTo;
+            }
+        });
+    }
+    navBtns.forEach(b => {
+        b.classList.toggle('active-sec', b.dataset.scrollTo === activeId);
+    });
+}
+
 function setupGeneralEvents() {
-    $('#logoHome').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    $('#logoHome').addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        updateActiveHeaderNav('examplesSection');
+    });
 
     $$('[data-scroll-to]').forEach(btn => {
         btn.addEventListener('click', () => {
             const target = btn.dataset.scrollTo;
-            if (['detectSection', 'codeSection', 'simSection', 'drawingSheetSection', 'planSection'].indexOf(target) >= 0) {
+            if (target === 'hero') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                updateActiveHeaderNav('');
+                return;
+            }
+            if (['detectSection', 'codeSection', 'simSection', 'drawingSheetSection', 'softwareSection', 'planSection'].indexOf(target) >= 0) {
                 if (!app.revealed) revealApp(currentPart().exampleFile, { silent: true });
                 if (!app.confirmed && target !== 'detectSection') confirmFeatures({ silent: true });
             }
+            updateActiveHeaderNav(target);
             scrollToSection(target);
         });
     });
+
+    window.addEventListener('scroll', () => updateActiveHeaderNav(), { passive: true });
     $$('[data-action="demo"]').forEach(btn => {
         btn.addEventListener('click', () => revealApp(PARTS[DEFAULT_PART_ID].exampleFile, { partId: DEFAULT_PART_ID }));
     });
@@ -5660,7 +5697,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.7.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.8.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

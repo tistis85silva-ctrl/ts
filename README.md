@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.7.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.8.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,13 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.8.0
+- **📌 Primeira Linha Sempre Fixa no Topo para Voltar (`#topFixedBar` + `#simCodeList .sim-code-first-row`)**:
+  - **Barra Superior Principal Fixa (`position: fixed; top: 0; z-index: 1000`)**: acompanha toda a rolagem da página com o botão **`⬆️ Voltar ao Topo`**, seletor rápido **`🔧 Peça`** e atalhos diretos para todas as etapas (`🔧 Peças`, `1. Processo`, `2. Programa CNC`, `3. Simulador 3D`, `4. Book & Custos`, `5. Roteiro CAD`, `📚 Estudo & Aulas`, `🏆 Conclusão`) com destaque automático da seção atual
+  - **Primeira Linha Fixa na Lista do Programa CNC (`#0 ⏮ INÍCIO — Voltar ao Material Bruto (0%)`)**: permanece fixa no topo da lista de G-code do Simulador (`position: sticky; top: 0`) mesmo ao avançar até o último bloco, permitindo voltar ao material bruto com 1 clique
+  - **Barras do Simulador (`.sim-cockpit-deck`) e do Book Técnico (`.book-toolbar`) Fixas**: correção do `overflow-x: clip` no `body` garantindo funcionamento pleno do `position: sticky` no Edge/Chrome
+
 
 ### v6.7.0
 - **🕳️ Furos e Cavidades Coloridos com Camadas de Remoção Visíveis (3D, Planta e Corte)**:

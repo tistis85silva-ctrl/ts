@@ -192,8 +192,12 @@ setTimeout(() => {
         $('#simSectionCut').click();
         assert($$('#simOpsBar .sim-op-chip').length >= 3, 'chips de operação');
         assert($$('#simCodeList .sim-code-item').length >= 10, 'lista de blocos sincronizada');
+        assert($('#simCodeList .sim-code-first-row'), 'primeira linha fixa (#0 Voltar ao Bruto) presente na lista de código');
         $$('#simCodeList .sim-code-item')[3].click();
         assert($('#simCounter').textContent.startsWith('4/'), 'clique na lista de código salta ao bloco 4');
+        $('#simCodeList .sim-code-first-row').click();
+        assert($('#simCounter').textContent.startsWith('0/'), 'clique na primeira linha fixa (#0) volta ao bruto (bloco 0)');
+        assert($('#topFixedBar') && $('#btnBackTop') && $('#headerPartSelect'), 'primeira linha fixa do topo com botão Voltar ao Topo e seletor de peça');
         assert(/^[+-]\d{3}\.\d{3}$/.test($('#simDroX').textContent), 'DRO X formatado: ' + $('#simDroX').textContent);
     });
     step('simulador 3D: estratégias CNC (Furação G83/G81/G82, Desbaste/Acabamento, Cavidade pelo Centro e Zero G54)', () => {

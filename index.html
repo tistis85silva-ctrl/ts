@@ -30,29 +30,39 @@
             <div class="loader">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <div class="version">v6.7.0 · CAD + CNC Assistant</div>
+            <div class="version">v6.8.0 · CAD + CNC Assistant</div>
         </div>
     </div>
 
-    <!-- ===== HEADER ===== -->
-    <header>
-        <div class="logo" id="logoHome">
-            <div class="logo-mark"></div>
-            <div>
-                <div class="logo-text">COTA<span>.</span></div>
-                <div class="logo-sub">desenho &rarr; peça</div>
+    <!-- ===== HEADER (PRIMEIRA LINHA SEMPRE FIXA NO TOPO PARA VOLTAR) ===== -->
+    <header id="topFixedBar">
+        <div class="header-left">
+            <div class="logo" id="logoHome" title="Voltar ao topo da página">
+                <div class="logo-mark"></div>
+                <div>
+                    <div class="logo-text">COTA<span>.</span></div>
+                    <div class="logo-sub">desenho &rarr; peça</div>
+                </div>
             </div>
+            <button type="button" class="btn-back-top" id="btnBackTop" data-scroll-to="hero" title="Voltar para o início (topo da página)">
+                ⬆️ Voltar ao Topo
+            </button>
+            <label class="header-part-picker" for="headerPartSelect" title="Trocar de peça de qualquer ponto da página">
+                <span>🔧</span>
+                <select id="headerPartSelect" class="sim-speed-select" aria-label="Escolher peça de usinagem"></select>
+            </label>
         </div>
         <div class="header-controls">
-            <nav aria-label="Navegação principal">
-                <button type="button" data-scroll-to="examplesSection">🔧 Peças</button>
-                <button type="button" data-scroll-to="detectSection">1. Processo</button>
-                <button type="button" data-scroll-to="codeSection">2. Programa CNC</button>
-                <button type="button" data-scroll-to="simSection">3. Simulador 3D</button>
-                <button type="button" data-scroll-to="drawingSheetSection">4. Book Técnico</button>
-                <button type="button" data-scroll-to="courseSection">📚 Estudo &amp; Aulas</button>
-                <button type="button" data-scroll-to="certSection">🏆 Conclusão</button>
-                <button type="button" class="nav-badge" data-action="demo">🎯 Exemplo</button>
+            <nav aria-label="Navegação principal fixa">
+                <button type="button" data-scroll-to="examplesSection" title="Voltar para a galeria das 10 peças">🔧 Peças</button>
+                <button type="button" data-scroll-to="detectSection" title="Ir para o Passo 1: Aceitar Processo">1. Processo</button>
+                <button type="button" data-scroll-to="codeSection" title="Ir para o Passo 2: Programação CNC">2. Programa CNC</button>
+                <button type="button" data-scroll-to="simSection" title="Ir para o Passo 3: Simulador 3D">3. Simulador 3D</button>
+                <button type="button" data-scroll-to="drawingSheetSection" title="Ir para o Passo 4: Book Técnico e Custos">4. Book &amp; Custos</button>
+                <button type="button" data-scroll-to="softwareSection" title="Ir para o Passo 5: Roteiro CAD">5. Roteiro CAD</button>
+                <button type="button" data-scroll-to="courseSection" title="Ir para a Área de Estudo e Aulas">📚 Estudo &amp; Aulas</button>
+                <button type="button" data-scroll-to="certSection" title="Ir para Avaliação e Certificado">🏆 Conclusão</button>
+                <button type="button" class="nav-badge" data-action="demo" title="Carregar exemplo rápido">🎯 Exemplo</button>
             </nav>
             <button type="button" class="theme-toggle" id="themeToggle" role="switch" aria-checked="false"
                     aria-label="Alternar tema claro/escuro">
@@ -441,7 +451,11 @@
                 <button type="button" class="chip" data-bpage="inspection" role="tab" aria-selected="false">🔍 4. Inspeção &amp; Dicas</button>
                 <button type="button" class="chip" data-bpage="cost" role="tab" aria-selected="false">💰 5. Estudo de Custos Mestre</button>
             </div>
-            <button type="button" class="btn btn-accent btn-sm" id="btnPrintBook">🖨️ Imprimir Book da Peça</button>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <button type="button" class="btn btn-sm" data-scroll-to="simSection" title="Voltar para o Simulador 3D">⬆️ Voltar ao Simulador</button>
+                <button type="button" class="btn btn-sm" data-scroll-to="examplesSection" title="Voltar para a galeria de peças">🔧 Voltar p/ Peças</button>
+                <button type="button" class="btn btn-accent btn-sm" id="btnPrintBook">🖨️ Imprimir Book da Peça</button>
+            </div>
         </div>
 
         <!-- RESUMO EXECUTIVO DO BOOK (KPIs DE MANUFATURA) -->
@@ -892,7 +906,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.7.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v6.8.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->
