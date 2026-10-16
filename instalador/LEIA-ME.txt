@@ -1,0 +1,41 @@
+COTA - DO DESENHO A PECA PRONTA
+Instalador para Windows | Formacao em CAD + CNC
+================================================
+
+COMO INSTALAR (2 minutos)
+-------------------------
+1. Extraia o ZIP completo em qualquer pasta (ex.: Downloads).
+2. Clique DUAS VEZES em "instalar-cota.bat".
+   - Nao e necessario ser administrador.
+3. Pronto! O atalho "COTA - Formacao CNC" aparece na Area de Trabalho.
+
+O que e instalado
+-----------------
+- Arquivos do app em  %LOCALAPPDATA%\COTA  (por usuario)
+- Atalho na Area de Trabalho com o icone do COTA
+- Entrada no Menu Iniciar (pasta "COTA") com o app e o desinstalador
+- O COTA abre em modo aplicativo (janela sem barra de endereco) no
+  Microsoft Edge ou Google Chrome, e funciona offline.
+
+COMO DESINSTALAR
+----------------
+Menu Iniciar > COTA > Desinstalar COTA  (ou rode desinstalar-cota.bat)
+
+REQUISITOS
+----------
+- Windows 10 ou 11 (64 bits)
+- Microsoft Edge ou Google Chrome (recomendado para o modo aplicativo)
+- Impressora (opcional) - para imprimir fichas, roteiro e certificado
+
+CONTEUDO DO CURSO
+-----------------
+- 10 exemplos de usinagem com codigo ISO (G-code) e programa parametrico
+- Trilha de formacao: 6 modulos | 13 aulas | 64 horas
+- Kit de 11 fichas de avaliacao (com gabarito do instrutor)
+- Certificado de conclusao personalizavel (A4 paisagem)
+
+SUPORTE / DUVIDAS
+-----------------
+Fale com o responsavel pelo treinamento da sua unidade.
+
+Versao 6.9.0

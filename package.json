@@ -1,0 +1,67 @@
+{
+  "name": "cota-formacao",
+  "productName": "COTA",
+  "version": "6.9.0",
+  "description": "COTA — do desenho à peça pronta: formação em CAD + CNC (exemplos de usinagem, código ISO, trilha de aulas, fichas e certificado)",
+  "author": "COTA Formação",
+  "license": "MIT",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable",
+    "dist:all": "electron-builder --win nsis portable --linux AppImage"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "jsdom": "^24.1.3"
+  },
+  "build": {
+    "appId": "br.com.cota.formacao",
+    "productName": "COTA",
+    "copyright": "© 2026 COTA Formação",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "index.html",
+      "css/**",
+      "js/**",
+      "assets/icon.png",
+      "desktop/main.js"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "COTA — Formação CNC",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerSidebar": "assets/icon.ico",
+      "artifactName": "COTA-Instalador-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "COTA-Portatil-${version}.${ext}"
+    }
+  }
+}
