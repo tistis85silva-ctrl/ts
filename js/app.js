@@ -3651,12 +3651,12 @@ function renderSim3D(model) {
     const spanZ = topMax - model.zBottom;
     const zExag = spanZ < 32 ? 1.55 : 1.15;
     const diagXY = Math.hypot(spanX, spanY);
-    const baseScale = Math.min((W * 0.62) / Math.max(diagXY, 1), (Hc * 0.56) / Math.max(diagXY * 0.55 + spanZ * zExag + 32, 1));
+    const baseScale = Math.min((W * 0.66) / Math.max(diagXY, 1), (Hc * 0.62) / Math.max(diagXY * 0.52 + spanZ * zExag + 26, 1));
     const s = baseScale * cam.zoom;
     const cxWorld = model.u0 + spanX / 2;
     const cyWorld = model.v0 + spanY / 2;
     const czWorld = (topMax + model.zBottom) / 2;
-    const ox = W * 0.5, oy = Hc * 0.58;
+    const ox = W * 0.5, oy = Hc * 0.51;
 
     const proj = (wx, wy, wz) => {
         const dx = wx - cxWorld, dy = wy - cyWorld, dz = (wz - czWorld) * zExag;
@@ -5026,6 +5026,54 @@ function setupSimOrbitAndControls() {
         app.simCam = { yaw: -0.68, pitch: 0.58, zoom: 1.0 };
         renderSimulator();
     });
+    bindClick('simCamTop', () => {
+        app.simCam = { yaw: 0, pitch: 1.32, zoom: 1.08 };
+        renderSimulator();
+        showToast('🎥 Câmera 3D: Vista Superior');
+    });
+    bindClick('simCamFront', () => {
+        app.simCam = { yaw: 0, pitch: 0.25, zoom: 1.08 };
+        renderSimulator();
+        showToast('🎥 Câmera 3D: Vista Frontal');
+    });
+    bindClick('simCamSide', () => {
+        app.simCam = { yaw: -1.57, pitch: 0.30, zoom: 1.08 };
+        renderSimulator();
+        showToast('🎥 Câmera 3D: Vista de Perfil Lateral');
+    });
+    bindClick('simToggleDeck', () => {
+        const body = $('#simDeckBody');
+        const btn = $('#simToggleDeck');
+        if (!body) return;
+        const collapsed = body.classList.toggle('collapsed');
+        if (btn) {
+            btn.textContent = collapsed ? '🔽 Expandir Ajustes CAM' : '🔼 Compactar Ajustes';
+        }
+    });
+
+    const matSel = $('#simMaterialSelect');
+    if (matSel && !matSel._bound) {
+        matSel._bound = true;
+        const MAT_PRESETS = {
+            sae1020: { name: 'Aço SAE 1020', price: 14.5, scrap: 2.2 },
+            sae4140: { name: 'Aço SAE 4140 Benef.', price: 22.0, scrap: 2.8 },
+            al6061:  { name: 'Alumínio 6061-T6', price: 38.0, scrap: 9.5 },
+            inox304: { name: 'Aço Inox AISI 304', price: 46.0, scrap: 8.0 },
+            latao:   { name: 'Latão C360 / Bronze', price: 64.0, scrap: 24.0 }
+        };
+        matSel.addEventListener('change', e => {
+            const m = MAT_PRESETS[e.target.value] || MAT_PRESETS.sae1020;
+            app.cncMaterialKey = e.target.value;
+            const pIn = $('#costMatPrice');
+            const sIn = $('#costScrapPrice');
+            if (pIn) pIn.value = String(m.price);
+            if (sIn) sIn.value = String(m.scrap);
+            const techMat = $('#techMaterial');
+            if (techMat) techMat.textContent = m.name;
+            renderProcessBook();
+            showToast('🧱 Material alterado para ' + m.name + ' (Custos atualizados: R$ ' + m.price.toFixed(2).replace('.', ',') + '/kg)');
+        });
+    }
 
     const speedSel = $('#simSpeed');
     if (speedSel && !speedSel._bound) {
@@ -5944,7 +5992,7 @@ function setupSplash(forceReplay) {
         { pct: 48, mod: 1, msg: '🎯 [2/5] Calibrando Simulador 3D Smooth CSG e ferramentas T01..T05...' },
         { pct: 74, mod: 2, msg: '📘 [3/5] Montando Book Técnico (5 Folhas) & Estudo de Custos Taylor...' },
         { pct: 92, mod: 3, msg: '🎓 [4/5] Carregando Trilha 64h, Quiz (40 questões) & 12 Fichas A4...' },
-        { pct: 100, mod: 3, msg: '✅ [5/5] Workstation COTA v7.0.0 pronta — Iniciando interface!' }
+        { pct: 100, mod: 3, msg: '✅ [5/5] Workstation COTA v7.1.0 pronta — Iniciando interface!' }
     ];
 
     let closed = false;
@@ -6056,7 +6104,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v7.0.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v7.1.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

@@ -489,15 +489,15 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 8px 24px;
+    gap: 8px;
+    padding: 6px 14px;
     border-bottom: 1.5px solid var(--cyan);
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     width: 100%;
-    background: rgba(11, 16, 23, 0.96);
+    background: rgba(11, 16, 23, 0.97);
     backdrop-filter: blur(14px);
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
     z-index: 1000;
@@ -510,7 +510,7 @@ header {
 .header-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 7px;
     flex-shrink: 0;
 }
 .btn-back-top {
@@ -521,8 +521,8 @@ header {
     color: var(--cyan);
     border: 1px solid rgba(111, 211, 224, 0.45);
     border-radius: 6px;
-    padding: 4px 9px;
-    font-size: 11.5px;
+    padding: 4px 8px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -540,11 +540,11 @@ header {
     border: 1px solid var(--line);
     border-radius: 6px;
     padding: 2px 6px;
-    font-size: 11.5px;
+    font-size: 11px;
 }
 .header-part-picker select {
-    max-width: 165px;
-    font-size: 11.5px;
+    max-width: 150px;
+    font-size: 11px;
 }
 .logo {
     display: flex;
@@ -603,17 +603,21 @@ header {
 .header-controls {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
 }
 nav {
     display: flex;
-    gap: 10px;
-    font-size: 12px;
+    gap: 5px;
+    font-size: 11.5px;
     color: var(--text-muted);
     align-items: center;
     overflow-x: auto;
     white-space: nowrap;
+    scrollbar-width: none;
+}
+nav::-webkit-scrollbar {
+    display: none;
 }
 nav span {
     cursor: pointer;
@@ -4403,26 +4407,130 @@ body.print-certificado #certPaper {
     max-width: 620px;
 }
 .sim-cockpit-deck {
-    position: sticky;
-    top: 54px;
-    z-index: 35;
     background: rgba(14, 20, 29, 0.96);
-    backdrop-filter: blur(10px);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 8px 12px;
+    padding: 8px 10px;
     margin-bottom: 10px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 [data-theme="light"] .sim-cockpit-deck {
     background: rgba(245, 242, 237, 0.96);
 }
+.sim-deck-top-row {
+    position: sticky;
+    top: 52px;
+    z-index: 38;
+    background: #0A111A;
+    border: 1px solid rgba(111, 211, 224, 0.35);
+    border-radius: 9px;
+    padding: 6px 10px;
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 10px;
+    align-items: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+[data-theme="light"] .sim-deck-top-row {
+    background: #EAE5DC;
+}
 .sim-cockpit-deck .sim-toolbar {
     margin-bottom: 0;
+    gap: 6px;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+.sim-cockpit-deck .sim-slider {
+    min-width: 90px;
+    flex: 1;
+}
+.sim-collapse-btn {
+    white-space: nowrap;
+    border-color: rgba(111, 211, 224, 0.45) !important;
+    color: var(--cyan) !important;
+    font-size: 10.5px !important;
+    padding: 4px 8px !important;
+}
+.sim-deck-body {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.sim-deck-body.collapsed {
+    display: none;
+}
+.sim-cam-cards-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.sim-cam-card {
+    background: #0E1722;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 7px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+[data-theme="light"] .sim-cam-card {
+    background: #F4F1EB;
+}
+.sim-cam-card-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(111, 211, 224, 0.18);
+    padding-bottom: 3px;
+}
+.sim-cam-card-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+}
+.sim-visual-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
+    flex-wrap: wrap;
+    background: #0B131D;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 5px 10px;
+}
+[data-theme="light"] .sim-visual-bar {
+    background: #EFECE5;
+}
+.sim-bar-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--cyan);
+    white-space: nowrap;
+}
+.sim-bar-sep {
+    color: var(--line);
+    margin: 0 2px;
+}
+@media (max-width: 1200px) {
+    .sim-deck-top-row {
+        grid-template-columns: 1fr;
+    }
+    .sim-cam-cards-grid {
+        grid-template-columns: 1fr;
+    }
 }
 .sim-material-bar {
     display: flex;
@@ -4606,17 +4714,22 @@ body.print-certificado #certPaper {
 .sim-ops-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     flex-wrap: wrap;
+    background: #0B131D;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 5px 10px;
+}
+[data-theme="light"] .sim-ops-row {
+    background: #EFECE5;
 }
 .sim-ops-bar {
     display: flex;
     align-items: center;
     gap: 5px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    white-space: nowrap;
+    flex-wrap: wrap;
+    flex: 1;
 }
 .sim-tool-colors-bar {
     display: flex;
@@ -4679,11 +4792,10 @@ body.print-certificado #certPaper {
     align-items: center;
     gap: 4px;
     flex-wrap: wrap;
-    margin-left: auto;
 }
 .sim-toggle-btn {
-    padding: 4px 9px;
-    font-size: 10.5px;
+    padding: 3px 8px;
+    font-size: 10px;
 }
 
 /* ===== PAINEL DIGITAL CNC (DRO) COMPACTO ===== */
@@ -4691,63 +4803,64 @@ body.print-certificado #certPaper {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-    background: #0A1018;
+    flex-wrap: nowrap;
+    gap: 8px;
+    background: #070C12;
     border: 1px solid var(--line-soft);
-    border-radius: 8px;
-    padding: 5px 10px;
+    border-radius: 7px;
+    padding: 4px 8px;
     margin-bottom: 0;
 }
 .sim-dro-axes {
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 5px;
+    flex-wrap: nowrap;
 }
 .dro-axis {
     display: flex;
     align-items: baseline;
-    gap: 5px;
+    gap: 4px;
     background: #0F1824;
     border: 1px solid #1E2D40;
     border-radius: 5px;
-    padding: 3px 8px;
-    min-width: 104px;
+    padding: 2px 6px;
+    min-width: 92px;
 }
 .dro-k {
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
 }
 .dro-k.axis-x { color: #FF6B6B; }
 .dro-k.axis-y { color: #5FD98A; }
 .dro-k.axis-z { color: #6FD3E0; }
 .dro-v {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 11px;
     color: #E7ECF2;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.3px;
     margin-left: auto;
 }
 .dro-u {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 8.5px;
+    font-size: 8px;
     color: var(--text-dim);
 }
 .sim-dro-modals {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-wrap: wrap;
 }
 .dro-chip {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 9.5px;
     background: var(--surface-2);
     border: 1px solid var(--line-soft);
     color: var(--text-muted);
-    padding: 2px 7px;
+    padding: 2px 6px;
     border-radius: 5px;
+    white-space: nowrap;
 }
 .dro-chip-tool {
     color: var(--cyan);
@@ -4758,7 +4871,7 @@ body.print-certificado #certPaper {
     border-color: rgba(95, 217, 138, 0.4);
 }
 .sim-dro-stats {
-    min-width: 155px;
+    min-width: 165px;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -4767,8 +4880,10 @@ body.print-certificado #certPaper {
 .dro-rem-head {
     display: flex;
     justify-content: space-between;
+    gap: 10px;
+    white-space: nowrap;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 9.5px;
     color: var(--text-muted);
 }
 .dro-rem-bar {

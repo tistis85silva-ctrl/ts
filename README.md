@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v7.0.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v7.1.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,17 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v7.1.0 — Painel Workstation Organizado em Cartões CAM + Vistas Rápidas 3D & Biblioteca de Materiais
+- **🎛️ Novo Layout do Painel de Comando do Simulador (`.sim-cockpit-deck` organizado em 4 Faixas Limpas)**:
+  - **Faixa 1 (Sticky)**: Transporte de Execução + Slider + Botão `🔼 Compactar Ajustes` (`#simToggleDeck`) lado a lado com o Visor Digital DRO (`X, Y, Z`, modais e progresso corrigido)
+  - **Faixa 2 (Grid 3 Cartões CAM)**:
+    1. `📍 1. Peça, Origem G54 & Material` (com **novo seletor de Liga Metálica `#simMaterialSelect`**: *Aço SAE 1020*, *SAE 4140*, *Alumínio 6061-T6*, *Inox AISI 304* e *Latão C360* integrado ao Estudo de Custos!)
+    2. `🛠️ 2. Estratégia CAM & Ciclos` (*Usinagem*, *Furação G81/G82/G83*, *Cavidade* e *➕ Cavidade pelo Centro*)
+    3. `🔨 3. Remoção de Material por Vez (Passes)` (*Passe `ap`*, *Mergulho `Q`* e *Sobremetal*)
+  - **Faixa 3 (Visão, Câmera 3D & Cores T01..T05)**: adiciona **novos botões de ângulo rápido da câmera 3D (`🧊 3D Iso`, `⬆️ Topo`, `➡️ Frente`, `↗️ Perfil`)** na mesma linha das cores por ferramenta
+  - **Faixa 4 (Etapas CNC)**: chips de operação com quebra automática limpa (sem barra de rolagem horizontal grossa no meio da tela!) e peça 3D centralizada no canvas
+
 
 ### v7.0.0 — Edição Mestre de Chão de Fábrica
 - **💦 Jato de Fluido Refrigerante (`M08`) + Cavacos Metálicos em 3D (`#simToggleCoolant`)**:

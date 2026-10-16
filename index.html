@@ -94,7 +94,7 @@
                     <div class="logo-big">
                         <div class="logo-mark-big"></div>
                         <h1>COTA<span>.</span></h1>
-                        <span class="splash-ver-pill">v7.0.0 PRO</span>
+                        <span class="splash-ver-pill">v7.1.0 PRO</span>
                     </div>
                     <div class="sub">DO DESENHO TÉCNICO À PEÇA PRONTA</div>
                     <p class="splash-tagline">
@@ -161,7 +161,7 @@
                 </div>
             </div>
 
-            <div class="version">v7.0.0 · COTA Workstation CAD + CNC · Pronto para Chão de Fábrica &amp; Treinamento</div>
+            <div class="version">v7.1.0 · COTA Workstation CAD + CNC · Pronto para Chão de Fábrica &amp; Treinamento</div>
         </div>
     </div>
 
@@ -376,138 +376,193 @@
         </div>
 
         <div class="sim-cockpit">
-            <!-- BARRA SUPERIOR FIXA E COMPACTA (TRANSPORTE + OPÇÕES 3D + DRO + OPERAÇÕES) -->
-            <div class="sim-cockpit-deck">
-                <div class="sim-toolbar">
-                    <div class="sim-transport" role="group" aria-label="Controles de reprodução da simulação">
-                        <button type="button" class="btn btn-sm" id="simFirst" title="Voltar ao bloco 0 (100% material bruto)">⏮ Bruto</button>
-                        <button type="button" class="btn btn-sm" id="simPrev" title="Recuar 1 bloco">⏪ -1</button>
-                        <button type="button" class="btn btn-accent btn-sm" id="simPlay">▶ Reproduzir</button>
-                        <button type="button" class="btn btn-sm" id="simNext" title="Avançar 1 bloco">⏩ +1</button>
-                        <button type="button" class="btn btn-sm" id="simLast" title="Ir para o final da usinagem">⏭ Fim</button>
-                        <button type="button" class="btn btn-sm" id="simReset" title="Reiniciar simulação">↺ Início</button>
-                    </div>
-                    <input type="range" id="simSlider" min="0" max="0" value="0" class="sim-slider" aria-label="Avançar blocos do programa">
-                    <span class="sim-counter" id="simCounter">0/0 blocos</span>
-                    <label class="sim-speed-label" for="simSpeed">Vel.
-                        <select id="simSpeed" class="sim-speed-select" aria-label="Velocidade da simulação">
-                            <option value="0.5">0.5×</option>
-                            <option value="1" selected>1×</option>
-                            <option value="2">2×</option>
-                            <option value="4">4×</option>
-                        </select>
-                    </label>
-                    <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D">
-                        <button type="button" class="chip sim-toggle-btn active" id="simToggleToolColors" aria-pressed="true" title="Colorir as superfícies usinadas e o percurso com a cor de cada ferramenta (T01..T05)">🎨 Cores p/ Ferramenta</button>
-                        <button type="button" class="chip sim-toggle-btn active" id="simToggleCoolant" aria-pressed="true" title="Mostrar jato de fluido refrigerante (M08) e cavacos metálicos saindo da ponta da ferramenta">💦 Fluido M08 &amp; Cavacos</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simToggleSound" aria-pressed="false" title="Ativar/desativar som sintetizado realista do spindle CNC durante a usinagem">🔇 Som CNC</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A)">🔪 Corte A-A</button>
-                        <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar/ocultar percurso">🧭 Percurso</button>
-                        <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar/ocultar ferramenta 3D">🔧 Ferramenta</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simZoomIn" title="Aproximar vista 3D">➕</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simZoomOut" title="Afastar vista 3D">➖</button>
-                        <button type="button" class="chip sim-toggle-btn" id="simResetCam" title="Restaurar ângulo padrão da vista 3D">🔄 3D</button>
-                    </div>
-                </div>
+            <!-- PAINEL DE COMANDO WORKSTATION ORGANIZADO EM BLOCOS CLAROS -->
+            <div class="sim-cockpit-deck" id="simCockpitDeck">
 
-                <div class="sim-dro-panel" id="simDroPanel" aria-label="Painel digital de coordenadas e telemetria CNC">
-                    <div class="sim-dro-axes">
-                        <div class="dro-axis"><span class="dro-k axis-x">X</span><b class="dro-v" id="simDroX">+000.000</b><span class="dro-u">mm</span></div>
-                        <div class="dro-axis"><span class="dro-k axis-y">Y</span><b class="dro-v" id="simDroY">+000.000</b><span class="dro-u">mm</span></div>
-                        <div class="dro-axis"><span class="dro-k axis-z">Z</span><b class="dro-v" id="simDroZ">+000.000</b><span class="dro-u">mm</span></div>
-                    </div>
-                    <div class="sim-dro-modals">
-                        <span class="dro-chip" id="simModalG">G00 Rápido</span>
-                        <span class="dro-chip dro-chip-tool" id="simModalT">T01 · —</span>
-                        <span class="dro-chip" id="simModalSF">S0 RPM · F0</span>
-                        <span class="dro-chip dro-chip-ok" id="simSafetyBadge">✅ Seguro</span>
-                    </div>
-                    <div class="sim-dro-stats">
-                        <div class="dro-rem-head">
-                            <span id="simRemPct">0% usinado</span>
-                            <span id="simCycleTime">⏱ 00:00</span>
+                <!-- FAIXA 1 (SEMPRE VISÍVEL / STICKY): TRANSPORTE + SLIDER + VISOR DRO DIGITAL -->
+                <div class="sim-deck-top-row">
+                    <div class="sim-toolbar">
+                        <div class="sim-transport" role="group" aria-label="Controles de reprodução da simulação">
+                            <button type="button" class="btn btn-sm" id="simFirst" title="Voltar ao bloco 0 (100% material bruto)">⏮ Bruto</button>
+                            <button type="button" class="btn btn-sm" id="simPrev" title="Recuar 1 bloco">⏪ -1</button>
+                            <button type="button" class="btn btn-accent btn-sm" id="simPlay">▶ Reproduzir</button>
+                            <button type="button" class="btn btn-sm" id="simNext" title="Avançar 1 bloco">⏩ +1</button>
+                            <button type="button" class="btn btn-sm" id="simLast" title="Ir para o final da usinagem">⏭ Fim</button>
+                            <button type="button" class="btn btn-sm" id="simReset" title="Reiniciar simulação">↺ Início</button>
                         </div>
-                        <div class="dro-rem-bar"><div class="dro-rem-fill" id="simRemFill" style="width:0%"></div></div>
+                        <input type="range" id="simSlider" min="0" max="0" value="0" class="sim-slider" aria-label="Avançar blocos do programa">
+                        <span class="sim-counter" id="simCounter">0/0 blocos</span>
+                        <label class="sim-speed-label" for="simSpeed">Vel.
+                            <select id="simSpeed" class="sim-speed-select" aria-label="Velocidade da simulação">
+                                <option value="0.5">0.5×</option>
+                                <option value="1" selected>1×</option>
+                                <option value="2">2×</option>
+                                <option value="4">4×</option>
+                            </select>
+                        </label>
+                        <button type="button" class="btn btn-sm sim-collapse-btn" id="simToggleDeck" title="Recolher ou expandir os cartões de ajustes CAM para ampliar as 3 vistas">
+                            🔼 Compactar Ajustes
+                        </button>
+                    </div>
+
+                    <div class="sim-dro-panel" id="simDroPanel" aria-label="Painel digital de coordenadas e telemetria CNC">
+                        <div class="sim-dro-axes">
+                            <div class="dro-axis"><span class="dro-k axis-x">X</span><b class="dro-v" id="simDroX">+000.000</b><span class="dro-u">mm</span></div>
+                            <div class="dro-axis"><span class="dro-k axis-y">Y</span><b class="dro-v" id="simDroY">+000.000</b><span class="dro-u">mm</span></div>
+                            <div class="dro-axis"><span class="dro-k axis-z">Z</span><b class="dro-v" id="simDroZ">+000.000</b><span class="dro-u">mm</span></div>
+                        </div>
+                        <div class="sim-dro-modals">
+                            <span class="dro-chip" id="simModalG">G00 Rápido</span>
+                            <span class="dro-chip dro-chip-tool" id="simModalT">T01 · —</span>
+                            <span class="dro-chip" id="simModalSF">S0 RPM · F0</span>
+                            <span class="dro-chip dro-chip-ok" id="simSafetyBadge">✅ Seguro</span>
+                        </div>
+                        <div class="sim-dro-stats">
+                            <div class="dro-rem-head">
+                                <span id="simRemPct">0% usinado</span>
+                                <span id="simCycleTime">⏱ 00:00</span>
+                            </div>
+                            <div class="dro-rem-bar"><div class="dro-rem-fill" id="simRemFill" style="width:0%"></div></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="sim-strategy-bar" id="simStrategyBar" role="group" aria-label="Funções de usinagem e ponto zero">
-                    <label class="sim-strat-item" for="simPartSelect" title="Trocar de peça direto no simulador sem subir a tela">
-                        <span>🔧 Peça:</span>
-                        <select id="simPartSelect" class="sim-speed-select"></select>
-                    </label>
-                    <label class="sim-strat-item" for="simZeroSelect" title="Escolher onde fica a origem G54 (Zero-Peça)">
-                        <span>📍 Zero G54:</span>
-                        <select id="simZeroSelect" class="sim-speed-select">
-                            <option value="center" selected>🎯 Centro da Peça (X0 Y0)</option>
-                            <option value="bl">📐 Canto Inf. Esq. (X+ Y+)</option>
-                            <option value="tl">🗜️ Canto Sup. Esq. (Morsa Fixa)</option>
-                            <option value="tr">📐 Canto Sup. Dir.</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simDrillSelect" title="Escolher ciclo fixo de furação (G81, G82 ou G83 pica-pau)">
-                        <span>🔩 Furação:</span>
-                        <select id="simDrillSelect" class="sim-speed-select">
-                            <option value="auto" selected>Padrão da peça</option>
-                            <option value="G83">G83 Pica-Pau (Quebra-cavaco Q)</option>
-                            <option value="G81">G81 Simples (Direto)</option>
-                            <option value="G82">G82 Com Demora (Fundo liso P)</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simPassSelect" title="Escolher entre Desbaste + Acabamento, Só Desbaste (com sobremetal) ou Só Acabamento">
-                        <span>🛠️ Usinagem:</span>
-                        <select id="simPassSelect" class="sim-speed-select">
-                            <option value="both" selected>🔨+💎 Desbaste + Acabamento</option>
-                            <option value="rough">🔨 Só Desbaste (deixa sobremetal)</option>
-                            <option value="finish">💎 Só Acabamento (passe final)</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simPocketSelect" title="Escolher estratégia de abertura de cavidade/rasgo">
-                        <span>🌀 Cavidade:</span>
-                        <select id="simPocketSelect" class="sim-speed-select">
-                            <option value="spiral" selected>🌀 Pelo Centro (Espiral p/ fora)</option>
-                            <option value="zigzag">⚡ Zig-Zag (Varredura linear)</option>
-                            <option value="helical">⭕ Helicoidal pelo Centro (G02+Z)</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simStepDown" title="Quanto remover de material por passada no desbaste (contorno, cavidade, rasgo, rampa e G71 no torno)">
-                        <span>🔨 Remover/passe (ap):</span>
-                        <select id="simStepDown" class="sim-speed-select">
-                            <option value="0.5">0,5 mm / vez</option>
-                            <option value="1">1,0 mm / vez</option>
-                            <option value="1.5">1,5 mm / vez</option>
-                            <option value="2" selected>2,0 mm / vez</option>
-                            <option value="3">3,0 mm / vez</option>
-                            <option value="5">5,0 mm / vez</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simPeckQ" title="Quanto a broca avança por mergulho no ciclo G83 / G74 (ex.: 1 mm por vez)">
-                        <span>🔩 Mergulho G83 (Q):</span>
-                        <select id="simPeckQ" class="sim-speed-select">
-                            <option value="0.5">0,5 mm / vez</option>
-                            <option value="1" selected>1,0 mm / vez</option>
-                            <option value="1.5">1,5 mm / vez</option>
-                            <option value="2">2,0 mm / vez</option>
-                            <option value="3">3,0 mm / vez</option>
-                            <option value="5">5,0 mm / vez</option>
-                        </select>
-                    </label>
-                    <label class="sim-strat-item" for="simFinishAllow" title="Sobrematerial deixado pelo desbaste para o passe de acabamento limpar">
-                        <span>💎 Sobremetal:</span>
-                        <select id="simFinishAllow" class="sim-speed-select">
-                            <option value="0.1">0,1 mm</option>
-                            <option value="0.2">0,2 mm</option>
-                            <option value="0.3" selected>0,3 mm</option>
-                            <option value="0.5">0,5 mm</option>
-                            <option value="1">1,0 mm</option>
-                        </select>
-                    </label>
-                    <button type="button" class="chip sim-toggle-btn" id="simAddCenterPocket" aria-pressed="false" title="Adicionar ou remover uma usinagem de Cavidade pelo Centro na peça atual">➕ Cavidade pelo Centro</button>
-                </div>
+                <!-- CORPO EXPANSÍVEL DO DECK: 3 CARTÕES ORGANIZADOS + BARRA DE VISUALIZAÇÃO + OPERAÇÕES -->
+                <div class="sim-deck-body" id="simDeckBody">
 
-                <div class="sim-ops-row">
-                    <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
-                    <div class="sim-tool-colors-bar" id="simToolColorsBar" role="group" aria-label="Escolher cores por ferramenta"></div>
+                    <!-- FAIXA 2: 3 CARTÕES CATEGORIZADOS DE ENGENHARIA CAM (SETUP | ESTRATÉGIA | PASSES) -->
+                    <div class="sim-strategy-bar sim-cam-cards-grid" id="simStrategyBar" role="group" aria-label="Funções de usinagem, ponto zero e parâmetros de corte">
+
+                        <!-- CARTÃO 1: PEÇA, ORIGEM G54 & MATERIAL -->
+                        <div class="sim-cam-card">
+                            <div class="sim-cam-card-title">📍 1. Peça, Origem G54 &amp; Material</div>
+                            <div class="sim-cam-card-fields">
+                                <label class="sim-strat-item" for="simPartSelect" title="Trocar de peça direto no simulador sem subir a tela">
+                                    <span>🔧 Peça:</span>
+                                    <select id="simPartSelect" class="sim-speed-select"></select>
+                                </label>
+                                <label class="sim-strat-item" for="simZeroSelect" title="Escolher onde fica a origem G54 (Zero-Peça)">
+                                    <span>📍 Zero G54:</span>
+                                    <select id="simZeroSelect" class="sim-speed-select">
+                                        <option value="center" selected>🎯 Centro da Peça (X0 Y0)</option>
+                                        <option value="bl">📐 Canto Inf. Esq. (X+ Y+)</option>
+                                        <option value="tl">🗜️ Canto Sup. Esq. (Morsa Fixa)</option>
+                                        <option value="tr">📐 Canto Sup. Dir.</option>
+                                    </select>
+                                </label>
+                                <label class="sim-strat-item" for="simMaterialSelect" title="Escolher liga metálica do bloco/barra bruta (atualiza densidade, Vc e custos)">
+                                    <span>🧱 Material:</span>
+                                    <select id="simMaterialSelect" class="sim-speed-select">
+                                        <option value="sae1020" selected>Aço SAE 1020 (7,85 g/cm³)</option>
+                                        <option value="sae4140">Aço SAE 4140 Benef. (7,85 g/cm³)</option>
+                                        <option value="al6061">Alumínio 6061-T6 (2,70 g/cm³)</option>
+                                        <option value="inox304">Aço Inox AISI 304 (8,00 g/cm³)</option>
+                                        <option value="latao">Latão C360 / Bronze (8,50 g/cm³)</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- CARTÃO 2: ESTRATÉGIA DE USINAGEM & CAVIDADE -->
+                        <div class="sim-cam-card">
+                            <div class="sim-cam-card-title">🛠️ 2. Estratégia CAM &amp; Ciclos</div>
+                            <div class="sim-cam-card-fields">
+                                <label class="sim-strat-item" for="simPassSelect" title="Escolher entre Desbaste + Acabamento, Só Desbaste (com sobremetal) ou Só Acabamento">
+                                    <span>🛠️ Usinagem:</span>
+                                    <select id="simPassSelect" class="sim-speed-select">
+                                        <option value="both" selected>🔨+💎 Desbaste + Acabamento</option>
+                                        <option value="rough">🔨 Só Desbaste (c/ sobremetal)</option>
+                                        <option value="finish">💎 Só Acabamento (passe final)</option>
+                                    </select>
+                                </label>
+                                <label class="sim-strat-item" for="simDrillSelect" title="Escolher ciclo fixo de furação (G81, G82 ou G83 pica-pau)">
+                                    <span>🔩 Furação:</span>
+                                    <select id="simDrillSelect" class="sim-speed-select">
+                                        <option value="auto" selected>Padrão da peça</option>
+                                        <option value="G83">G83 Pica-Pau (Quebra-cavaco Q)</option>
+                                        <option value="G81">G81 Simples (Direto)</option>
+                                        <option value="G82">G82 Com Demora (Fundo liso P)</option>
+                                    </select>
+                                </label>
+                                <label class="sim-strat-item" for="simPocketSelect" title="Escolher estratégia de abertura de cavidade/rasgo">
+                                    <span>🌀 Cavidade:</span>
+                                    <select id="simPocketSelect" class="sim-speed-select">
+                                        <option value="spiral" selected>🌀 Pelo Centro (Espiral p/ fora)</option>
+                                        <option value="zigzag">⚡ Zig-Zag (Varredura linear)</option>
+                                        <option value="helical">⭕ Helicoidal pelo Centro (G02+Z)</option>
+                                    </select>
+                                </label>
+                                <button type="button" class="chip sim-toggle-btn" id="simAddCenterPocket" aria-pressed="false" title="Adicionar ou remover uma usinagem de Cavidade pelo Centro na peça atual">➕ Cavidade pelo Centro</button>
+                            </div>
+                        </div>
+
+                        <!-- CARTÃO 3: QUANTO REMOVER DE MATERIAL POR VEZ (PASSES) -->
+                        <div class="sim-cam-card">
+                            <div class="sim-cam-card-title">🔨 3. Remoção de Material por Vez (Passes)</div>
+                            <div class="sim-cam-card-fields">
+                                <label class="sim-strat-item" for="simStepDown" title="Quanto remover de material por passada no desbaste (contorno, cavidade, rasgo, rampa e G71 no torno)">
+                                    <span>🔨 Passe (ap):</span>
+                                    <select id="simStepDown" class="sim-speed-select">
+                                        <option value="0.5">0,5 mm / vez</option>
+                                        <option value="1">1,0 mm / vez</option>
+                                        <option value="1.5">1,5 mm / vez</option>
+                                        <option value="2" selected>2,0 mm / vez</option>
+                                        <option value="3">3,0 mm / vez</option>
+                                        <option value="5">5,0 mm / vez</option>
+                                    </select>
+                                </label>
+                                <label class="sim-strat-item" for="simPeckQ" title="Quanto a broca avança por mergulho no ciclo G83 / G74 (ex.: 1 mm por vez)">
+                                    <span>🔩 Mergulho (Q):</span>
+                                    <select id="simPeckQ" class="sim-speed-select">
+                                        <option value="0.5">0,5 mm / vez</option>
+                                        <option value="1" selected>1,0 mm / vez</option>
+                                        <option value="1.5">1,5 mm / vez</option>
+                                        <option value="2">2,0 mm / vez</option>
+                                        <option value="3">3,0 mm / vez</option>
+                                        <option value="5">5,0 mm / vez</option>
+                                    </select>
+                                </label>
+                                <label class="sim-strat-item" for="simFinishAllow" title="Sobrematerial deixado pelo desbaste para o passe de acabamento limpar">
+                                    <span>💎 Sobremetal:</span>
+                                    <select id="simFinishAllow" class="sim-speed-select">
+                                        <option value="0.1">0,1 mm</option>
+                                        <option value="0.2">0,2 mm</option>
+                                        <option value="0.3" selected>0,3 mm</option>
+                                        <option value="0.5">0,5 mm</option>
+                                        <option value="1">1,0 mm</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FAIXA 3: VISUALIZAÇÃO 3D, ÂNGULOS DE CÂMERA E CORES DAS FERRAMENTAS -->
+                    <div class="sim-visual-bar">
+                        <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D e Câmera">
+                            <span class="sim-bar-tag">👁️ Visão:</span>
+                            <button type="button" class="chip sim-toggle-btn active" id="simToggleToolColors" aria-pressed="true" title="Colorir as superfícies usinadas e o percurso com a cor de cada ferramenta (T01..T05)">🎨 Cores p/ Ferramenta</button>
+                            <button type="button" class="chip sim-toggle-btn active" id="simToggleCoolant" aria-pressed="true" title="Mostrar jato de fluido refrigerante (M08) e cavacos metálicos saindo da ponta da ferramenta">💦 Fluido M08 &amp; Cavacos</button>
+                            <button type="button" class="chip sim-toggle-btn" id="simToggleSound" aria-pressed="false" title="Ativar/desativar som sintetizado realista do spindle CNC durante a usinagem">🔇 Som CNC</button>
+                            <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A)">🔪 Corte A-A</button>
+                            <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar/ocultar percurso">🧭 Percurso</button>
+                            <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar/ocultar ferramenta 3D">🔧 Ferramenta</button>
+                            <span class="sim-bar-sep">|</span>
+                            <span class="sim-bar-tag">🎥 Câmera:</span>
+                            <button type="button" class="chip sim-toggle-btn" id="simZoomIn" title="Aproximar vista 3D">➕</button>
+                            <button type="button" class="chip sim-toggle-btn" id="simZoomOut" title="Afastar vista 3D">➖</button>
+                            <button type="button" class="chip sim-toggle-btn" id="simResetCam" title="Ângulo Isométrico Padrão 3D">🧊 3D Iso</button>
+                            <button type="button" class="chip sim-toggle-btn" id="simCamTop" title="Girar câmera 3D para Vista Superior">⬆️ Topo</button>
+                            <button type="button" class="chip sim-toggle-btn" id="simCamFront" title="Girar câmera 3D para Vista Frontal">➡️ Frente</button>
+                            <button type="button" class="chip sim-toggle-btn" id="simCamSide" title="Girar câmera 3D para Vista Lateral">↗️ Perfil</button>
+                        </div>
+                        <div class="sim-tool-colors-bar" id="simToolColorsBar" role="group" aria-label="Escolher cores por ferramenta"></div>
+                    </div>
+
+                    <!-- FAIXA 4: ATALHOS DE OPERAÇÕES DE USINAGEM (SEM BARRA DE ROLAGEM FEIA) -->
+                    <div class="sim-ops-row">
+                        <span class="sim-bar-tag">📑 Etapas CNC:</span>
+                        <div class="sim-ops-bar" id="simOpsBar" role="group" aria-label="Atalhos para operações de usinagem"></div>
+                    </div>
                 </div>
             </div>
 
@@ -1048,7 +1103,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v7.0.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v7.1.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

@@ -205,6 +205,16 @@ setTimeout(() => {
         assert(!$('#splash').classList.contains('hide'), 'botão Rever Splash reabre a splash');
         $('#splashSkipBtn').click();
         assert($('#simToggleCoolant') && $('#simToggleSound') && $('#simMeasureBadge'), 'botões de Fluido M08, Som CNC e Paquímetro 2D presentes');
+        assert($$('.sim-cam-card').length === 3 && $('#simMaterialSelect') && $('#simCamTop') && $('#simToggleDeck'), '3 cartões CAM organizados, seletor de Material, vistas de câmera 3D e botão Compactar Ajustes');
+        $('#simToggleDeck').click();
+        assert($('#simDeckBody').classList.contains('collapsed'), 'botão Compactar Ajustes recolhe o corpo do deck');
+        $('#simToggleDeck').click();
+        assert(!$('#simDeckBody').classList.contains('collapsed'), 'botão Expandir Ajustes CAM reabre o corpo do deck');
+        $('#simMaterialSelect').value = 'inox304';
+        $('#simMaterialSelect').dispatchEvent(new window.Event('change', { bubbles: true }));
+        assert($('#costMatPrice').value === '46', 'trocar material para Inox 304 atualiza preço do kg no estudo de custos');
+        $('#simMaterialSelect').value = 'sae1020';
+        $('#simMaterialSelect').dispatchEvent(new window.Event('change', { bubbles: true }));
         $('#simTop').dispatchEvent(new window.MouseEvent('click', { bubbles: true, clientX: 60, clientY: 60 }));
         $('#simTop').dispatchEvent(new window.MouseEvent('click', { bubbles: true, clientX: 160, clientY: 120 }));
         assert($('#simMeasureBadge').textContent.includes('ΔL ='), 'paquímetro 2D mediu distância ΔL entre 2 pontos: ' + $('#simMeasureBadge').textContent);
