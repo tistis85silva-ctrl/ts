@@ -5610,17 +5610,66 @@ function setupGeneralEvents() {
 }
 
 // ============================================================
-// SPLASH
+// SPLASH (WORKSTATION CAD/CAM/CNC BOOT SEQUENCE)
 // ============================================================
-function setupSplash() {
+function setupSplash(forceReplay) {
     const splash = $('#splash');
-    const firstOfSession = !sessionStorage.getItem('cota-splashed');
+    if (!splash) return;
+    const statusEl = $('#splashStatus');
+    const pctEl = $('#splashPct');
+    const fillEl = $('#splashProgressFill');
+    const skipBtn = $('#splashSkipBtn');
+    const modCards = $$('#splashModulesGrid .splash-mod-card');
+
+    if (forceReplay) {
+        splash.style.display = 'flex';
+        splash.classList.remove('hide');
+    }
+
+    const firstOfSession = forceReplay || !sessionStorage.getItem('cota-splashed');
     sessionStorage.setItem('cota-splashed', '1');
-    setTimeout(() => {
+
+    const stages = [
+        { pct: 22, mod: 0, msg: '🔧 [1/5] Carregando 10 situações de usinagem (Fresamento & Torneamento)...' },
+        { pct: 48, mod: 1, msg: '🎯 [2/5] Calibrando Simulador 3D Smooth CSG e ferramentas T01..T05...' },
+        { pct: 74, mod: 2, msg: '📘 [3/5] Montando Book Técnico (5 Folhas) & Estudo de Custos Taylor...' },
+        { pct: 92, mod: 3, msg: '🎓 [4/5] Carregando Trilha 64h, Quiz (40 questões) & 12 Fichas A4...' },
+        { pct: 100, mod: 3, msg: '✅ [5/5] Workstation COTA v6.9.0 pronta — Iniciando interface!' }
+    ];
+
+    let closed = false;
+    const timers = [];
+
+    function applyStage(st) {
+        if (closed) return;
+        if (statusEl) statusEl.textContent = st.msg;
+        if (pctEl) pctEl.textContent = st.pct + '%';
+        if (fillEl) fillEl.style.width = st.pct + '%';
+        modCards.forEach((c, idx) => c.classList.toggle('active', idx <= st.mod));
+    }
+
+    function closeSplash() {
+        if (closed) return;
+        applyStage(stages[stages.length - 1]);
+        closed = true;
+        timers.forEach(t => clearTimeout(t));
         splash.classList.add('hide');
-        setTimeout(() => { splash.style.display = 'none'; }, 900);
-    }, firstOfSession ? 1600 : 250);
+        setTimeout(() => { splash.style.display = 'none'; }, 680);
+    }
+
+    if (skipBtn) {
+        skipBtn.onclick = closeSplash;
+    }
+
+    const totalMs = firstOfSession ? 2100 : 1100;
+    const stepMs = Math.floor(totalMs / stages.length);
+    applyStage(stages[0]);
+    for (let i = 1; i < stages.length; i++) {
+        timers.push(setTimeout(() => applyStage(stages[i]), i * stepMs));
+    }
+    timers.push(setTimeout(closeSplash, totalMs + 220));
 }
+window.replaySplash = () => setupSplash(true);
 
 // ============================================================
 // AUTO-INIT — pulso no botão de exemplo
@@ -5697,7 +5746,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.8.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v6.9.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

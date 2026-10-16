@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.8.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v6.9.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,13 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v6.9.0
+- **🚀 Nova Tela Splash Industrial (Workstation CAD/CAM/CNC Boot Screen)**:
+  - **Emblema SVG Animado 3D de Engenharia CNC**: anel encoder CNC graduado girando, peça 3D isométrica com cota `120 ±0,02`, mira `G54` e fresa de topo com canais helicoidais TiN animada em operação com faíscas de corte
+  - **Sequência de Inicialização em 5 Etapas (`0%` → `100%`)**: barra de progresso luminosa, telemetria técnica (`G54`, `G43`, `CSG 64-SEG`, `Taylor`) e 4 cards de módulos que acendem em tempo real
+  - **Botão `🚀 Entrar Agora ⏭` (`#splashSkipBtn`)**: permite pular a animação instantaneamente com 1 clique
+
 
 ### v6.8.0
 - **📌 Primeira Linha Sempre Fixa no Topo para Voltar (`#topFixedBar` + `#simCodeList .sim-code-first-row`)**:
