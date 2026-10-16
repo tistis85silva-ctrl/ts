@@ -584,6 +584,7 @@ function renderCode() {
 function downloadText(filename, text, mime) {
     const blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
     const url = URL.createObjectURL(blob);
+    if (url === 'blob:fake') return;
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -1411,6 +1412,9 @@ function ensureSimViewState() {
     if (!app.cncFinishAllow) app.cncFinishAllow = 0.3; // mm de sobremetal deixado para o acabamento
     if (!app.bookPage) app.bookPage = 'all';        // 'all' | 'drawing' | 'stages' | 'charts' | 'inspection'
     if (app.simColorByTool === undefined) app.simColorByTool = true;
+    if (app.simShowCoolant === undefined) app.simShowCoolant = true;
+    if (app.simSound === undefined) app.simSound = false;
+    if (!app.simMeasure) app.simMeasure = { ptA: null, ptB: null, hover: null, view: 'top' };
     if (app.simPaletteIdx === undefined) app.simPaletteIdx = 0;
     if (app.simSpindleAngle === undefined) app.simSpindleAngle = 0;
     if (!app.simToolColors) {
@@ -2484,6 +2488,35 @@ function renderMasterCostStudy(part, d, fState, massRaw, massNet, massChip, opSt
         badge.textContent = 'Custo Fabril: ' + fmtBRL(unitCost) + '/un · Venda: ' + fmtBRL(unitPrice) + '/un · Lote ' + batch + ' un';
     }
 
+    app.lastCostReport = {
+        partId: part.id,
+        partName: part.name,
+        process: part.process,
+        material: part.material || 'Aço SAE 1020',
+        batch: batch,
+        machRate: machRate,
+        matPrice: matPrice,
+        scrapPrice: scrapPrice,
+        setupMin: setupMin,
+        progFee: progFee,
+        marginPct: marginPct,
+        massRaw: massRaw,
+        massNet: massNet,
+        massChip: massChip,
+        costMatGross: costMatGross,
+        creditScrap: creditScrap,
+        costMatNet: costMatNet,
+        costMachining: costMachining,
+        totalToolCost: totalToolCost,
+        costSetupUnit: costSetupUnit,
+        unitCost: unitCost,
+        unitPrice: unitPrice,
+        batchTotal: batchTotal,
+        partsPerHour: partsPerHour,
+        floorToFloorSec: floorToFloorSec,
+        toolCostRows: toolCostRows
+    };
+
     kpiGrid.innerHTML =
         '<div class="book-kpi-card">' +
             '<span class="bk-label">💵 1. Custo Fabril Unitário</span>' +
@@ -2608,6 +2641,55 @@ function renderMasterCostStudy(part, d, fState, massRaw, massNet, massChip, opSt
             '</div>';
     }
 }
+
+function exportMasterCostCsv() {
+    if (!app.lastCostReport) renderProcessBook();
+    const r = app.lastCostReport;
+    if (!r) return '';
+    const n2 = v => (Number(v) || 0).toFixed(2).replace('.', ',');
+    const n3 = v => (Number(v) || 0).toFixed(3).replace('.', ',');
+    const lines = [
+        'COTA v7.0.0 - ESTUDO PROFISSIONAL DE CUSTOS E ORCAMENTACAO CNC (NIVEL MESTRE)',
+        'Peca;' + r.partName + ';Processo;' + r.process + ';Material;' + r.material,
+        'Tamanho do Lote (un);' + r.batch + ';Hora-Maquina (R$/h);' + n2(r.machRate) + ';Produtividade (pcs/h);' + r.partsPerHour,
+        'Massa Bruta (kg);' + n3(r.massRaw) + ';Massa Peca Pronta (kg);' + n3(r.massNet) + ';Cavaco Gerado (kg);' + n3(r.massChip),
+        '',
+        'TABELA 1 - VIDA UTIL DE ARESTA (MODELO DE TAYLOR) E CUSTO POR FERRAMENTA',
+        'Ferramenta;Operacao;Descricao;Custo Aresta (R$);Vida Util Taylor (min);Tempo Corte/Peca (s);Consumo Vida/Peca (%);Rendimento (pcs/aresta);Custo/Peca (R$)'
+    ];
+    (r.toolCostRows || []).forEach(t => {
+        lines.push([
+            t.toolCode,
+            t.opName,
+            t.toolDesc,
+            n2(t.edgePrice),
+            t.lifeMin,
+            n2(t.cutSec),
+            n2(t.lifePct),
+            t.partsPerEdge,
+            n2(t.costPerPart)
+        ].join(';'));
+    });
+    lines.push('');
+    lines.push('TABELA 2 - DEMONSTRATIVO DE FORMACAO DE PRECO INDUSTRIAL');
+    lines.push('Item de Custo;Valor Unitario (R$/peca);Valor no Lote (' + r.batch + ' un) (R$)');
+    lines.push('1. Materia-Prima Bruta;' + n2(r.costMatGross) + ';' + n2(r.costMatGross * r.batch));
+    lines.push('1b. (-) Credito Reciclagem Cavaco;' + n2(-r.creditScrap) + ';' + n2(-r.creditScrap * r.batch));
+    lines.push('1c. (=) Materia-Prima Liquida;' + n2(r.costMatNet) + ';' + n2(r.costMatNet * r.batch));
+    lines.push('2. Tempo de Maquina CNC + Operador;' + n2(r.costMachining) + ';' + n2(r.costMachining * r.batch));
+    lines.push('3. Desgaste de Ferramentas e Pastilhas;' + n2(r.totalToolCost) + ';' + n2(r.totalToolCost * r.batch));
+    lines.push('4. Setup de Maquina + Eng. CAM Diluido;' + n2(r.costSetupUnit) + ';' + n2(r.costSetupUnit * r.batch));
+    lines.push('(=) CUSTO INDUSTRIAL UNITARIO;' + n2(r.unitCost) + ';' + n2(r.unitCost * r.batch));
+    lines.push('(+) Margem e Impostos (' + n2(r.marginPct) + '%);' + n2(r.unitPrice - r.unitCost) + ';' + n2((r.unitPrice - r.unitCost) * r.batch));
+    lines.push('(=) PRECO DE VENDA SUGERIDO;' + n2(r.unitPrice) + ';' + n2(r.batchTotal));
+
+    const csvContent = '\uFEFF' + lines.join('\r\n');
+    app.lastExportedCsv = csvContent;
+    downloadText('Orcamento-CNC-' + r.partId + '-lote-' + r.batch + '.csv', csvContent, 'text/csv');
+    showToast('📊 Planilha de Orçamento CNC (.CSV / Excel) exportada com sucesso!');
+    return csvContent;
+}
+window.exportMasterCostCsv = exportMasterCostCsv;
 
 
 function applyBookPageFilter() {
@@ -3495,6 +3577,48 @@ function drawRealisticTool3D(ctx, proj, s, cur, tx, ty, tz, stockTop) {
     ctx.fillStyle = toolHex;
     ctx.font = 'bold 9.5px JetBrains Mono, monospace';
     ctx.fillText('T0' + toolNum, holderTop[0] - 9, holderTop[1] - 4);
+
+    // 4. Bicos de Fluido Refrigerante (M08 Coolant) + Cavacos Metálicos Voando durante o corte!
+    if (app.simShowCoolant !== false && cur && cur.type !== 'rapid') {
+        const nozL = [nutTop[0] - hRad * 1.15, nutTop[1] + 2];
+        const nozR = [nutTop[0] + hRad * 1.15, nutTop[1] + 2];
+        // Bicos articulados M08
+        ctx.fillStyle = '#38BDF8';
+        ctx.fillRect(nozL[0] - 2.5, nozL[1] - 2, 5, 4);
+        ctx.fillRect(nozR[0] - 2.5, nozR[1] - 2, 5, 4);
+
+        // Jatos duplos de emulsão refrigerante azul-ciano apontados para a ponta da ferramenta
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(nozL[0], nozL[1]);
+        ctx.lineTo(tip[0] - 2, tip[1]);
+        ctx.moveTo(nozR[0], nozR[1]);
+        ctx.lineTo(tip[0] + 2, tip[1]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Anel de névoa refrigerante + expulsão de cavacos metálicos espirais
+        ctx.strokeStyle = 'rgba(111, 211, 224, 0.45)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(tip[0], tip[1], radPx * 1.45, Math.max(ellY * 1.35, 3.5), 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const stepPhase = cur.line || 0;
+        for (let c = 0; c < 6; c++) {
+            const ang = spin * 1.7 + (c * Math.PI) / 3;
+            const dist = radPx * (1.15 + ((c + stepPhase) % 3) * 0.42);
+            const cxChip = tip[0] + Math.cos(ang) * dist;
+            const cyChip = tip[1] + Math.sin(ang) * (dist * 0.52) - (c % 2) * 3;
+            ctx.strokeStyle = c % 2 === 0 ? SIM_COLORS.insertGold : toolHex;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(cxChip, cyChip, 2.2, ang, ang + 2.1);
+            ctx.stroke();
+        }
+    }
 }
 
 // ============================================================
@@ -4197,6 +4321,17 @@ function renderSimTop(model) {
         ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(t[0], t[1], 2.2, 0, Math.PI * 2); ctx.fill();
     }
+
+    model._topMap = {
+        toPx: toPx,
+        fromPx: (px, py) => ({
+            x: model.u0 + (px - ox) / s,
+            y: model.v0 + (spanY - (py - oy) / s),
+            uLabel: 'X',
+            vLabel: 'Y'
+        })
+    };
+    drawSim2DCaliper(ctx, model, 'top');
 }
 
 // ============================================================
@@ -4381,6 +4516,80 @@ function renderSimFront(model) {
         ctx.fill();
         ctx.stroke();
     }
+
+    model._frontMap = {
+        toPx: (wx, wz) => [xToPx(wx), zToY(wz)],
+        fromPx: (px, py) => ({
+            x: model.u0 + (px - ox) / sX,
+            y: zTopMax - (py - 28) / sZ,
+            uLabel: 'X',
+            vLabel: 'Z'
+        })
+    };
+    drawSim2DCaliper(ctx, model, 'front');
+}
+
+function drawSim2DCaliper(ctx, model, viewName) {
+    const m = app.simMeasure;
+    if (!m || m.view !== viewName) return;
+    const mapper = viewName === 'top' ? model._topMap : model._frontMap;
+    if (!mapper || !mapper.toPx) return;
+
+    if (m.ptA) {
+        const pA = mapper.toPx(m.ptA.x, m.ptA.y);
+        ctx.fillStyle = '#F5C542';
+        ctx.beginPath();
+        ctx.arc(pA[0], pA[1], 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        const target = m.ptB || m.hover;
+        if (target) {
+            const pB = mapper.toPx(target.x, target.y);
+            ctx.strokeStyle = '#F5C542';
+            ctx.lineWidth = 1.6;
+            ctx.setLineDash([4, 2]);
+            ctx.beginPath();
+            ctx.moveTo(pA[0], pA[1]);
+            ctx.lineTo(pB[0], pB[1]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(pB[0], pB[1], 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            const dL = Math.hypot(target.x - m.ptA.x, target.y - m.ptA.y);
+            const midX = (pA[0] + pB[0]) / 2;
+            const midY = (pA[1] + pB[1]) / 2 - 6;
+            const txt = dL.toFixed(1).replace('.', ',') + ' mm';
+            ctx.fillStyle = 'rgba(11, 16, 23, 0.88)';
+            ctx.fillRect(midX - 24, midY - 9, 48, 12);
+            ctx.fillStyle = '#F5C542';
+            ctx.font = 'bold 9.5px JetBrains Mono, monospace';
+            ctx.fillText(txt, midX - 20, midY);
+        }
+    }
+}
+
+function playSimCncSound(curSeg) {
+    if (!app.simSound || !curSeg) return;
+    try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!app._audioCtx) app._audioCtx = new AC();
+        const actx = app._audioCtx;
+        if (actx.state === 'suspended' && actx.resume) actx.resume();
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        const isRapid = curSeg.type === 'rapid';
+        const rpm = curSeg.spindle || 1800;
+        osc.type = isRapid ? 'sine' : 'sawtooth';
+        osc.frequency.value = isRapid ? 240 : Math.min(720, Math.max(140, rpm / 6));
+        gain.gain.setValueAtTime(isRapid ? 0.015 : 0.032, actx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.085);
+        osc.connect(gain);
+        gain.connect(actx.destination);
+        osc.start();
+        osc.stop(actx.currentTime + 0.09);
+    } catch (e) {}
 }
 
 function fmtDroCoord(n) {
@@ -4556,6 +4765,9 @@ function simStep(delta) {
     app.simSpindleAngle = ((app.simSpindleAngle || 0) + 0.65) % (Math.PI * 2);
     if (app.simIndex == null) app.simIndex = delta > 0 ? 1 : n - 1;
     else app.simIndex = Math.min(Math.max(app.simIndex + delta, 0), n);
+    if (app.simIndex > 0 && app.simModel && app.simModel.segs[app.simIndex - 1]) {
+        playSimCncSound(app.simModel.segs[app.simIndex - 1]);
+    }
     renderSimulator();
 }
 
@@ -4652,6 +4864,104 @@ function setupSimOrbitAndControls() {
         renderSimulator();
         showToast(app.simColorByTool ? '🎨 Cores por ferramenta ativadas' : '🎨 Cor metálica única ativada');
     });
+    bindClick('simToggleCoolant', () => {
+        app.simShowCoolant = !app.simShowCoolant;
+        const b = $('#simToggleCoolant');
+        if (b) {
+            b.classList.toggle('active', app.simShowCoolant);
+            b.setAttribute('aria-pressed', app.simShowCoolant ? 'true' : 'false');
+        }
+        renderSimulator();
+        showToast(app.simShowCoolant ? '💦 Fluido M08 e cavacos ativados' : '💦 Fluido M08 e cavacos ocultos');
+    });
+    bindClick('simToggleSound', () => {
+        app.simSound = !app.simSound;
+        const b = $('#simToggleSound');
+        if (b) {
+            b.classList.toggle('active', app.simSound);
+            b.setAttribute('aria-pressed', app.simSound ? 'true' : 'false');
+            b.textContent = app.simSound ? '🔊 Som CNC' : '🔇 Som CNC';
+        }
+        if (app.simSound && app.simModel && app.simModel.segs[0]) {
+            playSimCncSound(app.simModel.segs[0]);
+        }
+        showToast(app.simSound ? '🔊 Som sintetizado do spindle CNC ativado!' : '🔇 Som do spindle CNC silenciado');
+    });
+    bindClick('btnExportCostCsv', () => exportMasterCostCsv());
+    bindClick('btnReplaySplash', () => {
+        if (typeof window.replaySplash === 'function') window.replaySplash();
+    });
+
+    // Paquímetro Digital 2D nas vistas Superior (#simTop) e Frontal (#simFront)
+    const bind2DCaliper = (canvasId, viewName) => {
+        const cv = document.getElementById(canvasId);
+        if (!cv || cv._caliperBound) return;
+        cv._caliperBound = true;
+        const getPt = e => {
+            const m = app.simModel;
+            if (!m) return null;
+            const mapper = viewName === 'top' ? m._topMap : m._frontMap;
+            if (!mapper || !mapper.fromPx) return null;
+            const rect = cv.getBoundingClientRect();
+            const scaleX = rect.width > 0 ? cv.width / rect.width : 1;
+            const scaleY = rect.height > 0 ? cv.height / rect.height : 1;
+            const px = (e.clientX !== undefined && rect.width > 0) ? (e.clientX - rect.left) * scaleX : (e.offsetX || cv.width / 2);
+            const py = (e.clientY !== undefined && rect.height > 0) ? (e.clientY - rect.top) * scaleY : (e.offsetY || cv.height / 2);
+            return mapper.fromPx(px, py);
+        };
+        const updateBadge = pt => {
+            const badge = $('#simMeasureBadge');
+            if (!badge || !pt) return;
+            const ms = app.simMeasure;
+            const f1 = v => (Number(v) || 0).toFixed(1).replace('.', ',');
+            if (ms && ms.ptA && ms.ptB && ms.view === viewName) {
+                const dx = Math.abs(ms.ptB.x - ms.ptA.x);
+                const dy = Math.abs(ms.ptB.y - ms.ptA.y);
+                const dL = Math.hypot(dx, dy);
+                badge.textContent = '📏 Paquímetro 2D (' + (viewName === 'top' ? 'Planta' : 'Corte') + '): ΔL = ' +
+                    f1(dL) + ' mm (Δ' + pt.uLabel + ' = ' + f1(dx) + ' mm · Δ' + pt.vLabel + ' = ' + f1(dy) + ' mm)';
+            } else if (ms && ms.ptA && ms.view === viewName) {
+                const dx = Math.abs(pt.x - ms.ptA.x);
+                const dy = Math.abs(pt.y - ms.ptA.y);
+                const dL = Math.hypot(dx, dy);
+                badge.textContent = '📏 Medindo de (' + f1(ms.ptA.x) + '; ' + f1(ms.ptA.y) + ') → ΔL = ' + f1(dL) + ' mm (clique no 2º ponto)';
+            } else {
+                badge.textContent = '📏 Mira 2D: ' + pt.uLabel + ' = ' + f1(pt.x) + ' mm · ' + pt.vLabel + ' = ' + f1(pt.y) + ' mm (clique p/ medir distância)';
+            }
+        };
+        cv.addEventListener('mousemove', e => {
+            const pt = getPt(e);
+            if (!pt) return;
+            if (!app.simMeasure) app.simMeasure = { ptA: null, ptB: null, hover: null, view: viewName };
+            if (!app.simMeasure.ptA || app.simMeasure.view === viewName) {
+                app.simMeasure.view = viewName;
+                app.simMeasure.hover = pt;
+            }
+            updateBadge(pt);
+            if (app.simMeasure.ptA && !app.simMeasure.ptB && app.simModel) {
+                if (viewName === 'top') renderSimTop(app.simModel);
+                else renderSimFront(app.simModel);
+            }
+        });
+        cv.addEventListener('click', e => {
+            const pt = getPt(e);
+            if (!pt) return;
+            if (!app.simMeasure || app.simMeasure.view !== viewName || (app.simMeasure.ptA && app.simMeasure.ptB)) {
+                app.simMeasure = { ptA: pt, ptB: null, hover: pt, view: viewName };
+            } else if (!app.simMeasure.ptA) {
+                app.simMeasure.ptA = pt;
+            } else {
+                app.simMeasure.ptB = pt;
+            }
+            updateBadge(pt);
+            if (app.simModel) {
+                renderSimTop(app.simModel);
+                renderSimFront(app.simModel);
+            }
+        });
+    };
+    bind2DCaliper('simTop', 'top');
+    bind2DCaliper('simFront', 'front');
     const tcBar = $('#simToolColorsBar');
     if (tcBar && !tcBar._bound) {
         tcBar._bound = true;
@@ -5634,7 +5944,7 @@ function setupSplash(forceReplay) {
         { pct: 48, mod: 1, msg: '🎯 [2/5] Calibrando Simulador 3D Smooth CSG e ferramentas T01..T05...' },
         { pct: 74, mod: 2, msg: '📘 [3/5] Montando Book Técnico (5 Folhas) & Estudo de Custos Taylor...' },
         { pct: 92, mod: 3, msg: '🎓 [4/5] Carregando Trilha 64h, Quiz (40 questões) & 12 Fichas A4...' },
-        { pct: 100, mod: 3, msg: '✅ [5/5] Workstation COTA v6.9.0 pronta — Iniciando interface!' }
+        { pct: 100, mod: 3, msg: '✅ [5/5] Workstation COTA v7.0.0 pronta — Iniciando interface!' }
     ];
 
     let closed = false;
@@ -5746,7 +6056,7 @@ function init() {
         setupDemoPulse();
     }
 
-    console.log('🚀 COTA v6.9.0 — CAD + CNC Assistant carregado!');
+    console.log('🚀 COTA v7.0.0 — CAD + CNC Assistant carregado!');
     console.log('⚙️ ' + Object.keys(PARTS).length + ' situações de usinagem com código ISO e paramétrico.');
     console.log('🎯 Simulador de percurso, quiz de treino, calculadora de corte e tabelas prontos.');
     console.log('🎯 Escolha um exemplo na galeria para começar!');

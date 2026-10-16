@@ -94,7 +94,7 @@
                     <div class="logo-big">
                         <div class="logo-mark-big"></div>
                         <h1>COTA<span>.</span></h1>
-                        <span class="splash-ver-pill">v6.9.0 PRO</span>
+                        <span class="splash-ver-pill">v7.0.0 PRO</span>
                     </div>
                     <div class="sub">DO DESENHO TÉCNICO À PEÇA PRONTA</div>
                     <p class="splash-tagline">
@@ -161,7 +161,7 @@
                 </div>
             </div>
 
-            <div class="version">v6.9.0 · COTA Workstation CAD + CNC · Pronto para Chão de Fábrica &amp; Treinamento</div>
+            <div class="version">v7.0.0 · COTA Workstation CAD + CNC · Pronto para Chão de Fábrica &amp; Treinamento</div>
         </div>
     </div>
 
@@ -177,6 +177,9 @@
             </div>
             <button type="button" class="btn-back-top" id="btnBackTop" data-scroll-to="hero" title="Voltar para o início (topo da página)">
                 ⬆️ Voltar ao Topo
+            </button>
+            <button type="button" class="btn-back-top" id="btnReplaySplash" title="Rever a Tela Splash de Inicialização">
+                ✨ Splash
             </button>
             <label class="header-part-picker" for="headerPartSelect" title="Trocar de peça de qualquer ponto da página">
                 <span>🔧</span>
@@ -396,6 +399,8 @@
                     </label>
                     <div class="sim-toggles" role="group" aria-label="Opções de visualização 3D">
                         <button type="button" class="chip sim-toggle-btn active" id="simToggleToolColors" aria-pressed="true" title="Colorir as superfícies usinadas e o percurso com a cor de cada ferramenta (T01..T05)">🎨 Cores p/ Ferramenta</button>
+                        <button type="button" class="chip sim-toggle-btn active" id="simToggleCoolant" aria-pressed="true" title="Mostrar jato de fluido refrigerante (M08) e cavacos metálicos saindo da ponta da ferramenta">💦 Fluido M08 &amp; Cavacos</button>
+                        <button type="button" class="chip sim-toggle-btn" id="simToggleSound" aria-pressed="false" title="Ativar/desativar som sintetizado realista do spindle CNC durante a usinagem">🔇 Som CNC</button>
                         <button type="button" class="chip sim-toggle-btn" id="simSectionCut" aria-pressed="false" title="Cortar a peça ao meio (Seção A-A)">🔪 Corte A-A</button>
                         <button type="button" class="chip sim-toggle-btn active" id="simTogglePath" aria-pressed="true" title="Mostrar/ocultar percurso">🧭 Percurso</button>
                         <button type="button" class="chip sim-toggle-btn active" id="simToggleTool" aria-pressed="true" title="Mostrar/ocultar ferramenta 3D">🔧 Ferramenta</button>
@@ -525,12 +530,15 @@
 
                 <div class="sim-col-2d">
                     <div class="sim-view">
-                        <h4 class="sim-view-title" id="simTopTitle">⬛ Vista superior (X × Y) <span class="sim-hint">planta</span></h4>
+                        <h4 class="sim-view-title" id="simTopTitle">⬛ Vista superior (X × Y) <span class="sim-hint">passe o mouse ou clique p/ medir</span></h4>
                         <canvas id="simTop" width="420" height="205"></canvas>
                     </div>
                     <div class="sim-view">
-                        <h4 class="sim-view-title" id="simFrontTitle">🏔️ Vista frontal em corte (X × Z) <span class="sim-hint">seção A-A</span></h4>
+                        <h4 class="sim-view-title" id="simFrontTitle">🏔️ Vista frontal em corte (X × Z) <span class="sim-hint">seção A-A · clique p/ paquímetro</span></h4>
                         <canvas id="simFront" width="420" height="205"></canvas>
+                        <div class="sim-measure-bar" id="simMeasureBadge" title="Clique em 2 pontos na Vista Superior ou Frontal para medir a distância exata com o paquímetro virtual">
+                            📏 Paquímetro 2D: passe o mouse ou clique em 2 pontos nas vistas 2D para medir (mm)
+                        </div>
                     </div>
                 </div>
 
@@ -782,6 +790,9 @@
                     <span>📈 Margem+Imp. (%):</span>
                     <input type="number" id="costMarginPct" class="cost-num-input" value="30" min="0" step="5">
                 </label>
+                <button type="button" class="btn btn-accent btn-sm" id="btnExportCostCsv" style="margin-left:auto;" title="Baixar planilha completa de orçamento CNC e tempos por ferramenta em formato Excel (.CSV)">
+                    📊 Exportar Orçamento (.CSV / Excel)
+                </button>
             </div>
 
             <div class="book-kpi-grid" id="costKpiGrid"></div>
@@ -1037,7 +1048,7 @@
 
     <!-- ===== FOOTER ===== -->
     <footer>
-        COTA v6.9.0 — CAD + CNC Assistant · Do desenho à peça pronta
+        COTA v7.0.0 — CAD + CNC Assistant · Do desenho à peça pronta
     </footer>
 
     <!-- ===== TOAST ===== -->

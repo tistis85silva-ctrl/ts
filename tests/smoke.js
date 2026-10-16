@@ -201,6 +201,13 @@ setTimeout(() => {
         assert($('#splash .splash-svg') && $$('#splash .splash-mod-card').length === 4 && $('#splashSkipBtn'), 'tela splash industrial com SVG CNC, 4 módulos e botão Entrar Agora');
         $('#splashSkipBtn').click();
         assert($('#splash').classList.contains('hide') && $('#splashPct').textContent === '100%', 'botão Entrar Agora completa 100% e fecha a splash');
+        $('#btnReplaySplash').click();
+        assert(!$('#splash').classList.contains('hide'), 'botão Rever Splash reabre a splash');
+        $('#splashSkipBtn').click();
+        assert($('#simToggleCoolant') && $('#simToggleSound') && $('#simMeasureBadge'), 'botões de Fluido M08, Som CNC e Paquímetro 2D presentes');
+        $('#simTop').dispatchEvent(new window.MouseEvent('click', { bubbles: true, clientX: 60, clientY: 60 }));
+        $('#simTop').dispatchEvent(new window.MouseEvent('click', { bubbles: true, clientX: 160, clientY: 120 }));
+        assert($('#simMeasureBadge').textContent.includes('ΔL ='), 'paquímetro 2D mediu distância ΔL entre 2 pontos: ' + $('#simMeasureBadge').textContent);
         assert(/^[+-]\d{3}\.\d{3}$/.test($('#simDroX').textContent), 'DRO X formatado: ' + $('#simDroX').textContent);
     });
     step('simulador 3D: estratégias CNC (Furação G83/G81/G82, Desbaste/Acabamento, Cavidade pelo Centro e Zero G54)', () => {
@@ -337,6 +344,8 @@ setTimeout(() => {
         assert(cost1 !== cost50, 'mudar o tamanho do lote recalcula o custo unitário ao vivo');
         batchSel.value = '50';
         batchSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+        const csvOut = window.exportMasterCostCsv();
+        assert(csvOut.includes('MODELO DE TAYLOR') && csvOut.includes('PRECO DE VENDA SUGERIDO'), 'exportação CSV/Excel do estudo de custos mestre funcional');
     });
 
     // ===== Quiz =====

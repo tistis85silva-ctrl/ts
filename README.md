@@ -14,7 +14,7 @@ programas de CNC são recalculados na hora.
 
 ## 📦 Instalação (Windows)
 
-O **COTA-Instalador-v6.9.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
+O **COTA-Instalador-v7.0.0.zip** (em [`instalador/`](instalador/) e nos [Releases](https://github.com/tistis85silva-ctrl/ts/releases))
 instala o app nos PCs da empresa em 2 minutos, **sem administrador**:
 
 1. Extraia o ZIP e clique duas vezes em **`instalar-cota.bat`**
@@ -137,6 +137,19 @@ js/app.js         UI: galeria, features, folha, CNC, trilha, sessão
 - **Acessibilidade**: teclado, `aria-*`, `prefers-reduced-motion`, órbita 3D em touch
 
 ## Histórico
+
+### v7.0.0 — Edição Mestre de Chão de Fábrica
+- **💦 Jato de Fluido Refrigerante (`M08`) + Cavacos Metálicos em 3D (`#simToggleCoolant`)**:
+  - Bicos articulados de refrigeração `M08` lançando jatos duplos azul-ciano na ponta da ferramenta + cavacos metálicos espirais saltando da zona de corte durante os blocos de usinagem
+- **🔊 Som Sintetizado Realista do Spindle CNC (`#simToggleSound` via Web Audio API)**:
+  - Áudio 100% nativo e offline proporcional à rotação `S (RPM)` e ao regime de operação (`G01/G02/G03` corte vs. `G00` avanço rápido)
+- **📏 Paquímetro Digital 2D nas Vistas Superior e Frontal (`#simMeasureBadge`)**:
+  - Passe o mouse para ler as coordenadas reais em `mm` ou clique em 2 pontos nas vistas 2D para medir a distância exata `ΔL` com linha de cota na tela
+- **📊 Exportação do Orçamento Mestre em Planilha `.CSV / Excel` (`#btnExportCostCsv`)**:
+  - Baixa planilha completa compatível com Microsoft Excel (BOM UTF-8 + `;`) com tempos por ferramenta, vida útil de Taylor e formação de preço do lote
+- **✨ Botão `✨ Splash` na Primeira Linha Fixa (`#btnReplaySplash`)**:
+  - Permite rever a Tela Splash Industrial a qualquer momento com 1 clique
+
 
 ### v6.9.0
 - **🚀 Nova Tela Splash Industrial (Workstation CAD/CAM/CNC Boot Screen)**:

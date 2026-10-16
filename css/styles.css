@@ -4439,6 +4439,20 @@ body.print-certificado #certPaper {
 .sim-mat-ic {
     font-size: 13px;
 }
+.sim-measure-bar {
+    margin-top: 6px;
+    padding: 5px 10px;
+    background: #0D1622;
+    border: 1px solid rgba(111, 211, 224, 0.35);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--cyan);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
 .sim-mat-legend {
     margin-left: auto;
     display: flex;
